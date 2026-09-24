@@ -30,6 +30,22 @@ func (n *Node) Get(key string) *Node {
 	return nil
 }
 
+// Entries returns n's children, or nil if n is nil.
+func (n *Node) Entries() []*Node {
+	if n == nil {
+		return nil
+	}
+	return n.Children
+}
+
+// ValueOf returns the value of the child with key, or "" if it is missing.
+func (n *Node) ValueOf(key string) string {
+	if c := n.Get(key); c != nil {
+		return c.Value
+	}
+	return ""
+}
+
 // Path follows keys from n downward and returns the node found, or nil.
 func (n *Node) Path(keys ...string) *Node {
 	for _, k := range keys {

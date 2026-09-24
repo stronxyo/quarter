@@ -102,8 +102,18 @@ func TestGetAndPath(t *testing.T) {
 		t.Errorf("missing Path: got %v, want nil", got)
 	}
 
+	if got := root.Path("Store", "Software", "Valve", "Apps", "620").ValueOf("PLAYTIME"); got != "90" {
+		t.Errorf("ValueOf: got %q, want 90", got)
+	}
+
 	var nilNode *Node
 	if got := nilNode.Get("x"); got != nil {
 		t.Errorf("Get on nil: got %v, want nil", got)
+	}
+	if got := nilNode.Entries(); got != nil {
+		t.Errorf("Entries on nil: got %v, want nil", got)
+	}
+	if got := nilNode.ValueOf("x"); got != "" {
+		t.Errorf("ValueOf on nil: got %q, want empty", got)
 	}
 }
