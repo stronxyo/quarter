@@ -42,7 +42,7 @@ func startup(dir string) string {
 	if !ok {
 		panic("benchmark cache missing")
 	}
-	var m tea.Model = New("", &res, nil)
+	var m tea.Model = New(Options{Cached: &res})
 	m, _ = m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	return m.(Model).View().Content
 }
@@ -61,7 +61,7 @@ func setupBench(tb testing.TB) (dir string, ready Model) {
 	if err := cache.Save(dir, "library.json", 1, lib); err != nil {
 		tb.Fatal(err)
 	}
-	var m tea.Model = New("", &lib, nil)
+	var m tea.Model = New(Options{Cached: &lib})
 	m, _ = m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	return dir, m.(Model)
 }

@@ -24,12 +24,12 @@ var (
 )
 
 const (
-	markerInstalled = "●"
+	markerInstalled = "•"
 	hoursWidth      = 9  // fits "99999.9h"
 	agoWidth        = 13 // fits "11 months ago"
 	maxTableWidth   = 80 // keeps the numbers near the names on wide terminals
 	minListRows     = 8  // the big logo gives way before the list gets shorter than this
-	listChromeRows  = 3  // rows the list spends on its help and page dots
+	listChromeRows  = 1  // the row the list keeps for its page counter
 	logoIndent      = 2  // lines the box up with the section line
 	logoPadTop      = 1
 	logoPadBottom   = 1

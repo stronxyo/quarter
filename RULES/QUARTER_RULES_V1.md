@@ -382,6 +382,8 @@ Checked 2026-09-24 in Batch 0. Anything new stated without a source goes back in
 | 12 | `StateFlags` bit `4` means fully installed | **Verified.** `4` = installed, up to date, playable; `1026` = update started, not playable. Confirmed on this PC: all 13 real manifests are `4`. | [Steam guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3517757180) |
 | 13 | Non-game appids (redistributables, Proton, runtimes) | **Verified**, list in `internal/config/constants.go`. SteamVR (250820), found on this PC, added 2026-09-24. Non-game software (e.g. ShareX) is deliberately kept: Steam's own library lists it too. | [Proton appid guide](https://steamcommunity.com/sharedfiles/filedetails/?id=2013973376), [SteamDB 228980](https://steamdb.info/app/228980/info/) |
 | 14 | Non-Windows default Steam paths | **Verified:** Linux `~/.local/share/Steam` (default, Steam Deck) and `~/.steam/steam`; macOS `~/Library/Application Support/Steam`. | [ArchWiki: Steam](https://wiki.archlinux.org/title/Steam), [PCGamingWiki](https://www.pcgamingwiki.com/wiki/Glossary:Game_data) |
+| 15 | `steam://rungameid/<appid>`, `steam://install/<appid>`, `steam://store/<appid>` | **Verified (community sources + hand test in Batch 3).** The `steam://` handler is registered on this PC (`HKCR\steam\Shell\Open\Command` points at Steam.exe). Valve's own wiki page blocks automated reads. | [Steam forum: browser protocol](https://steamcommunity.com/discussions/forum/1/540744935066349428/), [Valve wiki](https://developer.valvesoftware.com/wiki/Steam_browser_protocol) |
+| 16 | `ShellExecute` is available in `golang.org/x/sys/windows` | **Verified** in v0.48.0 (`zsyscall_windows.go`), with `SW_SHOWNORMAL`. | Module source |
 
 ---
 

@@ -16,6 +16,7 @@ import (
 	"github.com/stronxyo/quarter/internal/cache"
 	"github.com/stronxyo/quarter/internal/config"
 	"github.com/stronxyo/quarter/internal/library"
+	"github.com/stronxyo/quarter/internal/steam"
 	"github.com/stronxyo/quarter/internal/ui"
 )
 
@@ -48,7 +49,7 @@ func runUI(steamPath string) error {
 	if err != nil {
 		// Without a data folder Quarter still runs, just without cache or log.
 		slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
-		_, err := tea.NewProgram(ui.New(steamPath, nil, nil)).Run()
+		_, err := tea.NewProgram(ui.New(ui.Options{SteamPath: steamPath, Open: steam.OpenURI})).Run()
 		return err
 	}
 
@@ -58,7 +59,12 @@ func runUI(steamPath string) error {
 	save := func(r library.Result) error {
 		return cache.Save(dir, config.LibraryCache, config.LibraryCacheVersion, r)
 	}
-	_, err = tea.NewProgram(ui.New(steamPath, loadCachedLibrary(dir, steamPath), save)).Run()
+	_, err = tea.NewProgram(ui.New(ui.Options{
+		SteamPath: steamPath,
+		Cached:    loadCachedLibrary(dir, steamPath),
+		Save:      save,
+		Open:      steam.OpenURI,
+	})).Run()
 	return err
 }
 

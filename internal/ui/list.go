@@ -67,8 +67,7 @@ func newList() list.Model {
 	// big libraries, and rendering them dominated startup time.
 	l.Paginator.Type = paginator.Arabic
 	l.FilterInput.Prompt = "Search: "
-	l.AdditionalShortHelpKeys = keys.shortHelp
-	l.AdditionalFullHelpKeys = keys.fullHelp
+	l.SetShowHelp(false) // Quarter draws its own key help
 	return l
 }
 
