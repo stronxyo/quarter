@@ -126,7 +126,8 @@ Workflow per batch (see `RULES/QUARTER_RULES_V1.md` section 6): spec in `specs/B
 
 - Unit tests for `vdf`, `steam/*` parsers, `filter`, `library/merge`, run against `testdata/`
 - `webapi` tested with `httptest` servers, never the real API in tests
-- UI: key flows checked with `teatest` (search narrows list, filter cycles, Enter emits the launch URI) where cheap; the rest by hand in Windows Terminal
+- UI: key flows tested by calling the model's `Update` and `View` directly (no `teatest`); the look checked by hand in Windows Terminal
+- Speed: `go test ./internal/ui -bench .` for numbers; `TestSpeedTargets` fails the build if startup (5,000 games) passes 100 ms or a search keystroke passes 16 ms
 
 ## Open questions
 

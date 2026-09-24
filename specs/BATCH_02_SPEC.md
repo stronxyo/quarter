@@ -1,7 +1,7 @@
 # Batch 2 Spec: List UI
 
 **Branch:** `batch/02-list-ui`
-**Status:** Draft, awaiting Pablo's approval.
+**Status:** Done (approved 2026-09-24). Changed during the batch by Pablo: sortable columns with relative dates, table capped at 80 columns, boxed gradient logo, section line. Speed targets met.
 **Goal:** the first real screen. Running `quarter` opens a full-screen library list in the terminal: move with `j/k`, search with `/`, change sort and filter, quit with `q`. It opens instantly from a cache and refreshes in the background.
 
 ---
@@ -123,6 +123,15 @@ The brief's targets, made measurable:
 **Files:** `internal/ui/bench_test.go`, `RULES/QUARTER_RULES_V1.md` (teatest removal, stack table), `specs/BATCH_02_SPEC.md`
 
 **Done when:** both targets pass on this PC, with the numbers recorded in this spec.
+
+**Results (2026-09-24, Pablo's PC, 5,000 games):**
+
+| Check | Target | Before fix | After fix |
+|---|---|---|---|
+| Startup (cache to first frame) | < 100 ms | 146 ms avg, 300 MB allocated | ~15 ms avg, 9 MB |
+| Search keystroke | < 16 ms | 2.2 ms | ~1.5 ms |
+
+The profiler showed 97% of startup memory in Bubbles' page dots (one dot per page, ~170 pages, rebuilt on every layout). Switched to the page counter (`3/170`).
 
 **Commit**
 ```

@@ -183,7 +183,7 @@ After any change, the previous batches' "Done when" checks still pass.
 | JSON cache | **stdlib `encoding/json`** | Files in the app data folder. |
 | Logging | **stdlib `log/slog`** | To a file in the app data folder, never to the terminal while the TUI runs. |
 | Flags | **stdlib `flag`** | |
-| Tests | **stdlib `testing`** + `teatest` for UI flows | Table-driven, against `testdata/`. |
+| Tests | **stdlib `testing`** only | Table-driven, against `testdata/`. UI tested by calling the model's `Update`/`View` directly (`teatest` for v2 is an untagged experimental module, dropped in Batch 2). Speed targets checked by `internal/ui/bench_test.go`. |
 | Lint | **`gofmt`, `go vet`, `staticcheck` 2026.2.1** | Must pass before every close-out. First staticcheck release that supports Go 1.27. |
 | Release | **GoReleaser** | Windows/macOS/Linux, amd64 + arm64. |
 

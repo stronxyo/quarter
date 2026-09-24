@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"charm.land/bubbles/v2/list"
+	"charm.land/bubbles/v2/paginator"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
@@ -62,6 +63,9 @@ func newList() list.Model {
 	l.SetShowTitle(false)
 	l.SetShowFilter(false)
 	l.SetShowStatusBar(false)
+	// A page counter ("3/170") instead of one dot per page: dots don't fit
+	// big libraries, and rendering them dominated startup time.
+	l.Paginator.Type = paginator.Arabic
 	l.FilterInput.Prompt = "Search: "
 	l.AdditionalShortHelpKeys = keys.shortHelp
 	l.AdditionalFullHelpKeys = keys.fullHelp
