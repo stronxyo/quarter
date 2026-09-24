@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"io"
+	"time"
 
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
@@ -16,9 +17,20 @@ type gameItem struct{ library.Game }
 
 func (g gameItem) FilterValue() string { return g.Name }
 
-// rowDelegate draws one game per line: marker, name, hours right-aligned.
+// columns lays out one line: marker, name (takes the free space), played
+// right-aligned, last played. The column header and every row use it, so
+// they always line up. The table never grows past maxTableWidth, so on a wide
+// terminal the numbers stay close to the names.
+func columns(width int, marker, name, played, last string) string {
+	width = min(width, maxTableWidth-rowStyle.GetHorizontalFrameSize())
+	nameWidth := max(width-1-1-hoursWidth-2-agoWidth, 1)
+	return fmt.Sprintf("%s %-*s%*s  %-*s", marker, nameWidth, ansi.Truncate(name, nameWidth, "…"), hoursWidth, played, agoWidth, last)
+}
+
+// rowDelegate draws one game per line.
 type rowDelegate struct {
 	playtimeKnown bool
+	now           func() time.Time
 }
 
 func (d rowDelegate) Height() int                         { return 1 }
@@ -30,31 +42,29 @@ func (d rowDelegate) Render(w io.Writer, m list.Model, index int, item list.Item
 	if !ok {
 		return
 	}
-
 	style := rowStyle
 	if index == m.Index() {
 		style = selectedStyle
 	}
-
 	marker := " "
 	if g.Installed {
 		marker = markerInstalled
 	}
-
-	// Row width minus the style's left padding/border, the marker and gaps.
-	nameWidth := max(m.Width()-style.GetHorizontalFrameSize()-2-1-hoursWidth, 1)
-	name := ansi.Truncate(g.Name, nameWidth, "…")
-	line := fmt.Sprintf("%s %-*s %*s", marker, nameWidth, name, hoursWidth, library.FormatHours(g.Playtime, d.playtimeKnown))
+	line := columns(m.Width()-style.GetHorizontalFrameSize(), marker, g.Name,
+		library.FormatHours(g.Playtime, d.playtimeKnown), library.FormatAgo(g.LastPlayed, d.now()))
 	fmt.Fprint(w, style.Render(line))
 }
 
 func newList() list.Model {
-	l := list.New(nil, rowDelegate{}, 0, 0)
+	l := list.New(nil, rowDelegate{now: time.Now}, 0, 0)
 	l.KeyMap = listKeys()
-	l.Title = "QUARTER"
-	l.Styles.Title = titleStyle
-	l.SetStatusBarItemName("game", "games")
+	// The app draws the title, search box and game count itself.
+	l.SetShowTitle(false)
+	l.SetShowFilter(false)
+	l.SetShowStatusBar(false)
 	l.FilterInput.Prompt = "Search: "
+	l.AdditionalShortHelpKeys = keys.shortHelp
+	l.AdditionalFullHelpKeys = keys.fullHelp
 	return l
 }
 

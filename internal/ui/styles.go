@@ -12,12 +12,15 @@ var (
 	rowStyle      = lipgloss.NewStyle().PaddingLeft(2)
 	selectedStyle = lipgloss.NewStyle().PaddingLeft(1).Bold(true).Foreground(colorAccent).
 			Border(lipgloss.NormalBorder(), false, false, false, true).BorderForeground(colorAccent)
-	dimStyle     = lipgloss.NewStyle().Foreground(colorDim)
-	errorStyle   = lipgloss.NewStyle().Bold(true).Foreground(colorError)
-	messageStyle = lipgloss.NewStyle().Padding(1, 2)
+	dimStyle       = lipgloss.NewStyle().Foreground(colorDim)
+	activeTabStyle = lipgloss.NewStyle().Bold(true).Foreground(colorAccent)
+	errorStyle     = lipgloss.NewStyle().Bold(true).Foreground(colorError)
+	messageStyle   = lipgloss.NewStyle().Padding(1, 2)
 )
 
 const (
 	markerInstalled = "●"
-	hoursWidth      = 9 // fits "99999.9h"
+	hoursWidth      = 9  // fits "99999.9h"
+	agoWidth        = 13 // fits "11 months ago"
+	maxTableWidth   = 80 // keeps the numbers near the names on wide terminals
 )

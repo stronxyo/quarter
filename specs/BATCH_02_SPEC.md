@@ -50,9 +50,9 @@ git push
 
 **Design**
 - `/` opens fuzzy search as you type; `esc` clears it.
-- `o` cycles sort: name, playtime (most first), last played (newest first).
+- **Columns (changed by Pablo during Phase B):** Name, Played and Last played are all visible, with a column header. `n`, `p`, `l` sort by that column; the same key again reverses it. The sorted column shows an arrow. Last played reads like the Steam client ("today", "11 days ago", "6 months ago").
 - `Tab` cycles filter: All, Recent.
-- Header line shows the active filter and sort, e.g. `[All] Recent   sort: playtime`.
+- Header line shows the title, the active filter and the game count ("6 of 11 games" while searching).
 - The selected game stays selected when sort or filter changes (if it is still visible).
 
 **Files:** `internal/ui/list.go`, `internal/ui/app.go`, `internal/library/sort.go` (+ tests), `internal/config/constants.go` (recent window: 14 days)

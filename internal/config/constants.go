@@ -1,6 +1,8 @@
 // Package config holds app-wide paths, settings and constants.
 package config
 
+import "time"
+
 // AppName names the binary and the app data folder.
 const AppName = "quarter"
 
@@ -43,3 +45,6 @@ var NonGameAppIDs = map[uint32]string{
 
 // LogFile is written in DataDir while the UI runs, since the terminal is taken.
 const LogFile = "quarter.log"
+
+// RecentWindow is how far back the Recent filter looks.
+const RecentWindow = 14 * 24 * time.Hour
