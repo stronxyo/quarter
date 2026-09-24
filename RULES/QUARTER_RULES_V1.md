@@ -36,6 +36,7 @@
 4. `PLAN.md`.
 5. `PROJECT_BRIEF.md`.
 6. Memory entries under `~/.claude/projects/C--PROJECTS-Quarter/memory/`.
+7. Installed skills in `.claude/skills/` (golang-code-style, golang-error-handling, golang-performance, golang-benchmark, bubbletea-code-review). They are reference only: where a skill disagrees with this file (e.g. `golang-code-style` using `panic` for impossible cases), this file wins.
 
 If two docs conflict: surface the conflict, propose a resolution, wait for Pablo. Never silently pick one.
 
@@ -48,7 +49,7 @@ If two docs conflict: surface the conflict, propose a resolution, wait for Pablo
 
 ### 0.3 Never modify files without explicit approval
 
-**Approval keywords:** "yes", "dale", "go ahead", "hacelo", "do it", "procede", "make it", or equivalent explicit confirmation of the specific action just proposed.
+**Approval keywords:** "yes", "go", "go ahead", "do it", "make it", or equivalent explicit confirmation of the specific action just proposed.
 
 "Propose", "give me the plan", "how would you do X", "what do you think" means text only. No Edit, Write, `go get`, `go mod tidy` or installs until a keyword arrives.
 
@@ -88,8 +89,7 @@ Minor edits in place. Major restructures bump the version (`QUARTER_RULES_V2.md`
 
 ### 1.1 Language
 
-- **English only.** Replies, code, comments, docs, UI text. Quarter has no localization and no i18n layer.
-- If Pablo writes in Spanish, reply in Spanish for that turn. Everything written to the repo stays English.
+- **English only, always.** Replies, code, comments, docs, UI text. No Spanish words, ever, even if Pablo writes in Spanish. Quarter has no localization and no i18n layer.
 
 ### 1.2 Terse
 
@@ -352,6 +352,8 @@ Do not propose building these until the trigger fires.
 | Store screenshots in the detail pane | After cover art is solid. |
 | Profile-guided optimization (PGO) | `pprof` shows a CPU hot spot the code can't fix directly. |
 | Epic / GOG | v1.0 per the brief's roadmap. |
+| CI pipeline (GitHub Actions) + the `golang-continuous-integration` skill | Batch 8 (release). Skill removed 2026-09-24: not needed before then, and it was flagged Medium risk. Re-check its security rating before reinstalling. |
+| `golangci-lint` (+ the `golang-lint` skill) | `go vet` + `staticcheck` miss a class of bug we actually hit. Removed 2026-09-24 to avoid a config file we don't need yet. |
 | Localization | Never, unless Pablo changes this rule. English only. |
 
 ## Appendix B: Open Decisions
