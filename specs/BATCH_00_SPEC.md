@@ -1,7 +1,7 @@
 # Batch 0 Spec: Setup and verification
 
 **Branch:** `batch/00-setup`
-**Status:** Draft, awaiting Pablo's approval.
+**Status:** Done (approved 2026-09-24). Go 1.27.0 and staticcheck 2026.2.1 installed; Phase C results are in Rules Appendix C.
 **Goal:** a Go toolchain on this machine, a minimal runnable `quarter` binary, and every unverified claim in Rules Appendix C checked against a real source before Batch 1 depends on it.
 
 ---
