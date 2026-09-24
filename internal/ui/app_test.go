@@ -2,6 +2,7 @@ package ui
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -38,7 +39,7 @@ func TestScanFillsList(t *testing.T) {
 		t.Errorf("items: got %d, want 3", n)
 	}
 	view := m.View().Content
-	for _, name := range []string{"Alpha", "Bravo", "Charlie", "QUARTER"} {
+	for _, name := range []string{"Alpha", "Bravo", "Charlie", "[All]"} {
 		if !strings.Contains(view, name) {
 			t.Errorf("view missing %q", name)
 		}
@@ -209,4 +210,81 @@ func TestTableCappedOnWideTerminal(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestLogoWhenTall(t *testing.T) {
+	gameNames := func(n int) []string {
+		out := make([]string, n)
+		for i := range out {
+			out[i] = fmt.Sprintf("Game %02d", i)
+		}
+		return out
+	}
+	tests := []struct {
+		name          string
+		games         int
+		width, height int
+		wantLogo      bool
+	}{
+		{"tall window", 2, 80, 40, true},
+		{"zoomed in, 11 games", 11, 110, 30, true},
+		{"small library, short window", 2, 80, 24, true},
+		{"big library, short window", 40, 80, 24, false},
+		{"narrow window", 2, 50, 40, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var m tea.Model = ready(t, gameNames(tt.games)...)
+			m, _ = m.Update(tea.WindowSizeMsg{Width: tt.width, Height: tt.height})
+			view := ansi.Strip(m.(Model).View().Content)
+
+			hasLogo := strings.Contains(view, "██████╗")
+			if hasLogo != tt.wantLogo {
+				t.Errorf("logo shown: got %v, want %v", hasLogo, tt.wantLogo)
+			}
+			if !tt.wantLogo && !strings.Contains(view, "QUARTER") {
+				t.Error("without the logo, the compact QUARTER badge must show")
+			}
+			if lines := strings.Count(view, "\n") + 1; lines > tt.height {
+				t.Errorf("view is %d lines, taller than the %d-line window", lines, tt.height)
+			}
+		})
+	}
+}
+
+func TestLayoutFollowsSearch(t *testing.T) {
+	names := make([]string, 40)
+	for i := range names {
+		names[i] = fmt.Sprintf("Game %02d", i)
+	}
+	var m tea.Model = ready(t, names...)
+	m, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	mm := m.(Model)
+	mm.list.SetFilterText("Game 07") // narrows to one game, so the logo now fits
+	m, _ = mm.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	view := ansi.Strip(m.(Model).View().Content)
+	if lines := strings.Count(view, "\n") + 1; lines > 24 {
+		t.Errorf("after search the view is %d lines, taller than the window", lines)
+	}
+}
+
+func TestSearchOnSectionLine(t *testing.T) {
+	var m tea.Model = withLibrary(t)
+	m, _ = m.Update(tea.WindowSizeMsg{Width: 120, Height: 24})
+	m, _ = m.Update(press("/"))
+	m, _ = m.Update(press("r"))
+
+	for _, line := range strings.Split(ansi.Strip(m.(Model).View().Content), "\n") {
+		if !strings.Contains(line, "[All]") {
+			continue
+		}
+		if !strings.Contains(line, "Search: r") {
+			t.Errorf("search box should sit on the section line: %q", line)
+		}
+		if w := ansi.StringWidth(line); w > maxTableWidth {
+			t.Errorf("section line is %d wide, want at most %d", w, maxTableWidth)
+		}
+		return
+	}
+	t.Fatal("no section line found")
 }

@@ -10,6 +10,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/stronxyo/quarter/internal/config"
 	"github.com/stronxyo/quarter/internal/library"
@@ -64,11 +65,18 @@ func scan(steamPath string) tea.Cmd {
 	}
 }
 
+// Update handles a message, then lays the screen out again: whether the logo
+// fits depends on how many games are showing, which searches and filters change.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m, cmd := m.update(msg)
+	m.layout()
+	return m, cmd
+}
+
+func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
-		m.layout()
 		return m, nil
 
 	case scanDoneMsg:
@@ -101,7 +109,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m Model) applyScan(msg scanDoneMsg) (tea.Model, tea.Cmd) {
+func (m Model) applyScan(msg scanDoneMsg) (Model, tea.Cmd) {
 	if msg.err != nil {
 		m.state, m.err = stateFailed, msg.err
 		return m, nil
@@ -113,9 +121,7 @@ func (m Model) applyScan(msg scanDoneMsg) (tea.Model, tea.Cmd) {
 	m.warnings = len(msg.res.Warnings)
 	m.games = msg.res.Games
 	m.list.SetDelegate(rowDelegate{playtimeKnown: msg.res.PlaytimeKnown, now: m.now})
-	cmd := m.refreshList()
-	m.layout()
-	return m, cmd
+	return m, m.refreshList()
 }
 
 // refreshList rebuilds the list from the current filter and sort, keeping the
@@ -151,41 +157,71 @@ func nextSort(cur library.SortOrder, desc bool, picked library.SortOrder) (libra
 	return picked, picked.DefaultDesc()
 }
 
-// layout gives the list every row except the header, search line, column
+// layout gives the list every row except the header, section line, column
 // header and footer.
 func (m *Model) layout() {
-	used := 3
-	if m.footer() != "" {
-		used++
+	used := m.chromeRows()
+	if m.showLogo() {
+		used += logoHeight()
 	}
 	m.list.SetSize(m.width, max(m.height-used, 0))
 	// bubbles v2.2.1 sizes the help to the full width, then pads it.
 	m.list.Help.SetWidth(max(m.width-m.list.Styles.HelpStyle.GetHorizontalFrameSize(), 0))
 }
 
-// header shows the title, the filters (active one highlighted) and the count.
-func (m Model) header() string {
-	var parts []string
-	for _, f := range library.Filters() {
-		if f == m.filterBy {
-			parts = append(parts, activeTabStyle.Render("["+f.String()+"]"))
-		} else {
-			parts = append(parts, dimStyle.Render(" "+f.String()+" "))
-		}
+// chromeRows counts the rows outside the list besides the logo: the section
+// line, the column header, and the warnings footer when there is one.
+func (m Model) chromeRows() int {
+	rows := 2
+	if m.footer() != "" {
+		rows++
 	}
-	count := fmt.Sprintf("%d games", len(m.list.Items()))
-	if m.list.IsFiltered() || m.list.SettingFilter() {
-		count = fmt.Sprintf("%d of %d games", len(m.list.VisibleItems()), len(m.list.Items()))
-	}
-	return " " + titleStyle.Render("QUARTER") + "  " + strings.Join(parts, " ") + dimStyle.Render("   "+count)
+	return rows
 }
 
-// searchLine shows the search box while searching, and is blank otherwise.
-func (m Model) searchLine() string {
-	if m.list.SettingFilter() || m.list.IsFiltered() {
-		return "  " + m.list.FilterInput.View()
+// showLogo reports whether the big logo fits alongside a usable list.
+func (m Model) showLogo() bool {
+	return logoFits(m.width, m.height, m.chromeRows(), len(m.list.VisibleItems()))
+}
+
+// header shows the logo above the section line, or the compact badge in
+// front of it when space is short.
+func (m Model) header() string {
+	if m.showLogo() {
+		return renderLogo() + "\n" + m.sectionLine("  ")
 	}
-	return ""
+	return m.sectionLine(" " + titleStyle.Render("QUARTER") + " ")
+}
+
+// sectionLine is the rule above the columns: filters (active one
+// highlighted), the search box while searching, and the game count, with a
+// dim line running out to the table's edge.
+func (m Model) sectionLine(lead string) string {
+	var tabs []string
+	for _, f := range library.Filters() {
+		if f == m.filterBy {
+			tabs = append(tabs, activeTabStyle.Render("["+f.String()+"]"))
+		} else {
+			tabs = append(tabs, dimStyle.Render(" "+f.String()+" "))
+		}
+	}
+
+	searching := m.list.SettingFilter() || m.list.IsFiltered()
+	count := fmt.Sprintf("%d games", len(m.list.Items()))
+	if searching {
+		count = fmt.Sprintf("%d of %d games", len(m.list.VisibleItems()), len(m.list.Items()))
+	}
+
+	line := lead + dimStyle.Render("▸─ ") + strings.Join(tabs, " ") + dimStyle.Render(" ── ")
+	if searching {
+		// Size a copy of the input to its text so the line stays tight.
+		input := m.list.FilterInput
+		input.SetWidth(ansi.StringWidth(input.Value()) + 1)
+		line += input.View() + dimStyle.Render(" ── ")
+	}
+	line += dimStyle.Render(count + " ")
+	fill := min(m.width, maxTableWidth) - ansi.StringWidth(line)
+	return line + dimStyle.Render(strings.Repeat("─", max(fill, 0)))
 }
 
 // columnHeader labels the columns and marks the sorted one with an arrow.
@@ -221,7 +257,7 @@ func (m Model) View() tea.View {
 			"\n\nIf Steam is installed somewhere unusual, start Quarter with:\n  quarter --steam-path <steam folder>\n\n" +
 			dimStyle.Render("q quit"))
 	default:
-		content = strings.Join([]string{m.header(), m.searchLine(), m.columnHeader(), m.list.View()}, "\n")
+		content = strings.Join([]string{m.header(), m.columnHeader(), m.list.View()}, "\n")
 		if f := m.footer(); f != "" {
 			content += "\n" + f
 		}

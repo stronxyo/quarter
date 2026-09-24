@@ -70,6 +70,23 @@ git push
 
 ---
 
+## Phase B2: Logo (added by Pablo during Batch 2)
+
+**Design**
+- The big "ANSI Shadow" QUARTER logo at the top, with a top-to-bottom gradient (coin gold into orange), picked by Pablo from colored previews.
+- "More air" spacing (Pablo's pick): an empty row above, a 4-column left margin, two empty rows below.
+- The logo sits centered in a double-line gold box (matching the logo's shadow lines) as wide as the table (Pablo's pick), so the box's right edge lines up with the end of the section line.
+- Shown as long as the list still gets at least 8 rows (or every game, when fewer than 8 are showing) and the window is wide enough; otherwise the compact `QUARTER` badge takes over. Recomputed on every update, since searching and filtering change how many games show.
+- Section line under the logo (Pablo's pick, cliamp style): `▸─ [All]  Recent ── 11 games ────`, a dim rule to the table edge. While searching, the search box sits on this line (`── Search: roc ── 2 of 11 games ──`), so no extra row is needed.
+- The font is the terminal's choice, not Quarter's. JetBrains Mono is recommended in the README (Batch 8).
+- The gradient colors are named theme colors in `styles.go`, so future themes recolor the logo.
+
+**Files:** `internal/ui/logo.go`, `internal/ui/styles.go`, `internal/ui/app.go`, `internal/ui/app_test.go`
+
+**Done when:** tests show the logo when tall, the badge when short or narrow, and the view never taller than the window.
+
+---
+
 ## Phase C: Instant start from cache
 
 **Design**

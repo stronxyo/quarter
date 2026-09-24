@@ -8,6 +8,11 @@ var (
 	colorDim    = lipgloss.Color("#7F849C")
 	colorError  = lipgloss.Color("#F38BA8")
 
+	// The logo gradient runs from colorLogoTop to colorLogoBottom.
+	colorLogoTop    = lipgloss.Color("#FFE08A")
+	colorLogoBottom = lipgloss.Color("#FF7A3D")
+	colorLogoBorder = colorAccent
+
 	titleStyle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#1E1E2E")).Background(colorAccent).Padding(0, 1)
 	rowStyle      = lipgloss.NewStyle().PaddingLeft(2)
 	selectedStyle = lipgloss.NewStyle().PaddingLeft(1).Bold(true).Foreground(colorAccent).
@@ -23,4 +28,9 @@ const (
 	hoursWidth      = 9  // fits "99999.9h"
 	agoWidth        = 13 // fits "11 months ago"
 	maxTableWidth   = 80 // keeps the numbers near the names on wide terminals
+	minListRows     = 8  // the big logo gives way before the list gets shorter than this
+	listChromeRows  = 3  // rows the list spends on its help and page dots
+	logoIndent      = 2  // lines the box up with the section line
+	logoPadTop      = 1
+	logoPadBottom   = 1
 )
