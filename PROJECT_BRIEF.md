@@ -31,7 +31,7 @@ Speed comes from architecture, not language: the bottlenecks are disk, network a
 - **Startup:** under 100 ms from launch to an interactive list, served from cache.
 - **Never block the UI:** all disk and network work runs in background commands and arrives as messages.
 - **Search:** no dropped keystrokes on a 5,000-game library.
-- **Binary size:** small, built with `-ldflags "-s -w"` (expect roughly 8–12 MB).
+- **Binary size:** small, built with `-ldflags "-s -w"` (expect roughly 8 to 12 MB).
 - **Profile before optimizing:** use `pprof` to find real hot spots. Profile-guided optimization (PGO) only if profiling shows it's worth it.
 - A startup benchmark lives in the repo so regressions are caught.
 

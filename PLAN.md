@@ -70,23 +70,23 @@ type Game struct {
 **M0: Setup**
 - Install Go (not currently on this machine): `winget install GoLang.Go`
 - `git init`, `go mod init github.com/stronxyo/quarter`, add Bubbletea, Bubbles, Lip Gloss, sahilm/fuzzy
-- ✅ `go run ./cmd/quarter` prints a version line
+- Done when: `go run ./cmd/quarter` prints a version line
 
 **M1: Scan**
 - VDF parser, locate Steam, read libraries + manifests, denylist filter
 - `loginusers.vdf` + `localconfig.vdf` for playtime and last played
 - Fixture Steam dir in `testdata/` + unit tests for each parser
-- ✅ `quarter --list` prints your real installed games with playtime
+- Done when: `quarter --list` prints your real installed games with playtime
 
 **M2: List UI**
 - Library pane with fuzzy search (`/`), sort (`o`), filter (`Tab`), `j/k`, status bar, `q`
 - Library index cached to JSON; launch shows cache instantly, rescans in background
 - Startup benchmark (cache → interactive list) added to the repo, target < 100 ms
-- ✅ Browse and search your real library in Windows Terminal
+- Done when: Browse and search your real library in Windows Terminal
 
 **M3: Actions**
 - `Enter` play, `i` install, `s` store page, `f` favourite (persisted in config), `r` refresh
-- ✅ Launch a game from Quarter
+- Done when: Launch a game from Quarter
 
 **Spike: Sixel (time-boxed, ~half a day)**
 - Throwaway prototype: draw one sixel image beside a Bubbletea list, move selection, resize the window
@@ -95,18 +95,18 @@ type Game struct {
 **M4: Detail pane**
 - Two-pane layout, responsive collapse to overlay on narrow terminals
 - Store `appdetails` fetch for the selected game, rate limiter, cache (refresh window: days)
-- ✅ Select a game, see developer / year / genres / description / playtime
+- Done when: Select a game, see developer / year / genres / description / playtime
 
 **M5: Web API**
 - Setup wizard (key only; SteamID64 auto-detected), plain-text storage notice
 - `GetOwnedGames` merges in uninstalled games; private-profile detection and message
 - Achievements fetched lazily for the selected game, progress bar
-- ✅ Uninstalled games appear with `○`; achievements show in the detail pane
+- Done when: Uninstalled games appear with `○`; achievements show in the detail pane
 
 **M6: Cover art**
 - Art source chain: `librarycache` → disk cache → CDN
 - Half-block renderer (plus sixel, if the spike said yes)
-- ✅ Cover art in the detail pane
+- Done when: Cover art in the detail pane
 
 **M7: Polish**
 - `?` help overlay, "INSERT COIN" first-run splash, "GAME OVER" on quit
@@ -114,7 +114,7 @@ type Game struct {
 - Check the performance targets from the brief (startup, 5,000-game search); `pprof` any misses
 - GoReleaser config: Windows/macOS/Linux × amd64/arm64, stripped binaries
 - Smoke test `quarter.exe` on a clean terminal; Linux build on a Steam Deck if one is available
-- ✅ v0.1 tagged
+- Done when: v0.1 tagged
 
 ## Testing
 
