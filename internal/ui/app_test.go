@@ -24,7 +24,7 @@ func ready(t *testing.T, games ...string) Model {
 	for i, name := range games {
 		res.Games = append(res.Games, library.Game{AppID: uint32(i + 1), Name: name, Installed: true})
 	}
-	var m tea.Model = New("")
+	var m tea.Model = New("", nil, nil)
 	m, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m, _ = m.Update(scanDoneMsg{res: res})
 	return m.(Model)
@@ -67,7 +67,7 @@ func TestQuit(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var m tea.Model = ready(t, "Alpha")
 			if name == "failed" {
-				m, _ = New("").Update(scanDoneMsg{err: errors.New("not found")})
+				m, _ = New("", nil, nil).Update(scanDoneMsg{err: errors.New("not found")})
 			}
 			_, cmd := m.Update(press("q"))
 			if cmd == nil {
@@ -81,7 +81,7 @@ func TestQuit(t *testing.T) {
 }
 
 func TestSteamNotFound(t *testing.T) {
-	m, _ := New("").Update(scanDoneMsg{err: errors.New("steam install not found")})
+	m, _ := New("", nil, nil).Update(scanDoneMsg{err: errors.New("steam install not found")})
 	view := m.(Model).View().Content
 	if !strings.Contains(view, "Steam not found") || !strings.Contains(view, "--steam-path") {
 		t.Errorf("error screen missing guidance:\n%s", view)
@@ -89,7 +89,7 @@ func TestSteamNotFound(t *testing.T) {
 }
 
 func TestWarningsFooter(t *testing.T) {
-	var m tea.Model = New("")
+	var m tea.Model = New("", nil, nil)
 	m, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m, _ = m.Update(scanDoneMsg{res: library.Result{
 		Games:    []library.Game{{AppID: 1, Name: "Alpha"}},
@@ -118,7 +118,7 @@ func withLibrary(t *testing.T) Model {
 		{AppID: 2, Name: "Bravo", Playtime: 50 * time.Hour, LastPlayed: now.Add(-24 * time.Hour)},
 		{AppID: 3, Name: "Rocket League", Playtime: 20 * time.Hour},
 	}}
-	m := New("")
+	m := New("", nil, nil)
 	m.now = func() time.Time { return now }
 	var tm tea.Model = m
 	tm, _ = tm.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -287,4 +287,82 @@ func TestSearchOnSectionLine(t *testing.T) {
 		return
 	}
 	t.Fatal("no section line found")
+}
+
+// run executes a command and any batch it expands into, discarding messages.
+func run(cmd tea.Cmd) {
+	if cmd == nil {
+		return
+	}
+	if batch, ok := cmd().(tea.BatchMsg); ok {
+		for _, c := range batch {
+			run(c)
+		}
+	}
+}
+
+func cached(names ...string) *library.Result {
+	res := &library.Result{PlaytimeKnown: true}
+	for i, n := range names {
+		res.Games = append(res.Games, library.Game{AppID: uint32(i + 1), Name: n, Installed: true})
+	}
+	return res
+}
+
+func TestCachedStartIsInstant(t *testing.T) {
+	var m tea.Model = New("", cached("Alpha", "Bravo"), nil)
+	m, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	view := ansi.Strip(m.(Model).View().Content)
+	if m.(Model).state != stateReady || !strings.Contains(view, "Bravo") {
+		t.Fatalf("cached games should show before any scan:\n%s", view)
+	}
+	if !strings.Contains(view, "updating…") {
+		t.Error("section line should say a scan is running")
+	}
+}
+
+func TestFreshScanReplacesCacheAndSaves(t *testing.T) {
+	var saved []library.Result
+	save := func(r library.Result) error { saved = append(saved, r); return nil }
+
+	var m tea.Model = New("", cached("Alpha", "Bravo"), save)
+	m, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m, _ = m.Update(press("j")) // select Bravo
+	m, cmd := m.Update(scanDoneMsg{res: *cached("Alpha", "Bravo", "Charlie")})
+	run(cmd)
+
+	mm := m.(Model)
+	if len(mm.list.Items()) != 3 {
+		t.Errorf("fresh scan not applied: %d items", len(mm.list.Items()))
+	}
+	if sel := mm.list.SelectedItem().(gameItem); sel.Name != "Bravo" {
+		t.Errorf("selection lost on refresh: %s", sel.Name)
+	}
+	if len(saved) != 1 || len(saved[0].Games) != 3 {
+		t.Errorf("fresh scan should be saved once, got %d saves", len(saved))
+	}
+	if strings.Contains(ansi.Strip(mm.View().Content), "updating…") {
+		t.Error("'updating…' should clear after the scan")
+	}
+}
+
+func TestFailedRescanKeepsCache(t *testing.T) {
+	var m tea.Model = New("", cached("Alpha"), nil)
+	m, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m, _ = m.Update(scanDoneMsg{err: errors.New("steam install not found")})
+	view := ansi.Strip(m.(Model).View().Content)
+	if !strings.Contains(view, "Alpha") || !strings.Contains(view, "showing the last saved library") {
+		t.Errorf("failed rescan should keep the cached list and say so:\n%s", view)
+	}
+}
+
+func TestRefreshKey(t *testing.T) {
+	var m tea.Model = ready(t, "Alpha")
+	m, cmd := m.Update(press("r"))
+	if cmd == nil || !m.(Model).scanning {
+		t.Fatal("r should start a scan")
+	}
+	if _, cmd = m.Update(press("r")); cmd != nil {
+		t.Error("r during a scan should not start a second one")
+	}
 }

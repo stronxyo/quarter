@@ -48,3 +48,10 @@ const LogFile = "quarter.log"
 
 // RecentWindow is how far back the Recent filter looks.
 const RecentWindow = 14 * 24 * time.Hour
+
+// LibraryCache is the scanned library saved in DataDir, shown instantly on the
+// next launch. Bump LibraryCacheVersion whenever the cached fields change.
+const (
+	LibraryCache        = "library.json"
+	LibraryCacheVersion = 1
+)

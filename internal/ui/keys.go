@@ -13,6 +13,7 @@ type appKeys struct {
 	SortPlayed key.Binding
 	SortLast   key.Binding
 	Filter     key.Binding
+	Refresh    key.Binding
 }
 
 var keys = appKeys{
@@ -20,6 +21,7 @@ var keys = appKeys{
 	SortPlayed: key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "played")),
 	SortLast:   key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "last played")),
 	Filter:     key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "filter")),
+	Refresh:    key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "rescan")),
 }
 
 // shortHelp fits one line on an 80-column terminal, so the sort keys share
@@ -29,7 +31,7 @@ func (k appKeys) shortHelp() []key.Binding {
 }
 
 func (k appKeys) fullHelp() []key.Binding {
-	return []key.Binding{k.SortName, k.SortPlayed, k.SortLast, k.Filter}
+	return []key.Binding{k.SortName, k.SortPlayed, k.SortLast, k.Filter, k.Refresh}
 }
 
 // sortKeys maps each sort key to the column it sorts by.

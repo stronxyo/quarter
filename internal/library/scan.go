@@ -11,7 +11,7 @@ type Result struct {
 	SteamPath     string
 	Games         []Game
 	PlaytimeKnown bool    // false when the account or localconfig.vdf could not be read
-	Warnings      []error // files that failed to read; the scan still succeeded
+	Warnings      []error `json:"-"` // files that failed to read; never cached
 }
 
 // Scan locates Steam (override may be empty) and builds the library from

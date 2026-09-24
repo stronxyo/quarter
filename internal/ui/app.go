@@ -36,6 +36,9 @@ type Model struct {
 	state     state
 	err       error
 	warnings  int
+	scanning  bool                       // a background scan is running
+	scanErr   error                      // a rescan failed while a cached library is shown
+	save      func(library.Result) error // stores a fresh scan for the next launch; may be nil
 
 	games    []library.Game // everything scanned; the list shows a filtered, sorted view
 	filterBy library.Filter
@@ -48,13 +51,33 @@ type Model struct {
 	height int
 }
 
-// New returns the UI model. steamPath may be empty to detect Steam.
-func New(steamPath string) Model {
-	return Model{steamPath: steamPath, list: newList(), now: time.Now}
+// New returns the UI model. steamPath may be empty to detect Steam. cached,
+// when not nil, is shown immediately while a fresh scan runs; save, when not
+// nil, stores each fresh scan for the next launch.
+func New(steamPath string, cached *library.Result, save func(library.Result) error) Model {
+	m := Model{steamPath: steamPath, list: newList(), now: time.Now, save: save, scanning: true}
+	if cached != nil {
+		m.state = stateReady
+		m.games = cached.Games
+		m.list.SetDelegate(rowDelegate{playtimeKnown: cached.PlaytimeKnown, now: m.now})
+		m.refreshList()
+	}
+	return m
 }
 
 func (m Model) Init() tea.Cmd {
 	return scan(m.steamPath)
+}
+
+// saveScan stores a scan off the UI goroutine; a failure only costs speed on
+// the next launch, so it is logged, not shown.
+func saveScan(save func(library.Result) error, res library.Result) tea.Cmd {
+	return func() tea.Msg {
+		if err := save(res); err != nil {
+			slog.Warn("cache", "err", err)
+		}
+		return nil
+	}
 }
 
 // scan runs off the UI goroutine so the screen never freezes on disk reads.
@@ -83,6 +106,13 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 		return m.applyScan(msg)
 
 	case tea.KeyPressMsg:
+		if key.Matches(msg, keys.Refresh) && !m.list.SettingFilter() && m.state != stateScanning {
+			if m.scanning {
+				return m, nil
+			}
+			m.scanning = true
+			return m, scan(m.steamPath)
+		}
 		if m.state != stateReady {
 			if s := msg.String(); s == "q" || s == "ctrl+c" {
 				return m, tea.Quit
@@ -110,10 +140,18 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 func (m Model) applyScan(msg scanDoneMsg) (Model, tea.Cmd) {
+	m.scanning = false
 	if msg.err != nil {
+		slog.Warn("scan", "err", msg.err)
+		if m.state == stateReady {
+			// Keep showing the cached library rather than an error screen.
+			m.scanErr = msg.err
+			return m, nil
+		}
 		m.state, m.err = stateFailed, msg.err
 		return m, nil
 	}
+	m.scanErr = nil
 	for _, w := range msg.res.Warnings {
 		slog.Warn("scan", "err", w)
 	}
@@ -121,7 +159,11 @@ func (m Model) applyScan(msg scanDoneMsg) (Model, tea.Cmd) {
 	m.warnings = len(msg.res.Warnings)
 	m.games = msg.res.Games
 	m.list.SetDelegate(rowDelegate{playtimeKnown: msg.res.PlaytimeKnown, now: m.now})
-	return m, m.refreshList()
+	cmd := m.refreshList()
+	if m.save != nil {
+		cmd = tea.Batch(cmd, saveScan(m.save, msg.res))
+	}
+	return m, cmd
 }
 
 // refreshList rebuilds the list from the current filter and sort, keeping the
@@ -219,6 +261,9 @@ func (m Model) sectionLine(lead string) string {
 		input.SetWidth(ansi.StringWidth(input.Value()) + 1)
 		line += input.View() + dimStyle.Render(" ── ")
 	}
+	if m.scanning {
+		count += " · updating…"
+	}
 	line += dimStyle.Render(count + " ")
 	fill := min(m.width, maxTableWidth) - ansi.StringWidth(line)
 	return line + dimStyle.Render(strings.Repeat("─", max(fill, 0)))
@@ -241,6 +286,9 @@ func (m Model) columnHeader() string {
 }
 
 func (m Model) footer() string {
+	if m.scanErr != nil {
+		return dimStyle.Render("  Could not rescan Steam, showing the last saved library. Press r to retry.")
+	}
 	if m.warnings == 0 {
 		return ""
 	}

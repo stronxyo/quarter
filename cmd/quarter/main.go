@@ -7,11 +7,13 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/stronxyo/quarter/internal/cache"
 	"github.com/stronxyo/quarter/internal/config"
 	"github.com/stronxyo/quarter/internal/library"
 	"github.com/stronxyo/quarter/internal/ui"
@@ -42,20 +44,40 @@ func main() {
 }
 
 func runUI(steamPath string) error {
-	closeLog := setupLog()
+	dir, err := config.DataDir()
+	if err != nil {
+		// Without a data folder Quarter still runs, just without cache or log.
+		slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+		_, err := tea.NewProgram(ui.New(steamPath, nil, nil)).Run()
+		return err
+	}
+
+	closeLog := setupLog(dir)
 	defer closeLog()
-	_, err := tea.NewProgram(ui.New(steamPath)).Run()
+
+	save := func(r library.Result) error {
+		return cache.Save(dir, config.LibraryCache, config.LibraryCacheVersion, r)
+	}
+	_, err = tea.NewProgram(ui.New(steamPath, loadCachedLibrary(dir, steamPath), save)).Run()
 	return err
 }
 
-// setupLog sends slog output to quarter.log in the data folder, since the UI
-// owns the terminal. If the folder is unavailable, logs are dropped.
-func setupLog() (closeLog func()) {
-	dir, err := config.DataDir()
-	if err != nil {
-		slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
-		return func() {}
+// loadCachedLibrary returns the library saved by the last run, or nil. A cache
+// from a different Steam folder than --steam-path asks for is ignored.
+func loadCachedLibrary(dir, steamPath string) *library.Result {
+	res, ok := cache.Load[library.Result](dir, config.LibraryCache, config.LibraryCacheVersion)
+	if !ok {
+		return nil
 	}
+	if steamPath != "" && !strings.EqualFold(filepath.Clean(steamPath), res.SteamPath) {
+		return nil
+	}
+	return &res
+}
+
+// setupLog sends slog output to quarter.log in the data folder, since the UI
+// owns the terminal. If the file can't be created, logs are dropped.
+func setupLog(dir string) (closeLog func()) {
 	f, err := os.Create(filepath.Join(dir, config.LogFile))
 	if err != nil {
 		slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
