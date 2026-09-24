@@ -1,8 +1,7 @@
 package library
 
 import (
-	"sort"
-	"strings"
+	"time"
 
 	"github.com/stronxyo/quarter/internal/steam"
 )
@@ -23,8 +22,5 @@ func FromSteam(installed []steam.Manifest, stats map[uint32]steam.PlayStats) []G
 			LastPlayed:  s.LastPlayed,
 		})
 	}
-	sort.SliceStable(games, func(i, j int) bool {
-		return strings.ToLower(games[i].Name) < strings.ToLower(games[j].Name)
-	})
-	return games
+	return View(games, FilterAll, SortName, false, time.Time{})
 }

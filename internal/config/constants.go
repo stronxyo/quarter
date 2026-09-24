@@ -1,6 +1,8 @@
 // Package config holds app-wide paths, settings and constants.
 package config
 
+import "time"
+
 // AppName names the binary and the app data folder.
 const AppName = "quarter"
 
@@ -40,3 +42,16 @@ var NonGameAppIDs = map[uint32]string{
 	930400:  "Proton 3.7 beta",
 	858280:  "Proton 3.7",
 }
+
+// LogFile is written in DataDir while the UI runs, since the terminal is taken.
+const LogFile = "quarter.log"
+
+// RecentWindow is how far back the Recent filter looks.
+const RecentWindow = 14 * 24 * time.Hour
+
+// LibraryCache is the scanned library saved in DataDir, shown instantly on the
+// next launch. Bump LibraryCacheVersion whenever the cached fields change.
+const (
+	LibraryCache        = "library.json"
+	LibraryCacheVersion = 1
+)
