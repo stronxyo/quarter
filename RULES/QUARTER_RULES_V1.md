@@ -19,7 +19,7 @@
 7. [Pre-Submit Checklist](#7-pre-submit-checklist)
 8. [Appendix A: Deferred Features with Triggers](#appendix-a-deferred-features-with-triggers)
 9. [Appendix B: Open Decisions](#appendix-b-open-decisions)
-10. [Appendix C: Unverified Claims](#appendix-c-unverified-claims)
+10. [Appendix C: Verified Claims](#appendix-c-verified-claims)
 
 ---
 
@@ -79,7 +79,7 @@ Commit message style: `scope: what changed, and why.` One sentence, ends with a 
 - A new convention is agreed.
 - A deferred feature's trigger fires (promote it out of Appendix A).
 - An open decision in Appendix B is resolved.
-- A claim in Appendix C is verified or disproved.
+- A claim is added to or resolved in Appendix C.
 
 Minor edits in place. Major restructures bump the version (`QUARTER_RULES_V2.md`).
 
@@ -148,7 +148,7 @@ Before writing any new function:
 
 - Before asserting a library version, API behavior, Steam file format, rate limit or terminal capability: verify via WebSearch or WebFetch, with the current year in the query.
 - End any reply that used WebSearch with a `Sources` section.
-- Anything stated before verification goes in Appendix C until verified.
+- Anything stated without a source goes in Appendix C as unverified until checked.
 
 ### 2.5 Simplicity over cleverness
 
@@ -168,15 +168,15 @@ After any change, the previous batches' "Done when" checks still pass.
 
 ## 3. Locked Tech Stack
 
-**Do not re-litigate without Pablo's explicit approval.** Versions are pinned in Batch 0 after verification.
+**Do not re-litigate without Pablo's explicit approval.** Versions verified 2026-09-24 (Batch 0). Newer patch releases are fine; a new major version needs approval.
 
 | Layer | Choice | Notes |
 |---|---|---|
-| Language | **Go** (latest stable) | Single static binary, no CGO. |
-| TUI runtime | **Bubbletea** | Elm-style model/update/view. |
-| Components | **Bubbles** | textinput, viewport, key, help. |
-| Styling | **Lip Gloss** | All colors and borders as named styles in `internal/ui/styles.go`. |
-| Fuzzy search | **sahilm/fuzzy** | |
+| Language | **Go 1.27** (1.27.1 current stable) | Single static binary, no CGO. |
+| TUI runtime | **Bubbletea v2** (`charm.land/bubbletea/v2`) | Elm-style model/update/view. Not the old `github.com/charmbracelet/...` paths. |
+| Components | **Bubbles v2** (`charm.land/bubbles/v2`) | textinput, viewport, key, help. |
+| Styling | **Lip Gloss v2** (`charm.land/lipgloss/v2`) | All colors and borders as named styles in `internal/ui/styles.go`. |
+| Fuzzy search | **sahilm/fuzzy** (v0.1.3) | |
 | Windows registry | **golang.org/x/sys/windows/registry** | Only in `locate_windows.go`. |
 | Images | **stdlib `image`, `image/jpeg`, `image/png`** | Half-block renderer is ours. |
 | HTTP | **stdlib `net/http`** | Always with a timeout and `context`. |
@@ -184,7 +184,7 @@ After any change, the previous batches' "Done when" checks still pass.
 | Logging | **stdlib `log/slog`** | To a file in the app data folder, never to the terminal while the TUI runs. |
 | Flags | **stdlib `flag`** | |
 | Tests | **stdlib `testing`** + `teatest` for UI flows | Table-driven, against `testdata/`. |
-| Lint | **`gofmt`, `go vet`, `staticcheck`** | Must pass before every close-out. |
+| Lint | **`gofmt`, `go vet`, `staticcheck` 2026.2.1** | Must pass before every close-out. First staticcheck release that supports Go 1.27. |
 | Release | **GoReleaser** | Windows/macOS/Linux, amd64 + arm64. |
 
 ### 3.1 Anti-list (do not add without Pablo's explicit approval)
@@ -290,9 +290,9 @@ Non-negotiable, from the brief's core principles.
   git checkout main
   git pull
   git checkout -b batch/01-scan
+  git push -u origin batch/01-scan
   ```
 - One commit per phase (at least), using the close-out block from 0.4.
-- First push of a new branch: `git push -u origin batch/01-scan`.
 
 ### 6.3 PR to main
 
@@ -360,21 +360,25 @@ Do not propose building these until the trigger fires.
 
 - **License:** None for now (all rights reserved, repo private). MIT vs GPLv3 (+ private Pro repo) decided before going public.
 - **Setup wizard:** auto on first run, or only via a key. Current default: key only.
-- **Repo name casing:** GitHub repo is `stronxyo/Quarter`; module path is `github.com/stronxyo/quarter`. Rename the repo to lowercase or match the module path.
+- **Repo name casing:** GitHub repo is `stronxyo/Quarter`; module path is `github.com/stronxyo/quarter`. Decision: rename the repo to lowercase `quarter` (safest; uppercase module paths cause known tooling problems, see Appendix C #9). Pablo does it in GitHub Settings.
 
-## Appendix C: Unverified Claims
+## Appendix C: Verified Claims
 
-Stated earlier without a checked source. Verify in Batch 0 (with Sources) before any code depends on them.
+Checked 2026-09-24 in Batch 0. Anything new stated without a source goes back in this list as "unverified" until checked.
 
-1. Store `appdetails` rate limit of roughly 200 requests per 5 minutes.
-2. Steam Web API limit of 100,000 calls per day, and its commercial-use terms.
-3. The Windows Terminal version that added sixel support.
-4. `appcache\librarycache\` switched to one subfolder per appid in 2024, and its file names.
-5. `localconfig.vdf` holds per-app playtime and last played.
-6. `loginusers.vdf` holds SteamID64 with a `MostRecent` flag.
-7. `GetOwnedGames` returns empty when the profile's game details are private.
-8. Current Steam CDN URL patterns for header and capsule art.
-9. Go module paths are case-sensitive in a way that matters for `go install` with the repo's current casing.
+| # | Claim | Result | Source |
+|---|---|---|---|
+| 1 | Store `appdetails` rate limit ~200 requests / 5 min | **Verified** (community-documented since 2015, not officially published). Exceeding it can mean a cooldown of minutes to hours. | [SteamDB](https://steamdb.info/blog/store-prices-api/), [DEV guide](https://dev.to/zuplo/the-ultimate-steam-web-api-guide-2ie8) |
+| 2 | Web API limit 100,000 calls/day; terms allow this use | **Verified.** Terms also require: no implied Valve endorsement, Steam Data shown "as is" with disclaimers, and telling users what Steam Data is stored (privacy policy). Charging is not prohibited. | [Steam Web API Terms](https://steamcommunity.com/dev/apiterms) |
+| 3 | Windows Terminal sixel support | **Verified:** version 1.22 and later. | [WT 1.22 release](https://devblogs.microsoft.com/commandline/windows-terminal-preview-1-22-release/) |
+| 4 | `librarycache` has one subfolder per appid | **Verified on this PC** (656 folders). File names vary per game: `header.jpg` or `library_header.jpg`, `library_600x900.jpg` (not always present), `library_hero.jpg`, `library_hero_blur.jpg`, `logo.png`, plus hash-named `.jpg` files. Code must try names in order and tolerate missing ones. | Local read-only listing |
+| 5 | `localconfig.vdf` holds per-app playtime and last played | **Verified (public sources):** under `Software/Valve/Steam/apps/<appid>`, `LastPlayed` and playtime in minutes. Exact key names confirmed against a real file when building the Batch 1 fixture. File exists on this PC at `userdata/<id>/config/`. | [Playnite #1016](https://github.com/JosefNemec/Playnite/issues/1016) |
+| 6 | `loginusers.vdf` gives SteamID64 with `MostRecent` | **Partly wrong.** SteamID64 is the key of each account block, but recent Steam clients no longer write `MostRecent`. Rule: use `MostRecent` if present, else the account with the highest `Timestamp`. | [Lutris PR #6902](https://github.com/lutris/lutris/pull/6902) |
+| 7 | `GetOwnedGames` empty for private game details | **Verified.** Also: public profile with private playtime returns playtime 0. | [Steam forum](https://steamcommunity.com/discussions/forum/1/1747891643723058443), [Lutris PR #6902](https://github.com/lutris/lutris/pull/6902) |
+| 8 | Steam CDN URL patterns | **Verified** (HTTP 200 for appid 620, 2026-09-24): `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/<appid>/header.jpg` and `.../library_600x900.jpg`. The older `cdn.akamai.steamstatic.com/steam/apps/<appid>/...` also works. Use the first; not every game has `library_600x900.jpg`. | Direct test |
+| 9 | Module path casing vs repo `stronxyo/Quarter` | **Risk confirmed:** uppercase in module paths causes known proxy/tooling problems. Our module path is lowercase, so renaming the repo to lowercase removes the mismatch entirely. | [Go forum](https://forum.golangbridge.org/t/problem-dowloading-go-module-with-upper-case-project-name/20587), [Jerry Ng](https://jerrynsh.com/why-not-uppercase-in-go-modules-name/) |
+| 10 | Charm library versions | **Changed:** v2 is current, with new import paths `charm.land/...`. Latest: bubbletea v2.0.10, bubbles v2.2.1, lipgloss v2.0.6. | [proxy.golang.org](https://proxy.golang.org/charm.land/bubbletea/v2/@latest), [pkg.go.dev](https://pkg.go.dev/charm.land/bubbletea/v2) |
+| 11 | Go and staticcheck versions | **Verified:** Go 1.27.1 is current stable (winget offers 1.27.0, fine to start). staticcheck 2026.2.1 is the first stable release supporting Go 1.27. | [go.dev/dl](https://go.dev/dl/), [go-tools releases](https://github.com/dominikh/go-tools/releases) |
 
 ---
 

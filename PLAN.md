@@ -70,10 +70,10 @@ type Game struct {
 Workflow per batch (see `RULES/QUARTER_RULES_V1.md` section 6): spec in `specs/BATCH_XX_SPEC.md`, Pablo approves, branch `batch/NN-slug` from `main`, one commit per phase, PR to `main`, Pablo merges.
 
 ### Batch 0: Setup and verification (`batch/00-setup`)
-- **Phase A, toolchain:** install Go (`winget install GoLang.Go`), `go mod init github.com/stronxyo/quarter`, add Bubbletea, Bubbles, Lip Gloss, sahilm/fuzzy, pin versions.
-- **Phase B, skeleton:** folder structure from the rules, `cmd/quarter/main.go` with `--version`, `internal/config/constants.go`.
+- **Phase A, toolchain:** install Go (`winget install GoLang.Go`) and staticcheck 2026.2.1. Third-party libraries are added in the batch that first imports them.
+- **Phase B, skeleton:** `go mod init github.com/stronxyo/quarter`, `cmd/quarter/main.go` with `--version`, `internal/config/constants.go`.
 - **Phase C, verify claims:** research every item in Rules Appendix C, with Sources. Update the brief and rules with the results.
-- Done when: `go run ./cmd/quarter --version` prints a version; Appendix C is empty or each item is marked verified/wrong.
+- Done when: `go run ./cmd/quarter --version` prints a version; every Appendix C item is marked verified or wrong, with a source.
 
 ### Batch 1: Scan (`batch/01-scan`)
 - **Phase A, VDF parser:** text VDF/ACF parser + table-driven tests.
