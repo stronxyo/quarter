@@ -69,7 +69,7 @@ type Game struct {
 
 **M0: Setup**
 - Install Go (not currently on this machine): `winget install GoLang.Go`
-- `git init`, `go mod init <module path>`, add Bubbletea, Bubbles, Lip Gloss, sahilm/fuzzy
+- `git init`, `go mod init github.com/stronxyo/quarter`, add Bubbletea, Bubbles, Lip Gloss, sahilm/fuzzy
 - ✅ `go run ./cmd/quarter` prints a version line
 
 **M1: Scan**
@@ -124,6 +124,6 @@ type Game struct {
 
 ## Open questions
 
-1. Go module path: `github.com/<your-user>/quarter`, or something else?
+1. ~~Go module path~~ → `github.com/stronxyo/quarter`
 2. Should the first-run wizard appear automatically, or only from a key (e.g. `ctrl+k`) so the app opens straight to the list?
 3. License (MIT vs GPL core + private Pro), decided before the repo goes public. See "License and monetization" in the brief.
