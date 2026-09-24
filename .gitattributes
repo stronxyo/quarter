@@ -1,2 +1,7 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# gofmt requires LF; keep Go sources LF on every OS regardless of core.autocrlf
+*.go   text eol=lf
+go.mod text eol=lf
+go.sum text eol=lf
