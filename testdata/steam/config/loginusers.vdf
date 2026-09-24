@@ -1,0 +1,18 @@
+"users"
+{
+	"76561197960265729"
+	{
+		"AccountName"		"old_account"
+		"PersonaName"		"Player One"
+		"RememberPassword"		"1"
+		"Timestamp"		"1700000000"
+	}
+	"76561197960265730"
+	{
+		"AccountName"		"current_account"
+		"PersonaName"		"Player Two"
+		"RememberPassword"		"1"
+		"AllowAutoLogin"		"1"
+		"Timestamp"		"1726000000"
+	}
+}
