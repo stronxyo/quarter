@@ -4,13 +4,17 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
+	"path/filepath"
 	"time"
 	"unicode/utf8"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/stronxyo/quarter/internal/config"
 	"github.com/stronxyo/quarter/internal/library"
-	"github.com/stronxyo/quarter/internal/steam"
+	"github.com/stronxyo/quarter/internal/ui"
 )
 
 // version is overridden at release time with -ldflags "-X main.version=<tag>".
@@ -22,68 +26,67 @@ func main() {
 	steamPath := flag.String("steam-path", "", "Steam install folder (default: detect)")
 	flag.Parse()
 
+	var err error
 	switch {
 	case *showVersion:
 		fmt.Printf("%s %s\n", config.AppName, version)
 	case *list:
-		if err := listGames(os.Stdout, os.Stderr, *steamPath); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", config.AppName, err)
-			os.Exit(1)
-		}
+		err = listGames(os.Stdout, os.Stderr, *steamPath)
 	default:
-		fmt.Printf("%s: nothing to show yet. Try --list or --version.\n", config.AppName)
+		err = runUI(*steamPath)
 	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", config.AppName, err)
+		os.Exit(1)
+	}
+}
+
+func runUI(steamPath string) error {
+	closeLog := setupLog()
+	defer closeLog()
+	_, err := tea.NewProgram(ui.New(steamPath)).Run()
+	return err
+}
+
+// setupLog sends slog output to quarter.log in the data folder, since the UI
+// owns the terminal. If the folder is unavailable, logs are dropped.
+func setupLog() (closeLog func()) {
+	dir, err := config.DataDir()
+	if err != nil {
+		slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+		return func() {}
+	}
+	f, err := os.Create(filepath.Join(dir, config.LogFile))
+	if err != nil {
+		slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+		return func() {}
+	}
+	slog.SetDefault(slog.New(slog.NewTextHandler(f, nil)))
+	return func() { f.Close() }
 }
 
 // listGames prints the library to out and any warnings to warn, so the list
 // stays clean when redirected.
-func listGames(out, warn io.Writer, steamPathFlag string) error {
-	steamPath, err := steam.Locate(steamPathFlag)
+func listGames(out, warn io.Writer, steamPath string) error {
+	res, err := library.Scan(steamPath)
 	if err != nil {
 		return err
 	}
-
-	installed, warnings := steam.InstalledGames(steamPath)
-
-	var stats map[uint32]steam.PlayStats
-	acct, err := steam.ActiveAccount(steamPath)
-	if err == nil {
-		stats, err = steam.ReadPlayStats(steamPath, acct)
-	}
-	if err != nil {
-		warnings = append(warnings, fmt.Errorf("playtime unavailable: %w", err))
-	}
-
-	for _, w := range warnings {
+	for _, w := range res.Warnings {
 		fmt.Fprintf(warn, "warning: %v\n", w)
 	}
 
-	games := library.FromSteam(installed, stats)
-	summary := fmt.Sprintf("%d games", len(games))
+	summary := fmt.Sprintf("%d games", len(res.Games))
 	width := utf8.RuneCountInString(summary)
-	for _, g := range games {
+	for _, g := range res.Games {
 		width = max(width, utf8.RuneCountInString(g.Name))
 	}
 
 	var total time.Duration
-	for _, g := range games {
+	for _, g := range res.Games {
 		total += g.Playtime
-		fmt.Fprintf(out, "%-*s  %9s  %10s\n", width, g.Name, hours(g.Playtime, stats != nil), date(g.LastPlayed))
+		fmt.Fprintf(out, "%-*s  %9s  %10s\n", width, g.Name, library.FormatHours(g.Playtime, res.PlaytimeKnown), library.FormatDate(g.LastPlayed))
 	}
-	fmt.Fprintf(out, "\n%-*s  %9s\n", width, summary, hours(total, stats != nil))
+	fmt.Fprintf(out, "\n%-*s  %9s\n", width, summary, library.FormatHours(total, res.PlaytimeKnown))
 	return nil
-}
-
-func hours(d time.Duration, known bool) string {
-	if !known {
-		return "?"
-	}
-	return fmt.Sprintf("%.1fh", d.Hours())
-}
-
-func date(t time.Time) string {
-	if t.IsZero() {
-		return "-"
-	}
-	return t.Format("2006-01-02")
 }
