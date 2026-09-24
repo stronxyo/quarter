@@ -65,56 +65,62 @@ type Game struct {
 }
 ```
 
-## Milestones
+## Batches
 
-**M0: Setup**
-- Install Go (not currently on this machine): `winget install GoLang.Go`
-- `git init`, `go mod init github.com/stronxyo/quarter`, add Bubbletea, Bubbles, Lip Gloss, sahilm/fuzzy
-- Done when: `go run ./cmd/quarter` prints a version line
+Workflow per batch (see `RULES/QUARTER_RULES_V1.md` section 6): spec in `specs/BATCH_XX_SPEC.md`, Pablo approves, branch `batch/NN-slug` from `main`, one commit per phase, PR to `main`, Pablo merges.
 
-**M1: Scan**
-- VDF parser, locate Steam, read libraries + manifests, denylist filter
-- `loginusers.vdf` + `localconfig.vdf` for playtime and last played
-- Fixture Steam dir in `testdata/` + unit tests for each parser
-- Done when: `quarter --list` prints your real installed games with playtime
+### Batch 0: Setup and verification (`batch/00-setup`)
+- **Phase A, toolchain:** install Go (`winget install GoLang.Go`), `go mod init github.com/stronxyo/quarter`, add Bubbletea, Bubbles, Lip Gloss, sahilm/fuzzy, pin versions.
+- **Phase B, skeleton:** folder structure from the rules, `cmd/quarter/main.go` with `--version`, `internal/config/constants.go`.
+- **Phase C, verify claims:** research every item in Rules Appendix C, with Sources. Update the brief and rules with the results.
+- Done when: `go run ./cmd/quarter --version` prints a version; Appendix C is empty or each item is marked verified/wrong.
 
-**M2: List UI**
-- Library pane with fuzzy search (`/`), sort (`o`), filter (`Tab`), `j/k`, status bar, `q`
-- Library index cached to JSON; launch shows cache instantly, rescans in background
-- Startup benchmark (cache → interactive list) added to the repo, target < 100 ms
-- Done when: Browse and search your real library in Windows Terminal
+### Batch 1: Scan (`batch/01-scan`)
+- **Phase A, VDF parser:** text VDF/ACF parser + table-driven tests.
+- **Phase B, locate and libraries:** Steam path (registry + `--steam-path` / `QUARTER_STEAM_PATH`), `libraryfolders.vdf`, `appmanifest_*.acf`, non-game denylist.
+- **Phase C, user data:** `loginusers.vdf` (SteamID64), `localconfig.vdf` (playtime, last played).
+- **Phase D, `--list`:** plain-text library output.
+- Done when: `quarter --list` prints your real installed games with playtime; all parsers tested against `testdata/`.
 
-**M3: Actions**
-- `Enter` play, `i` install, `s` store page, `f` favourite (persisted in config), `r` refresh
-- Done when: Launch a game from Quarter
+### Batch 2: List UI (`batch/02-list-ui`)
+- **Phase A, list:** library pane, `j/k`, status bar, `q`.
+- **Phase B, search/sort/filter:** fuzzy search (`/`), sort (`o`), filter (`Tab`).
+- **Phase C, cache:** library index cached to JSON; cache shown instantly, rescan in background.
+- **Phase D, benchmarks:** startup (cache to interactive list, target under 100 ms) and search on a 5,000-game fixture.
+- Done when: you browse and search your real library in Windows Terminal; both benchmarks pass.
 
-**Spike: Sixel (time-boxed, ~half a day)**
-- Throwaway prototype: draw one sixel image beside a Bubbletea list, move selection, resize the window
-- Decide: sixel as an opt-in mode in v0.1, or half-block only. Write the outcome into the brief.
+### Batch 3: Actions (`batch/03-actions`)
+- **Phase A, launch:** `Enter` play, `i` install, `s` store page via `steam://` URIs.
+- **Phase B, favourites and refresh:** `f` (persisted in config), `r`.
+- Done when: you launch a game from Quarter.
 
-**M4: Detail pane**
-- Two-pane layout, responsive collapse to overlay on narrow terminals
-- Store `appdetails` fetch for the selected game, rate limiter, cache (refresh window: days)
-- Done when: Select a game, see developer / year / genres / description / playtime
+### Batch 4: Sixel spike (`batch/04-sixel-spike`, time-boxed to half a day)
+- **Phase A, prototype:** one sixel image beside a Bubbletea list; move selection; resize the window.
+- **Phase B, decision:** sixel as opt-in in v0.1, or half-block only. Record in the rules (Appendix A) and the brief.
+- Done when: the decision is written down. Prototype code merges only if the decision is "yes".
 
-**M5: Web API**
-- Setup wizard (key only; SteamID64 auto-detected), plain-text storage notice
-- `GetOwnedGames` merges in uninstalled games; private-profile detection and message
-- Achievements fetched lazily for the selected game, progress bar
-- Done when: Uninstalled games appear with `○`; achievements show in the detail pane
+### Batch 5: Detail pane (`batch/05-detail`)
+- **Phase A, layout:** two panes; collapse to overlay on narrow terminals.
+- **Phase B, store metadata:** `appdetails` for the selected game, rate limiter, cache (refresh window: days).
+- Done when: selecting a game shows developer, year, genres, description, playtime.
 
-**M6: Cover art**
-- Art source chain: `librarycache` → disk cache → CDN
-- Half-block renderer (plus sixel, if the spike said yes)
-- Done when: Cover art in the detail pane
+### Batch 6: Web API (`batch/06-webapi`)
+- **Phase A, setup:** API key wizard (SteamID64 auto-detected), plain-text storage notice.
+- **Phase B, owned games:** `GetOwnedGames` merges uninstalled games; private-profile detection and message.
+- **Phase C, achievements:** fetched lazily for the selected game, progress bar.
+- Done when: uninstalled games appear with `○`; achievements show in the detail pane.
 
-**M7: Polish**
-- `?` help overlay, "INSERT COIN" first-run splash, "GAME OVER" on quit
-- Error states: Steam not found, no libraries, offline
-- Check the performance targets from the brief (startup, 5,000-game search); `pprof` any misses
-- GoReleaser config: Windows/macOS/Linux × amd64/arm64, stripped binaries
-- Smoke test `quarter.exe` on a clean terminal; Linux build on a Steam Deck if one is available
-- Done when: v0.1 tagged
+### Batch 7: Cover art (`batch/07-art`)
+- **Phase A, sources:** `librarycache` to disk cache to CDN.
+- **Phase B, render:** half-block renderer (plus sixel if Batch 4 said yes).
+- Done when: cover art shows in the detail pane.
+
+### Batch 8: Polish and release (`batch/08-release`)
+- **Phase A, UX:** `?` help overlay, "INSERT COIN" first-run splash, "GAME OVER" on quit.
+- **Phase B, error states:** Steam not found, no libraries, offline.
+- **Phase C, performance:** re-check the brief's targets; `pprof` any misses.
+- **Phase D, release:** GoReleaser (Windows/macOS/Linux, amd64 + arm64, stripped binaries); smoke test on a clean terminal and, if available, a Steam Deck.
+- Done when: v0.1 tagged.
 
 ## Testing
 
