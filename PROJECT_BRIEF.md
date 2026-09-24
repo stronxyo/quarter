@@ -64,9 +64,9 @@ Rule of thumb: **local first.** Steam keeps most of what we need on disk. The We
 - Steam install path: registry `HKCU\Software\Valve\Steam`, value `SteamPath`
 - Library folders: `<SteamPath>\steamapps\libraryfolders.vdf` (lists every library across drives)
 - Installed games: `appmanifest_*.acf` in each library's `steamapps` folder (contains `appid`, `name`, install state, size)
-- **SteamID64:** `<SteamPath>\config\loginusers.vdf` lists the accounts logged in on this machine (pick `MostRecent`). The setup wizard should never ask for it.
+- **SteamID64:** `<SteamPath>\config\loginusers.vdf` lists the accounts logged in on this machine; each block's key is the SteamID64. Pick the account with `MostRecent` = 1 if present, otherwise the highest `Timestamp` (recent Steam clients stopped writing `MostRecent`). The setup wizard should never ask for it.
 - **Playtime and last played:** `<SteamPath>\userdata\<accountid>\config\localconfig.vdf`, per app. No key needed. (`accountid` = SteamID64 − 76561197960265728.)
-- **Cover art:** Steam's own cache at `<SteamPath>\appcache\librarycache\`. Since 2024 this is one subfolder per appid. Verify the file names on a real install before relying on them. Fall back to the CDN when missing.
+- **Cover art:** Steam's own cache at `<SteamPath>\appcache\librarycache\<appid>\`. File names vary per game: `library_600x900.jpg` (portrait, not always present), `header.jpg` or `library_header.jpg`, `library_hero.jpg`, `logo.png`. Try them in order; fall back to the CDN when missing.
 - **Non-Steam shortcuts:** `userdata\<accountid>\config\shortcuts.vdf` (binary VDF). Later phase, but a cheap step toward the v1.0 unified library.
 - **Steam favourites (optional import):** `userdata\<accountid>\config\cloudstorage\cloud-storage-namespace-1.json`. Later phase.
 - **Filter out non-games:** v0.1 uses a hardcoded denylist of appids (Steamworks Common Redistributables `228980`, Proton versions, Steam Linux Runtime, etc.). Later, read the app type from `appcache\appinfo.vdf` (binary) instead.
@@ -75,7 +75,7 @@ Rule of thumb: **local first.** Steam keeps most of what we need on disk. The We
 - `IPlayerService/GetOwnedGames` with `include_appinfo=true`: owned-but-not-installed games (local data only covers installed ones)
 - `ISteamUserStats/GetPlayerAchievements`: per-game achievement progress. One call per game, so fetch lazily for the selected game.
 - `ISteamNews/GetNewsForApp`: patch notes and news (later phase)
-- **Private profiles:** if the profile's game details are private, `GetOwnedGames` can come back empty. Detect this and explain it in the UI rather than silently showing nothing.
+- **Private profiles:** if the profile's game details are private, `GetOwnedGames` comes back empty; if only playtime is private, every playtime is 0. Detect both and explain them in the UI rather than silently showing nothing.
 - **Key storage:** v0.1 stores the key in plain text in `config.json`, and the wizard says so. Windows Credential Manager is a later option.
 
 ### Store metadata
@@ -84,7 +84,7 @@ Rule of thumb: **local first.** Steam keeps most of what we need on disk. The We
 
 ### Images
 - Order of preference: Steam's local `librarycache` → our disk cache → Steam CDN (then cache it)
-- Verify current CDN URL patterns before implementing
+- CDN URLs (verified 2026-09-24): `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/<appid>/library_600x900.jpg`, then `.../header.jpg`
 
 ## Actions (via Steam URIs)
 
@@ -186,7 +186,7 @@ Monetization is a later option, not a v0.1 goal, but these decisions are made **
 
 **Rules to follow:**
 - **Valve trademarks:** no "Steam" in the name or logo, and nothing that implies Valve endorses it.
-- **Steam Web API:** follow its Terms of Use, including the 100,000 calls/day limit. Re-read them before charging money.
+- **Steam Web API:** follow its Terms of Use: 100,000 calls/day; no implied Valve endorsement; Steam Data shown "as is" with disclaimers; tell users what Steam Data is stored (needs a privacy policy before any public release). Charging is not prohibited. Re-read them before charging money.
 - **Store `appdetails`:** undocumented and unofficial. Keep it an optional enhancement. A paid feature must never depend on it.
 - **Cover art** belongs to Valve and publishers: show it from the user's own cache or the CDN, never bundle or rehost it.
 - **Ready Player One:** "Quarter" is a common word and fine to use. The Parzival story can go in the README, but no book or film names, logos or artwork in anything sold.
