@@ -1,7 +1,7 @@
 # Batch 6 Spec: Your wider library and achievements, with no key
 
 **Branch:** `batch/06-webapi` (name kept; the batch became keyless)
-**Status:** Draft, awaiting Pablo's approval.
+**Status:** Done (approved 2026-09-25). On Pablo's PC: 331 candidates; a sample resolved to Team Fortress 2, Portal 2, Counter-Strike 2, FlatOut 2, Mafia and others. The background fill pauses for the run after a network failure.
 **Goal:** zero setup for the user. Quarter shows achievement progress and the games you own but haven't installed, using only what Steam already keeps on your PC plus the public store. No Steam Web API key.
 
 **Why keyless (Pablo, 2026-09-25):** "I want zero friction for the user." The API key plan (full account library, server playtime) moves to Rules Appendix A as an optional extra for later.

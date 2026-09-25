@@ -68,6 +68,8 @@ func (d rowDelegate) Render(w io.Writer, m list.Model, index int, item list.Item
 		marker = starStyle.Render(markerFavourite)
 	case g.Installed:
 		marker = markerInstalled
+	default:
+		marker = markerUninstalled
 	}
 
 	last := library.FormatAgo(g.LastPlayed, d.now())

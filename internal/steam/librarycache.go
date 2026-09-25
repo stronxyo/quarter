@@ -14,11 +14,12 @@ type Achievements struct {
 	Total    int `json:"total"`
 }
 
-// ReadAchievements reads achievement totals from the Steam client's cached
-// library pages (userdata/<account>/config/librarycache/<appid>.json), which
-// Steam writes for every game whose library page it has shown. Games without
-// achievements, and files that can't be read, are left out.
-func ReadAchievements(steamPath string, acct Account) (map[uint32]Achievements, error) {
+// ReadLibraryPages reads the Steam client's cached library pages
+// (userdata/<account>/config/librarycache/<appid>.json), which Steam writes
+// for every game whose library page it has shown. Every readable page is in
+// the result, with a zero Achievements when the game has none; unreadable
+// files are left out.
+func ReadLibraryPages(steamPath string, acct Account) (map[uint32]Achievements, error) {
 	dir := filepath.Join(steamPath, "userdata", strconv.FormatUint(uint64(acct.AccountID), 10), "config", "librarycache")
 	files, err := filepath.Glob(filepath.Join(dir, "*.json"))
 	if err != nil {
@@ -41,8 +42,9 @@ func ReadAchievements(steamPath string, acct Account) (map[uint32]Achievements, 
 	return out, nil
 }
 
-// parseLibraryPage finds the achievements section in one cached page: a JSON
-// list of [name, body] pairs.
+// parseLibraryPage reads one cached page, a JSON list of [name, body] pairs,
+// and returns its achievement totals (zero when it has none). ok is false
+// when the file isn't a library page at all.
 func parseLibraryPage(b []byte) (Achievements, bool) {
 	var sections [][]json.RawMessage
 	if err := json.Unmarshal(b, &sections); err != nil {
@@ -63,10 +65,10 @@ func parseLibraryPage(b []byte) (Achievements, bool) {
 			} `json:"data"`
 		}
 		if err := json.Unmarshal(s[1], &body); err != nil || body.Data.Total <= 0 {
-			return Achievements{}, false
+			return Achievements{}, true
 		}
 		a := Achievements{Achieved: min(max(body.Data.Achieved, 0), body.Data.Total), Total: body.Data.Total}
 		return a, true
 	}
-	return Achievements{}, false
+	return Achievements{}, true
 }

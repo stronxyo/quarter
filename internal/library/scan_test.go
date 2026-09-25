@@ -26,3 +26,25 @@ func TestScanNoSteam(t *testing.T) {
 		t.Error("want an error when Steam is not found")
 	}
 }
+
+func TestScanUninstalledCandidates(t *testing.T) {
+	res, err := Scan("../../testdata/steam")
+	if err != nil {
+		t.Fatalf("Scan: %v", err)
+	}
+	// Fixture: 620 and 400 are installed; 70 has play data but isn't
+	// installed (it's mid-update); 70's library page is broken.
+	var ids []uint32
+	for _, g := range res.Uninstalled {
+		if g.Installed || g.Name != "" {
+			t.Errorf("candidate %d should be not installed and unnamed: %+v", g.AppID, g)
+		}
+		ids = append(ids, g.AppID)
+	}
+	if len(ids) != 1 || ids[0] != 70 {
+		t.Fatalf("want only 70 as a candidate, got %v", ids)
+	}
+	if res.Uninstalled[0].Playtime != 30*time.Minute {
+		t.Errorf("70's playtime should come from localconfig.vdf: %v", res.Uninstalled[0].Playtime)
+	}
+}

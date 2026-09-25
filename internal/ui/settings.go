@@ -54,6 +54,22 @@ func (m Model) persist() tea.Cmd {
 	}
 }
 
+// rebuild makes the list's games: every installed game, plus each candidate
+// the store has confirmed is a game or a demo, named by the store.
+func (m *Model) rebuild() {
+	games := slices.Clone(m.installed)
+	for _, g := range m.uninstalled {
+		e, ok := m.storeInfo[g.AppID]
+		if !ok || e.Failed || (e.Info.Type != "game" && e.Info.Type != "demo") || e.Info.Name == "" {
+			continue
+		}
+		g.Name = e.Info.Name
+		games = append(games, g)
+	}
+	m.games = games
+	m.decorate()
+}
+
 // decorate copies what Quarter knows beyond the scan onto the games (stars
 // from the settings, the demo flag from the store), so filtering and drawing
 // can read it from each game.

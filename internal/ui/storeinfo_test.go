@@ -142,8 +142,10 @@ func TestStoreFailures(t *testing.T) {
 	if view := ansi.Strip(m.(Model).View().Content); !strings.Contains(view, "store info unavailable") {
 		t.Errorf("app 2 failed on the network:\n%s", view)
 	}
-	if n := len(src.asked); n != 3 {
-		t.Errorf("each game asked once this run, got %d requests", n)
+	// After the network failure on app 2 the background fill stops, so app 3
+	// isn't asked this run.
+	if n := len(src.asked); n != 2 {
+		t.Errorf("want 2 requests (the fill stops after a network failure), got %d: %v", n, src.asked)
 	}
 }
 

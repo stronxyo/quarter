@@ -43,14 +43,15 @@ type Filter int
 
 const (
 	FilterAll Filter = iota
+	FilterInstalled
 	FilterRecent
 	FilterFavourites
 	filterCount
 )
 
 var (
-	filterLabels = [...]string{"All", "Recent", "Favourites"}
-	filterKeys   = [...]string{"all", "recent", "favourites"}
+	filterLabels = [...]string{"All", "Installed", "Recent", "Favourites"}
+	filterKeys   = [...]string{"all", "installed", "recent", "favourites"}
 )
 
 func (f Filter) String() string { return filterLabels[f] }
@@ -89,6 +90,9 @@ func View(games []Game, f Filter, s SortOrder, desc bool, now time.Time) []Game 
 			continue
 		}
 		if f == FilterFavourites && !g.Favourite {
+			continue
+		}
+		if f == FilterInstalled && !g.Installed {
 			continue
 		}
 		out = append(out, g)
