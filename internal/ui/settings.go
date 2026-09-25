@@ -1,0 +1,78 @@
+package ui
+
+import (
+	"log/slog"
+	"slices"
+
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/stronxyo/quarter/internal/config"
+	"github.com/stronxyo/quarter/internal/library"
+)
+
+// applySettings restores the last run's favourites, sort and filter. Unknown
+// or empty values keep the defaults.
+func (m *Model) applySettings(s config.Settings) {
+	for _, id := range s.Favourites {
+		m.favs[id] = true
+	}
+	if order, ok := library.ParseSortOrder(s.Sort); ok {
+		m.sortBy, m.sortDesc = order, s.SortDesc
+	}
+	if f, ok := library.ParseFilter(s.Filter); ok {
+		m.filterBy = f
+	}
+}
+
+// settings snapshots what should be remembered for the next run.
+func (m Model) settings() config.Settings {
+	favs := make([]uint32, 0, len(m.favs))
+	for id := range m.favs {
+		favs = append(favs, id)
+	}
+	slices.Sort(favs) // stable file contents
+	return config.Settings{
+		Favourites: favs,
+		Sort:       m.sortBy.Key(),
+		SortDesc:   m.sortDesc,
+		Filter:     m.filterBy.Key(),
+	}
+}
+
+// persist saves the settings off the UI goroutine. A failure is logged: the
+// app keeps working, it just won't remember this change.
+func (m Model) persist() tea.Cmd {
+	if m.saveSettings == nil {
+		return nil
+	}
+	save, s := m.saveSettings, m.settings()
+	return func() tea.Msg {
+		if err := save(s); err != nil {
+			slog.Warn("settings", "err", err)
+		}
+		return nil
+	}
+}
+
+// markFavourites copies the stars onto the games, so filtering and drawing
+// can read them from each game.
+func (m *Model) markFavourites() {
+	for i := range m.games {
+		m.games[i].Favourite = m.favs[m.games[i].AppID]
+	}
+}
+
+// toggleFavourite stars or unstars the selected game and saves the change.
+func (m Model) toggleFavourite() (Model, tea.Cmd) {
+	it, ok := m.list.SelectedItem().(gameItem)
+	if !ok {
+		return m, nil
+	}
+	if m.favs[it.AppID] {
+		delete(m.favs, it.AppID)
+	} else {
+		m.favs[it.AppID] = true
+	}
+	m.markFavourites()
+	return m, tea.Batch(m.refreshList(), m.persist())
+}

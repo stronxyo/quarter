@@ -10,6 +10,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/stronxyo/quarter/internal/config"
@@ -39,6 +40,13 @@ type Model struct {
 	scanning  bool                       // a background scan is running
 	scanErr   error                      // a rescan failed while a cached library is shown
 	save      func(library.Result) error // stores a fresh scan for the next launch; may be nil
+	open      func(uri string) error     // hands a steam:// link to the OS
+	status    string                     // short-lived footer message after an action
+	statusID  int                        // tells a stale clear timer from the current message
+	fullHelp  bool                       // ? pressed: every key is listed
+
+	favs         map[uint32]bool             // starred games, by appid
+	saveSettings func(config.Settings) error // remembers favourites, sort and filter; may be nil
 
 	games    []library.Game // everything scanned; the list shows a filtered, sorted view
 	filterBy library.Filter
@@ -51,15 +59,36 @@ type Model struct {
 	height int
 }
 
-// New returns the UI model. steamPath may be empty to detect Steam. cached,
-// when not nil, is shown immediately while a fresh scan runs; save, when not
-// nil, stores each fresh scan for the next launch.
-func New(steamPath string, cached *library.Result, save func(library.Result) error) Model {
-	m := Model{steamPath: steamPath, list: newList(), now: time.Now, save: save, scanning: true}
-	if cached != nil {
+// Options wires the UI to the rest of Quarter. Every field may be left empty.
+type Options struct {
+	SteamPath string                     // --steam-path override; empty means detect
+	Cached    *library.Result            // shown immediately while a fresh scan runs
+	Save      func(library.Result) error // stores each fresh scan for the next launch
+	Open      func(uri string) error     // hands steam:// links to the OS
+
+	Settings     config.Settings             // favourites, sort and filter from the last run
+	SaveSettings func(config.Settings) error // remembers them for the next run
+}
+
+// New returns the UI model.
+func New(opts Options) Model {
+	m := Model{
+		steamPath: opts.SteamPath,
+		save:      opts.Save,
+		open:      opts.Open,
+		list:      newList(),
+		now:       time.Now,
+		scanning:  true,
+
+		favs:         make(map[uint32]bool),
+		saveSettings: opts.SaveSettings,
+	}
+	m.applySettings(opts.Settings)
+	if opts.Cached != nil {
 		m.state = stateReady
-		m.games = cached.Games
-		m.list.SetDelegate(rowDelegate{playtimeKnown: cached.PlaytimeKnown, now: m.now})
+		m.games = opts.Cached.Games
+		m.markFavourites()
+		m.list.SetDelegate(rowDelegate{playtimeKnown: opts.Cached.PlaytimeKnown, now: m.now})
 		m.refreshList()
 	}
 	return m
@@ -105,6 +134,22 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 	case scanDoneMsg:
 		return m.applyScan(msg)
 
+	case openDoneMsg:
+		if msg.id != m.statusID {
+			return m, nil // a newer action replaced this one
+		}
+		if msg.err != nil {
+			slog.Warn("open", "err", msg.err)
+			m.status = "Could not open Steam: " + msg.err.Error()
+		}
+		return m, clearStatusAfter(msg.id)
+
+	case clearStatusMsg:
+		if msg.id == m.statusID {
+			m.status = ""
+		}
+		return m, nil
+
 	case tea.KeyPressMsg:
 		if key.Matches(msg, keys.Refresh) && !m.list.SettingFilter() && m.state != stateScanning {
 			if m.scanning {
@@ -121,15 +166,25 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 		// While typing a search, every key belongs to the search box.
 		if !m.list.SettingFilter() {
+			if key.Matches(msg, keys.Help) {
+				m.fullHelp = !m.fullHelp
+				return m, nil
+			}
+			if m, cmd, ok := m.action(msg); ok {
+				return m, cmd
+			}
 			for _, sk := range sortKeys {
 				if key.Matches(msg, sk.binding) {
 					m.sortBy, m.sortDesc = nextSort(m.sortBy, m.sortDesc, sk.order)
-					return m, m.refreshList()
+					return m, tea.Batch(m.refreshList(), m.persist())
 				}
 			}
 			if key.Matches(msg, keys.Filter) {
 				m.filterBy = m.filterBy.Next()
-				return m, m.refreshList()
+				return m, tea.Batch(m.refreshList(), m.persist())
+			}
+			if key.Matches(msg, keys.Favourite) {
+				return m.toggleFavourite()
 			}
 		}
 	}
@@ -158,6 +213,7 @@ func (m Model) applyScan(msg scanDoneMsg) (Model, tea.Cmd) {
 	m.state = stateReady
 	m.warnings = len(msg.res.Warnings)
 	m.games = msg.res.Games
+	m.markFavourites()
 	m.list.SetDelegate(rowDelegate{playtimeKnown: msg.res.PlaytimeKnown, now: m.now})
 	cmd := m.refreshList()
 	if m.save != nil {
@@ -207,14 +263,12 @@ func (m *Model) layout() {
 		used += logoHeight()
 	}
 	m.list.SetSize(m.width, max(m.height-used, 0))
-	// bubbles v2.2.1 sizes the help to the full width, then pads it.
-	m.list.Help.SetWidth(max(m.width-m.list.Styles.HelpStyle.GetHorizontalFrameSize(), 0))
 }
 
 // chromeRows counts the rows outside the list besides the logo: the section
-// line, the column header, and the warnings footer when there is one.
+// line, the column header, the key help, and the footer when there is one.
 func (m Model) chromeRows() int {
-	rows := 2
+	rows := 2 + lipgloss.Height(m.helpView())
 	if m.footer() != "" {
 		rows++
 	}
@@ -280,12 +334,17 @@ func (m Model) columnHeader() string {
 		}
 		return name + " ▲"
 	}
-	line := columns(m.width-rowStyle.GetHorizontalFrameSize(), " ",
+	line := columns(m.width-rowStyle.GetHorizontalFrameSize(), strings.Repeat(" ", markerWidth),
 		label("Name", library.SortName), label("Played", library.SortPlaytime), label("Last played", library.SortLastPlayed))
 	return rowStyle.Render(dimStyle.Render(line))
 }
 
+// footer shows, most important first: an action's message, a failed rescan,
+// or files that could not be read.
 func (m Model) footer() string {
+	if m.status != "" {
+		return "  " + activeTabStyle.Render(m.status)
+	}
 	if m.scanErr != nil {
 		return dimStyle.Render("  Could not rescan Steam, showing the last saved library. Press r to retry.")
 	}
@@ -305,7 +364,7 @@ func (m Model) View() tea.View {
 			"\n\nIf Steam is installed somewhere unusual, start Quarter with:\n  quarter --steam-path <steam folder>\n\n" +
 			dimStyle.Render("q quit"))
 	default:
-		content = strings.Join([]string{m.header(), m.columnHeader(), m.list.View()}, "\n")
+		content = strings.Join([]string{m.header(), m.columnHeader(), m.list.View(), m.helpView()}, "\n")
 		if f := m.footer(); f != "" {
 			content += "\n" + f
 		}

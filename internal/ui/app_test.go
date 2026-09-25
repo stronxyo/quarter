@@ -24,7 +24,7 @@ func ready(t *testing.T, games ...string) Model {
 	for i, name := range games {
 		res.Games = append(res.Games, library.Game{AppID: uint32(i + 1), Name: name, Installed: true})
 	}
-	var m tea.Model = New("", nil, nil)
+	var m tea.Model = New(Options{})
 	m, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m, _ = m.Update(scanDoneMsg{res: res})
 	return m.(Model)
@@ -67,7 +67,7 @@ func TestQuit(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var m tea.Model = ready(t, "Alpha")
 			if name == "failed" {
-				m, _ = New("", nil, nil).Update(scanDoneMsg{err: errors.New("not found")})
+				m, _ = New(Options{}).Update(scanDoneMsg{err: errors.New("not found")})
 			}
 			_, cmd := m.Update(press("q"))
 			if cmd == nil {
@@ -81,7 +81,7 @@ func TestQuit(t *testing.T) {
 }
 
 func TestSteamNotFound(t *testing.T) {
-	m, _ := New("", nil, nil).Update(scanDoneMsg{err: errors.New("steam install not found")})
+	m, _ := New(Options{}).Update(scanDoneMsg{err: errors.New("steam install not found")})
 	view := m.(Model).View().Content
 	if !strings.Contains(view, "Steam not found") || !strings.Contains(view, "--steam-path") {
 		t.Errorf("error screen missing guidance:\n%s", view)
@@ -89,7 +89,7 @@ func TestSteamNotFound(t *testing.T) {
 }
 
 func TestWarningsFooter(t *testing.T) {
-	var m tea.Model = New("", nil, nil)
+	var m tea.Model = New(Options{})
 	m, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m, _ = m.Update(scanDoneMsg{res: library.Result{
 		Games:    []library.Game{{AppID: 1, Name: "Alpha"}},
@@ -118,7 +118,7 @@ func withLibrary(t *testing.T) Model {
 		{AppID: 2, Name: "Bravo", Playtime: 50 * time.Hour, LastPlayed: now.Add(-24 * time.Hour)},
 		{AppID: 3, Name: "Rocket League", Playtime: 20 * time.Hour},
 	}}
-	m := New("", nil, nil)
+	m := New(Options{})
 	m.now = func() time.Time { return now }
 	var tm tea.Model = m
 	tm, _ = tm.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -310,7 +310,7 @@ func cached(names ...string) *library.Result {
 }
 
 func TestCachedStartIsInstant(t *testing.T) {
-	var m tea.Model = New("", cached("Alpha", "Bravo"), nil)
+	var m tea.Model = New(Options{Cached: cached("Alpha", "Bravo")})
 	m, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	view := ansi.Strip(m.(Model).View().Content)
 	if m.(Model).state != stateReady || !strings.Contains(view, "Bravo") {
@@ -325,7 +325,7 @@ func TestFreshScanReplacesCacheAndSaves(t *testing.T) {
 	var saved []library.Result
 	save := func(r library.Result) error { saved = append(saved, r); return nil }
 
-	var m tea.Model = New("", cached("Alpha", "Bravo"), save)
+	var m tea.Model = New(Options{Cached: cached("Alpha", "Bravo"), Save: save})
 	m, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m, _ = m.Update(press("j")) // select Bravo
 	m, cmd := m.Update(scanDoneMsg{res: *cached("Alpha", "Bravo", "Charlie")})
@@ -347,7 +347,7 @@ func TestFreshScanReplacesCacheAndSaves(t *testing.T) {
 }
 
 func TestFailedRescanKeepsCache(t *testing.T) {
-	var m tea.Model = New("", cached("Alpha"), nil)
+	var m tea.Model = New(Options{Cached: cached("Alpha")})
 	m, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m, _ = m.Update(scanDoneMsg{err: errors.New("steam install not found")})
 	view := ansi.Strip(m.(Model).View().Content)

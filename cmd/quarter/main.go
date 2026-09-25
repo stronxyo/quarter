@@ -13,9 +13,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/stronxyo/quarter/internal/cache"
 	"github.com/stronxyo/quarter/internal/config"
 	"github.com/stronxyo/quarter/internal/library"
+	"github.com/stronxyo/quarter/internal/steam"
+	"github.com/stronxyo/quarter/internal/store"
 	"github.com/stronxyo/quarter/internal/ui"
 )
 
@@ -48,7 +49,7 @@ func runUI(steamPath string) error {
 	if err != nil {
 		// Without a data folder Quarter still runs, just without cache or log.
 		slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
-		_, err := tea.NewProgram(ui.New(steamPath, nil, nil)).Run()
+		_, err := tea.NewProgram(ui.New(ui.Options{SteamPath: steamPath, Open: steam.OpenURI})).Run()
 		return err
 	}
 
@@ -56,16 +57,24 @@ func runUI(steamPath string) error {
 	defer closeLog()
 
 	save := func(r library.Result) error {
-		return cache.Save(dir, config.LibraryCache, config.LibraryCacheVersion, r)
+		return store.Save(dir, config.LibraryCache, config.LibraryCacheVersion, r)
 	}
-	_, err = tea.NewProgram(ui.New(steamPath, loadCachedLibrary(dir, steamPath), save)).Run()
+	_, err = tea.NewProgram(ui.New(ui.Options{
+		SteamPath: steamPath,
+		Cached:    loadCachedLibrary(dir, steamPath),
+		Save:      save,
+		Open:      steam.OpenURI,
+
+		Settings:     config.LoadSettings(dir),
+		SaveSettings: func(s config.Settings) error { return config.SaveSettings(dir, s) },
+	})).Run()
 	return err
 }
 
 // loadCachedLibrary returns the library saved by the last run, or nil. A cache
 // from a different Steam folder than --steam-path asks for is ignored.
 func loadCachedLibrary(dir, steamPath string) *library.Result {
-	res, ok := cache.Load[library.Result](dir, config.LibraryCache, config.LibraryCacheVersion)
+	res, ok := store.Load[library.Result](dir, config.LibraryCache, config.LibraryCacheVersion)
 	if !ok {
 		return nil
 	}
@@ -101,13 +110,13 @@ func listGames(out, warn io.Writer, steamPath string) error {
 	summary := fmt.Sprintf("%d games", len(res.Games))
 	width := utf8.RuneCountInString(summary)
 	for _, g := range res.Games {
-		width = max(width, utf8.RuneCountInString(g.Name))
+		width = max(width, utf8.RuneCountInString(g.Label()))
 	}
 
 	var total time.Duration
 	for _, g := range res.Games {
 		total += g.Playtime
-		fmt.Fprintf(out, "%-*s  %9s  %10s\n", width, g.Name, library.FormatHours(g.Playtime, res.PlaytimeKnown), library.FormatDate(g.LastPlayed))
+		fmt.Fprintf(out, "%-*s  %9s  %10s\n", width, g.Label(), library.FormatHours(g.Playtime, res.PlaytimeKnown), library.FormatDate(g.LastPlayed))
 	}
 	fmt.Fprintf(out, "\n%-*s  %9s\n", width, summary, library.FormatHours(total, res.PlaytimeKnown))
 	return nil

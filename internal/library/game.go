@@ -2,7 +2,10 @@
 // data source into one Game per app.
 package library
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // Game is one entry in the library.
 type Game struct {
@@ -13,4 +16,27 @@ type Game struct {
 	SizeOnDisk  int64
 	Playtime    time.Duration
 	LastPlayed  time.Time // zero if never played
+	Favourite   bool      `json:"-"` // comes from settings, not from Steam, so never cached
+}
+
+// trialWords end the names of builds that aren't the full game. Steam's own
+// app type would be exact; until the store data is read, the name is the
+// signal.
+var trialWords = []string{"Demo", "Playtest"}
+
+// Label is the name to show: a trailing "Demo" or "Playtest" becomes a
+// "(Demo)" or "(Playtest)" tag, so "Slow Roads Demo" reads "Slow Roads (Demo)".
+func (g Game) Label() string {
+	for _, w := range trialWords {
+		base, ok := strings.CutSuffix(g.Name, " "+w)
+		if !ok {
+			continue
+		}
+		base = strings.TrimRight(base, " -\u2013:") // space, hyphen, en dash, colon
+		if base == "" {
+			return g.Name
+		}
+		return base + " (" + w + ")"
+	}
+	return g.Name
 }
