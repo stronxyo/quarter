@@ -123,7 +123,7 @@ Not in replies unless Pablo uses them first. Never in code, comments, commits, d
 
 ### 2.1 Boring until it breaks
 
-Pick what has survived production. Every novel choice spends from a budget of 3 to 5. Quarter's novel choices: **Bubbletea as a full-screen app on Windows Terminal** and **sixel images** (not yet approved, see Appendix A). Everything else is the boring default.
+Pick what has survived production. Every novel choice spends from a budget of 3 to 5. Quarter's novel choices: **Bubbletea as a full-screen app on Windows Terminal** and **eighth-block logo art** (Unicode 16 characters, chosen in Batch 4; sixth blocks as the fallback). Sixel images were tried and rejected. Everything else is the boring default.
 
 **Test for every proposal:** "Have I felt this pain, or is it hypothetical?" Hypothetical means defer with a trigger (Appendix A).
 
@@ -178,7 +178,7 @@ After any change, the previous batches' "Done when" checks still pass.
 | Styling | **Lip Gloss v2** (`charm.land/lipgloss/v2`) | All colors and borders as named styles in `internal/ui/styles.go`. |
 | Fuzzy search | **sahilm/fuzzy** (v0.1.3) | |
 | Windows registry | **golang.org/x/sys/windows/registry** | Only in `locate_windows.go`. |
-| Images | **stdlib `image`, `image/jpeg`, `image/png`** | Half-block renderer is ours. |
+| Images | **stdlib `image`, `image/png`** | Only to read `logo.png` and redraw it as eighth-block text art (ours). No image is ever shown as an image. |
 | HTTP | **stdlib `net/http`** | Always with a timeout and `context`. |
 | JSON cache | **stdlib `encoding/json`** | Files in the app data folder. |
 | Logging | **stdlib `log/slog`** | To a file in the app data folder, never to the terminal while the TUI runs. |
@@ -201,7 +201,7 @@ internal/webapi/    # Steam Web API + store appdetails
 internal/library/   # Game model + merge
 internal/cache/     # JSON + image cache
 internal/config/    # paths, config.json, favourites, constants.go
-internal/art/       # art sources + half-block renderer
+internal/art/       # logo sources + eighth-block text art renderer
 internal/ui/        # Bubbletea models and views
 testdata/steam/     # fake Steam install for tests
 specs/              # BATCH_XX_SPEC.md
@@ -269,7 +269,7 @@ Non-negotiable, from the brief's core principles.
 3. **Read-only on Steam's folders.** Quarter never writes, renames or deletes anything under the Steam install or `userdata`.
 4. **The API key** lives in `config.json` in the app data folder, never in the repo, never in logs.
 5. **Respect rate limits.** The store `appdetails` endpoint is fetched for the selected game first and backfilled slowly. It stays optional: no feature may depend on it.
-6. **Cover art** is shown from the user's own Steam cache or the CDN. Never bundled, never rehosted.
+6. **Game logos** are read from the user's own Steam cache or Steam's CDN and redrawn as text art at runtime. Never bundled, never rehosted.
 7. **No "Steam" in the name, logo or branding**, and nothing that implies Valve endorses Quarter.
 
 ---
@@ -344,12 +344,12 @@ Do not propose building these until the trigger fires.
 
 | Feature | Trigger |
 |---|---|
-| Sixel cover art | Batch 4 spike shows it renders without flicker or leftovers in Windows Terminal. |
+| Images of any kind (sixel, Kitty, iTerm) | **Rejected in Batch 4** (Pablo: keep the terminal look classic). Not to be proposed again unless Pablo asks. |
 | Read `appinfo.vdf` (binary) | The appid denylist misses non-games in real libraries, or we need app metadata offline. |
 | Windows Credential Manager for the API key | A user asks, or before any paid release. |
 | Non-Steam shortcuts (`shortcuts.vdf`) | After v0.1 ships. |
 | Import Steam favourites | Users ask for it. |
-| Store screenshots in the detail pane | After cover art is solid. |
+| Store screenshots in the detail pane | **Rejected with images in Batch 4.** |
 | Profile-guided optimization (PGO) | `pprof` shows a CPU hot spot the code can't fix directly. |
 | Epic / GOG | v1.0 per the brief's roadmap. |
 | CI pipeline (GitHub Actions) + the `golang-continuous-integration` skill | Batch 8 (release). Skill removed 2026-09-24: not needed before then, and it was flagged Medium risk. Re-check its security rating before reinstalling. |
@@ -384,6 +384,9 @@ Checked 2026-09-24 in Batch 0. Anything new stated without a source goes back in
 | 14 | Non-Windows default Steam paths | **Verified:** Linux `~/.local/share/Steam` (default, Steam Deck) and `~/.steam/steam`; macOS `~/Library/Application Support/Steam`. | [ArchWiki: Steam](https://wiki.archlinux.org/title/Steam), [PCGamingWiki](https://www.pcgamingwiki.com/wiki/Glossary:Game_data) |
 | 15 | `steam://rungameid/<appid>`, `steam://install/<appid>`, `steam://store/<appid>` | **Verified (community sources + hand test in Batch 3).** The `steam://` handler is registered on this PC (`HKCR\steam\Shell\Open\Command` points at Steam.exe). Valve's own wiki page blocks automated reads. | [Steam forum: browser protocol](https://steamcommunity.com/discussions/forum/1/540744935066349428/), [Valve wiki](https://developer.valvesoftware.com/wiki/Steam_browser_protocol) |
 | 16 | `ShellExecute` is available in `golang.org/x/sys/windows` | **Verified** in v0.48.0 (`zsyscall_windows.go`), with `SW_SHOWNORMAL`. | Module source |
+| 17 | Where each game's `logo.png` is | **Verified on this PC:** `librarycache/<appid>/logo.png`, or `librarycache/<appid>/<hash>/logo.png` for newer assets. All 12 installed games have one (5 direct, 7 hashed). | Local listing |
+| 18 | Logos on Steam's CDN | **Verified** (HTTP 200 for 252950, 620, 70, 413150): `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/<appid>/logo.png`; the hashed path works too. | Direct test |
+| 19 | Eighth-block characters | **Verified:** 230 `BLOCK OCTANT` characters at U+1CD00 to U+1CDE5 in Unicode 16.0; the other 26 patterns use older block characters (table in `specs/BATCH_04_SPEC.md`). Rendered correctly in Windows Terminal 1.24 on this PC. | [UnicodeData 16.0.0](https://www.unicode.org/Public/16.0.0/ucd/UnicodeData.txt) |
 
 ---
 

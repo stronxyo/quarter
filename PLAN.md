@@ -110,10 +110,10 @@ Workflow per batch (see `RULES/QUARTER_RULES_V1.md` section 6): spec in `specs/B
 - **Phase C, achievements:** fetched lazily for the selected game, progress bar.
 - Done when: uninstalled games appear with `○`; achievements show in the detail pane.
 
-### Batch 7: Cover art (`batch/07-art`)
-- **Phase A, sources:** `librarycache` to disk cache to CDN.
-- **Phase B, render:** half-block renderer (plus sixel if Batch 4 said yes).
-- Done when: cover art shows in the detail pane.
+### Batch 7: Game logos (`batch/07-art`)
+- **Phase A, sources:** `logo.png` from `librarycache/<appid>/`, then its hashed subfolder, then Steam's CDN (kept in the data folder), then the name in a block font.
+- **Phase B, render:** eighth-block text art, 64 wide, area averaged, with the QUARTER gradient; sixth blocks as a setting for fonts without eighth blocks. Design and character table in `specs/BATCH_04_SPEC.md`.
+- Done when: the selected game's logo shows in the detail pane, for every installed game.
 
 ### Batch 8: Polish and release (`batch/08-release`)
 - **Phase A, UX:** `?` help overlay, "INSERT COIN" first-run splash, "GAME OVER" on quit.

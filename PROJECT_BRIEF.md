@@ -8,13 +8,13 @@ Theme touches stay light: an "INSERT COIN" splash on first run, `1UP` as the pla
 
 ## One-liner
 
-A fast, good-looking terminal app to browse, search and launch your Steam library. Think "cliamp, but for your games." Fuzzy search, playtime, achievements, cover art, press Enter to play.
+A fast, good-looking terminal app to browse, search and launch your Steam library. Think "cliamp, but for your games." Fuzzy search, playtime, achievements, each game's logo redrawn as retro text art, press Enter to play.
 
 ## Why
 
 - Existing Steam TUIs (steam-tui, Aurelia TUI) are Linux-first and try to replace the Steam client, which is fragile and risks the user's account.
 - Nothing polished exists for Windows that sits on top of the real Steam client.
-- Terminal tools spread through screenshots and GIFs. A beautiful TUI with real cover art is the marketing.
+- Terminal tools spread through screenshots and GIFs. A beautiful, classic-looking TUI (block-art logos, no images) is the marketing.
 
 ## Core principles
 
@@ -66,7 +66,7 @@ Rule of thumb: **local first.** Steam keeps most of what we need on disk. The We
 - Installed games: `appmanifest_*.acf` in each library's `steamapps` folder (contains `appid`, `name`, install state, size)
 - **SteamID64:** `<SteamPath>\config\loginusers.vdf` lists the accounts logged in on this machine; each block's key is the SteamID64. Pick the account with `MostRecent` = 1 if present, otherwise the highest `Timestamp` (recent Steam clients stopped writing `MostRecent`). The setup wizard should never ask for it.
 - **Playtime and last played:** `<SteamPath>\userdata\<accountid>\config\localconfig.vdf`, per app. No key needed. (`accountid` = SteamID64 − 76561197960265728.)
-- **Cover art:** Steam's own cache at `<SteamPath>\appcache\librarycache\<appid>\`. File names vary per game: `library_600x900.jpg` (portrait, not always present), `header.jpg` or `library_header.jpg`, `library_hero.jpg`, `logo.png`. Try them in order; fall back to the CDN when missing.
+- **Game logos:** Steam's own cache at `<SteamPath>\appcache\librarycache\<appid>\logo.png`, or one folder down in a hashed subfolder. Fall back to the CDN when missing.
 - **Non-Steam shortcuts:** `userdata\<accountid>\config\shortcuts.vdf` (binary VDF). Later phase, but a cheap step toward the v1.0 unified library.
 - **Steam favourites (optional import):** `userdata\<accountid>\config\cloudstorage\cloud-storage-namespace-1.json`. Later phase.
 - **Filter out non-games:** v0.1 uses a hardcoded denylist of appids (Steamworks Common Redistributables `228980`, Proton versions, Steam Linux Runtime, etc.). Later, read the app type from `appcache\appinfo.vdf` (binary) instead.
@@ -82,9 +82,9 @@ Rule of thumb: **local first.** Steam keeps most of what we need on disk. The We
 - Store app details endpoint (`store.steampowered.com/api/appdetails?appids=<id>`): description, genres, developer, release date, screenshots
 - Unofficial and rate-limited (roughly 200 requests per 5 minutes): fetch for the selected game first, backfill slowly in the background, cache aggressively, never block the UI on it
 
-### Images
-- Order of preference: Steam's local `librarycache` → our disk cache → Steam CDN (then cache it)
-- CDN URLs (verified 2026-09-24): `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/<appid>/library_600x900.jpg`, then `.../header.jpg`
+### Game logos (decided in Batch 4: no images, text art only)
+- Order of preference: Steam's local `librarycache` (direct, then hashed subfolder), then our disk cache, then Steam's CDN `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/<appid>/logo.png` (then cache it), then the game's name in a block font
+- Drawn as eighth-block text art with the QUARTER gradient; details in `specs/BATCH_04_SPEC.md`
 
 ## Actions (via Steam URIs)
 
@@ -107,7 +107,7 @@ If Steam is closed, these open it first. That is expected behavior.
 - Status markers: installed, not installed, favourite
 
 ### Detail pane (selected game)
-- Cover art: **half-block (`▀` + truecolor) by default in v0.1**, since it renders inside normal Lip Gloss output. Sixel is a follow-up (see Risks).
+- Game logo: the `logo.png` silhouette redrawn in eighth-block characters with the QUARTER gradient (sixth blocks as a fallback setting). No images.
 - Developer, release year, genres
 - Playtime and last played
 - Achievement progress bar
@@ -131,13 +131,13 @@ If Steam is closed, these open it first. That is expected behavior.
 ### First-run setup
 - Auto-detect Steam, scan libraries, show the list immediately
 - Optional setup wizard (like cliamp's) to paste a Web API key, with a link to where to get it. SteamID64 is auto-detected, never asked for.
-- Works fully without the key: installed games with playtime, last played and local cover art. The key adds uninstalled owned games and achievements.
+- Works fully without the key: installed games with playtime, last played and their logos. The key adds uninstalled owned games and achievements.
 
 ## Layout sketch
 
 ```
 ┌ Library ─────────────── 142 games ┐┌ Hades II ────────────────────────┐
-│ / hades                           ││ [cover art]                      │
+│ / hades                           ││ [game logo in block art]         │
 │                                   ││                                  │
 │ ● Hades                    48h    ││ Supergiant Games · 2025          │
 │ ▶ Hades II                 12h    ││ Action Roguelike, Mythology      │
@@ -162,7 +162,7 @@ Responsive: on narrow terminals, collapse to list only and open details as an ov
 
 ## Risks
 
-- **Sixel inside Bubbletea.** Bubbletea redraws by working out what changed, and raw sixel data doesn't fit that model. Expect flicker, leftover image fragments, or images wiped on redraw. Mitigation: ship half-block art in v0.1, and do an early, time-boxed spike that draws sixel outside the normal render pass and redraws it when the selection changes. If sixel can't be made solid, half-block is the look.
+- **Eighth-block characters are new (Unicode 16, 2024).** Older fonts may not draw them. Mitigation: sixth blocks as a fallback setting. (Sixel images were prototyped in Batch 4 and rejected on looks.)
 - **Undocumented local formats.** `localconfig.vdf`, `librarycache` layout and `appinfo.vdf` can change with Steam updates. Parse defensively: a failed read degrades a feature, it never crashes the app.
 - **Store API rate limits.** See Store metadata above.
 
@@ -188,7 +188,7 @@ Monetization is a later option, not a v0.1 goal, but these decisions are made **
 - **Valve trademarks:** no "Steam" in the name or logo, and nothing that implies Valve endorses it.
 - **Steam Web API:** follow its Terms of Use: 100,000 calls/day; no implied Valve endorsement; Steam Data shown "as is" with disclaimers; tell users what Steam Data is stored (needs a privacy policy before any public release). Charging is not prohibited. Re-read them before charging money.
 - **Store `appdetails`:** undocumented and unofficial. Keep it an optional enhancement. A paid feature must never depend on it.
-- **Cover art** belongs to Valve and publishers: show it from the user's own cache or the CDN, never bundle or rehost it.
+- **Game logos** belong to Valve and publishers: read them from the user's own cache or the CDN and redraw them at runtime; never bundle or rehost them.
 - **Ready Player One:** "Quarter" is a common word and fine to use. The Parzival story can go in the README, but no book or film names, logos or artwork in anything sold.
 
 Not legal advice. Get the Valve terms properly checked before launching anything paid.
@@ -204,5 +204,5 @@ Not legal advice. Get the Valve terms properly checked before launching anything
 
 1. Read this brief fully.
 2. Propose a project structure and a short implementation plan for v0.1 before writing code.
-3. Build in this order: Steam detection and library scan (including local playtime), basic list UI with search, launching, then detail pane, then API key support, then images. Do a short sixel spike early so the image approach is settled before step "images". See `PLAN.md`.
+3. Build in this order: Steam detection and library scan (including local playtime), basic list UI with search, launching, then detail pane, then API key support, then game logos (the Batch 4 spike settled on block-art logos, no images). See `PLAN.md`.
 4. Keep each step runnable and testable on Windows.
