@@ -29,12 +29,14 @@ func (m Model) helpView() string {
 	h.FullSeparator = "   "
 	if !m.fullHelp {
 		// Measured untruncated: help cuts an overlong line down to "…".
-		line := h.ShortHelpView(shortHelp(true))
-		if lipgloss.Width(line) > m.width-2 {
-			h.SetWidth(max(m.width-2, 0))
-			line = h.ShortHelpView(shortHelp(false))
+		lines := shortHelp()
+		for _, b := range lines {
+			if line := h.ShortHelpView(b); lipgloss.Width(line) <= m.width-2 {
+				return "\n  " + line
+			}
 		}
-		return "\n  " + line
+		h.SetWidth(max(m.width-2, 0))
+		return "\n  " + h.ShortHelpView(lines[len(lines)-1])
 	}
 	h.SetWidth(max(m.width-2, 0))
 	return "\n  " + strings.ReplaceAll(h.FullHelpView(fullHelp()), "\n", "\n  ")

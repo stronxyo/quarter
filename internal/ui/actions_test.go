@@ -118,9 +118,13 @@ func TestHelpToggle(t *testing.T) {
 	}
 }
 
-// The key line always fits: at 80 columns ↑↓ move gives way so i install fits.
+// The key line always fits: on narrow windows the arrows give way, move first.
 func TestShortHelpFits(t *testing.T) {
-	for _, w := range []int{80, 120} {
+	for _, tc := range []struct {
+		w          int
+		move, page bool
+	}{{80, false, false}, {84, false, true}, {120, true, true}} {
+		w := tc.w
 		m, _ := withOpener(t, nil, portal2)
 		var tm tea.Model = m
 		tm, _ = tm.Update(tea.WindowSizeMsg{Width: w, Height: 30})
@@ -131,8 +135,8 @@ func TestShortHelpFits(t *testing.T) {
 		if got := ansi.StringWidth(line); got > w {
 			t.Errorf("width %d: key line is %d wide", w, got)
 		}
-		if wantMove := w >= 120; strings.Contains(line, "move") != wantMove {
-			t.Errorf("width %d: move shown should be %v: %q", w, wantMove, line)
+		if strings.Contains(line, "move") != tc.move || strings.Contains(line, "page") != tc.page {
+			t.Errorf("width %d: want move %v, page %v: %q", w, tc.move, tc.page, line)
 		}
 	}
 }
