@@ -47,41 +47,42 @@ func (d rowDelegate) Render(w io.Writer, m list.Model, index int, item list.Item
 	}
 	selected := index == m.Index()
 	running := d.running != 0 && g.AppID == d.running
-	style := rowStyle
-	switch {
-	case selected && running:
-		style = selectedRunningStyle
-	case selected:
-		style = selectedStyle
-	case running:
-		style = runningStyle
-	}
 
 	// One marker per row: a big triangle while running, else a favourite's
-	// star, else a small triangle (filled when installed). On the selected
-	// row the whole line is colored, and the star's own color would end in a
-	// reset that switches the row's color off after it.
-	marker := " "
+	// star, else a small triangle (filled when installed).
+	marker := markerUninstalled
 	switch {
 	case running:
 		marker = markerRunning // the big triangle: playing now
-	case g.Favourite && selected:
-		marker = favouriteMarker(g)
 	case g.Favourite:
-		marker = starStyle.Render(favouriteMarker(g))
+		marker = favouriteMarker(g)
 	case g.Installed:
 		marker = markerInstalled
-	default:
-		marker = markerUninstalled
 	}
 
 	last := library.FormatAgo(g.LastPlayed, d.now())
 	if running {
 		last = markerRunning + " running"
 	}
-	line := columns(m.Width()-style.GetHorizontalFrameSize(), marker, g.Label(),
-		library.FormatHours(g.Playtime, d.playtimeKnown), last)
-	fmt.Fprint(w, style.Render(line))
+	// The marker takes one cell; it's drawn separately below.
+	line := columns(m.Width()-rowStyle.GetHorizontalFrameSize(), " ", g.Label(),
+		library.FormatHours(g.Playtime, d.playtimeKnown), last)[1:]
+
+	// The selected and running rows are one color from marker to end: a
+	// colored star inside would end in a reset that switches the row's color
+	// off after it. Other rows color the star and the text separately.
+	switch {
+	case selected && running:
+		fmt.Fprint(w, selectedRunningStyle.Render(marker+line))
+	case selected:
+		fmt.Fprint(w, selectedStyle.Render(marker+line))
+	case running:
+		fmt.Fprint(w, runningStyle.Render(marker+line))
+	case g.Favourite:
+		fmt.Fprint(w, rowStyle.Render(starStyle.Render(marker)+textStyle.Render(line)))
+	default:
+		fmt.Fprint(w, rowStyle.Render(textStyle.Render(marker+line)))
+	}
 }
 
 func newList() list.Model {
@@ -95,6 +96,9 @@ func newList() list.Model {
 	// big libraries, and rendering them dominated startup time.
 	l.Paginator.Type = paginator.Arabic
 	l.FilterInput.Prompt = "Search: "
+	s := l.FilterInput.Styles()
+	s.Focused.Text, s.Blurred.Text = textStyle, textStyle
+	l.FilterInput.SetStyles(s)
 	l.SetShowHelp(false) // Quarter draws its own key help
 	return l
 }

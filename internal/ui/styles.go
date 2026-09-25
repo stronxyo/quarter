@@ -5,6 +5,7 @@ import "charm.land/lipgloss/v2"
 // Arcade palette: the logo's gold-to-orange gradient on the terminal's own
 // background; everything else is accented with the gradient's middle color.
 var (
+	colorText    = lipgloss.Color("#F0E4D2") // ivory: softer than the terminal's white
 	colorAccent  = lipgloss.Color("#FFAF63")
 	colorDim     = lipgloss.Color("#B07A45") // dim amber, like a CRT's fading phosphor
 	colorKeycap  = lipgloss.Color("#2E2A26") // the dark key behind each key letter
@@ -20,6 +21,7 @@ var (
 	rowStyle      = lipgloss.NewStyle().PaddingLeft(2)
 	selectedStyle = lipgloss.NewStyle().PaddingLeft(1).Bold(true).Foreground(colorAccent).
 			Border(lipgloss.NormalBorder(), false, false, false, true).BorderForeground(colorAccent)
+	textStyle      = lipgloss.NewStyle().Foreground(colorText)
 	dimStyle       = lipgloss.NewStyle().Foreground(colorDim)
 	activeTabStyle = lipgloss.NewStyle().Bold(true).Foreground(colorAccent)
 	starStyle      = lipgloss.NewStyle().Foreground(colorAccent)

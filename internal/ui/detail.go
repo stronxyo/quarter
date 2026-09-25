@@ -88,7 +88,7 @@ func (m Model) detailView(width, height int) string {
 				who = append(who, y)
 			}
 			if len(who) > 0 {
-				b.WriteString(ansi.Truncate(strings.Join(who, " · "), inner, "…") + "\n")
+				b.WriteString(textStyle.Render(ansi.Truncate(strings.Join(who, " · "), inner, "…")) + "\n")
 			}
 			if len(info.Genres) > 0 {
 				b.WriteString(dimStyle.Render(ansi.Truncate(strings.Join(info.Genres, ", "), inner, "…")) + "\n")
@@ -108,7 +108,7 @@ func (m Model) detailView(width, height int) string {
 
 		row := func(label, value string) {
 			b.WriteString(dimStyle.Render(fmt.Sprintf("%-*s", paneLabelWidth, label)))
-			b.WriteString(ansi.Truncate(value, max(inner-paneLabelWidth, 1), "…"))
+			b.WriteString(textStyle.Render(ansi.Truncate(value, max(inner-paneLabelWidth, 1), "…")))
 			b.WriteString("\n")
 		}
 		row("Played", library.FormatHours(g.Playtime, m.playtimeKnown))
@@ -130,7 +130,7 @@ func (m Model) detailView(width, height int) string {
 			b.WriteString("\n" + starStyle.Render(markerFavourite+" Favourite") + "\n")
 		}
 		if state == storeReady && info.Description != "" {
-			b.WriteString("\n" + lipgloss.NewStyle().Width(inner).Render(info.Description))
+			b.WriteString("\n" + textStyle.Width(inner).Render(info.Description))
 		}
 	}
 	// MaxHeight cuts a long description at the pane's bottom edge.
