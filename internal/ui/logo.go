@@ -26,7 +26,7 @@ var logoArt = []string{
 const logoBoxWidth = maxTableWidth - logoIndent
 
 var logoBoxStyle = lipgloss.NewStyle().
-	Border(lipgloss.NormalBorder()).
+	Border(lipgloss.RoundedBorder()).
 	BorderForeground(colorLogoBorder).
 	Padding(1, 0).
 	Width(logoBoxWidth).

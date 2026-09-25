@@ -108,6 +108,9 @@ Plain text (list rows, pane values, the search box) is ivory `#F0E4D2` instead o
 - **Pixel font (B):** capitals, digits and common punctuation, drawn in half blocks with the logo gradient. It shows for every game without a drawn logo: none anywhere, or one still downloading. The plain bold name only when logos are hidden (`o`) or the name doesn't fit.
 - **List overflow:** bubbles v2.2.1 sizes a page by whether the page counter showed before, so a resize that brings the counter in drew one row too many. Quarter sets the list's size twice. Checked for 1 to 40 games at heights 2 to 45; only a 2-row list still overflows.
 - **Pane border:** a long description used to cut off the pane's bottom border; it is now cut inside the frame.
+- **Logo placement (Pablo, after trying it):** the game's logo moved out of the pane into the empty strip beside the quarter_ box, level with the inside of the box, with no frame. The pane's title always shows the game's name. No room for the strip (short or narrow window, pane hidden): no logo, nothing read.
+- **Cleaner logos:** the shape is now what shows on the dark terminal (opacity times brightness), not transparency alone, so black outlines count as gaps and white letters stay apart (THE FINALS was one blob before). Heavy lettering is eroded slightly before shrinking so thin gaps survive; small print that erosion would wipe out is put back; thin strokes need only a quarter of a dot to show. Tuned on six real logos (option A3); 3.7 ms per logo. Hair-thin brush logos (Cyberpunk 2077) stay rough at 11 rows.
+- **Rounded corners** on the quarter_ box and the detail pane.
 - **Design record:** every option explored in Batches 4 to 7 is kept in a PDF in Pablo's Documents (`Quarter/Quarter design options.pdf`), outside the repo because it shows Steam logos.
 
 ## Deferred (recorded in Rules Appendix A if approved)

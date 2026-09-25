@@ -12,7 +12,7 @@ import (
 
 var (
 	paneStyle = lipgloss.NewStyle().
-			Border(lipgloss.NormalBorder()).
+			Border(lipgloss.RoundedBorder()).
 			BorderForeground(colorLogoBorder).
 			Padding(0, 1)
 	paneTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(colorAccent)
@@ -69,14 +69,9 @@ func (m Model) detailView(width, height int) string {
 	if !ok {
 		b.WriteString(dimStyle.Render("No game selected."))
 	} else {
-		// The game's logo, in an area of fixed height so the lines below
-		// don't jump from game to game; its name when logos are off or the
-		// pane is too short for one.
-		if cols, rows := logoArea(width, height); m.logos != nil && !m.logosHidden && rows > 0 {
-			b.WriteString(m.logoView(g, cols, rows) + "\n")
-		} else {
-			b.WriteString(paneTitleStyle.Width(inner).Render(strings.ToUpper(g.Label())) + "\n")
-		}
+		// The name always shows here; the logo has its own place, beside
+		// the quarter_ box.
+		b.WriteString(paneTitleStyle.Width(inner).Render(strings.ToUpper(g.Label())) + "\n")
 
 		if g.AppID == m.running {
 			b.WriteString(runningLabelStyle.Render(markerRunning+" RUNNING NOW") + "\n")

@@ -371,7 +371,7 @@ func TestRefreshKey(t *testing.T) {
 // tablePart is a screen line without the detail pane beside the table. The
 // search starts after the first character: the selected row's bar is there.
 func tablePart(line string) string {
-	if i := strings.IndexAny(line[min(1, len(line)):], "│┌└"); i >= 0 {
+	if i := strings.IndexAny(line[min(1, len(line)):], "│╭╰"); i >= 0 {
 		line = line[:i+min(1, len(line))]
 	}
 	return strings.TrimRight(line, " ")

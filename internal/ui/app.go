@@ -498,7 +498,7 @@ func (m Model) View() tea.View {
 	default:
 		content = m.body()
 		if m.showLogo() {
-			content = renderLogo() + "\n" + content
+			content = m.withLogoBand(renderLogo()) + "\n" + content
 		}
 		content += "\n" + m.helpView()
 		if f := m.footer(); f != "" {

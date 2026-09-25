@@ -23,13 +23,9 @@ type LogoSource interface {
 	Download(ctx context.Context, appID uint32) (string, error) // fetch and keep the CDN's logo
 }
 
-// Game logos in the detail pane: at most logoMaxRows tall, and never more
-// than logoShare of the pane, so the details below stay visible.
-const (
-	logoMaxRows = 14
-	logoShare   = 0.4
-	logoMinRows = 3 // shorter than this, the pane shows the name instead
-)
+// The game's logo sits beside the quarter_ box, above the detail pane, in a
+// band with no frame of its own, level with the inside of the box.
+const logoBandMinCols = 24 // narrower than this, there's no band
 
 // logoKey is one drawing of one game's logo: each pane size draws anew.
 type logoKey struct {
@@ -58,30 +54,23 @@ const (
 	logoLoading                  // being read or downloaded
 )
 
-// logoArea is the logo's size inside a pane of width x height cells, or 0
-// rows when there's no room for one.
-func logoArea(width, height int) (cols, rows int) {
-	cols = width - paneStyle.GetHorizontalFrameSize()
-	rows = min(logoMaxRows, int(float64(height-paneStyle.GetVerticalFrameSize())*logoShare))
-	if rows < logoMinRows || cols < 1 {
-		return cols, 0
+// logoBand is where the selected game's logo goes: its left column, and its
+// size in cells. ok is false when there's no room: no big quarter_ logo, no
+// pane beside the list, or too narrow a strip beside the box.
+func (m Model) logoBand() (x, cols, rows int, ok bool) {
+	if !m.showLogo() || !m.sideBySide() {
+		return 0, 0, 0, false
 	}
-	return cols, rows
+	x = max(m.tableWidth(), logoIndent+logoBoxWidth) + paneGap
+	cols = min(m.width-x, m.paneWidth())
+	rows = len(logoArt) + logoBoxStyle.GetVerticalPadding() // the box's inside
+	return x, cols, rows, cols >= logoBandMinCols
 }
 
-// paneSize is the detail pane's size as body draws it: beside the list, or
-// over it on a narrow window.
-func (m Model) paneSize() (width, height int) {
-	height = 2 + m.list.Height() // section line and column header, then the rows
-	if !m.sideBySide() {
-		height--
-	}
-	return m.paneWidth(), height
-}
-
-// showsLogos reports whether the pane draws logos at all.
+// showsLogos reports whether game logos are drawn at all right now.
 func (m Model) showsLogos() bool {
-	return m.logos != nil && !m.logosHidden && (m.sideBySide() || m.detailOpen)
+	_, _, _, ok := m.logoBand()
+	return m.logos != nil && !m.logosHidden && ok
 }
 
 // logoFor reports what the pane can show for appID at the given area.
@@ -102,10 +91,7 @@ func (m *Model) ensureLogo() tea.Cmd {
 	if !ok || !m.showsLogos() || m.logoNone[g.AppID] {
 		return nil
 	}
-	cols, rows := logoArea(m.paneSize())
-	if rows == 0 {
-		return nil
-	}
+	_, cols, rows, _ := m.logoBand()
 	key := logoKey{g.AppID, cols, rows}
 	if _, ok := m.logoCache[key]; ok || m.logoPending[key] {
 		return nil
@@ -184,17 +170,16 @@ func (m Model) wantLogo(msg logoWantMsg) (Model, tea.Cmd) {
 	return m, drawLogo(m.logos, msg.key, m.logoBlocks, true)
 }
 
-// logoView fills the pane's logo area, cols x rows: the logo in the QUARTER
+// logoView fills the logo band, cols x rows: the logo in the QUARTER
 // gradient, centered. Without one (none anywhere, or still on its way), the
-// game's name in Quarter's pixel font, in the same style; the plain name only
-// when even that doesn't fit.
+// game's name in Quarter's pixel font, in the same style; nothing when even
+// that doesn't fit, since the pane below names the game anyway.
 func (m Model) logoView(g library.Game, cols, rows int) string {
 	lines, state := m.logoFor(logoKey{g.AppID, cols, rows})
 	if state != logoReady {
 		var ok bool
 		if lines, ok = art.Name(g.Label(), cols, rows); !ok {
-			name := paneTitleStyle.Width(cols).Render(strings.ToUpper(g.Label()))
-			return lipgloss.Place(cols, rows, lipgloss.Left, lipgloss.Center, name)
+			return lipgloss.Place(cols, rows, lipgloss.Left, lipgloss.Top, "")
 		}
 	}
 	colors := lipgloss.Blend1D(len(lines), colorLogoTop, colorLogoBottom)
@@ -203,4 +188,18 @@ func (m Model) logoView(g library.Game, cols, rows int) string {
 		styled[i] = lipgloss.NewStyle().Foreground(colors[i]).Render(l)
 	}
 	return lipgloss.Place(cols, rows, lipgloss.Center, lipgloss.Center, strings.Join(styled, "\n"))
+}
+
+// withLogoBand puts the selected game's logo beside the quarter_ block,
+// level with the inside of its box.
+func (m Model) withLogoBand(header string) string {
+	x, cols, rows, ok := m.logoBand()
+	g, selected := m.selected()
+	if !ok || !selected || m.logos == nil || m.logosHidden {
+		return header
+	}
+	above := logoPadTop + 1 // the box's top border
+	band := strings.Repeat("\n", above) + m.logoView(g, cols, rows)
+	gap := strings.Repeat(" ", max(x-lipgloss.Width(header), 0))
+	return lipgloss.JoinHorizontal(lipgloss.Top, header, gap, band)
 }

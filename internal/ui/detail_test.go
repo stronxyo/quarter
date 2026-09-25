@@ -30,7 +30,7 @@ func TestLongDescriptionKeepsBorder(t *testing.T) {
 	m := sized(t, 150, 30).(Model)
 	m.storeInfo[1] = webapi.StoreEntry{Info: webapi.StoreInfo{Description: strings.Repeat("word ", 400)}, Fetched: time.Now()}
 	lines := strings.Split(ansi.Strip(m.detailView(50, 15)), "\n")
-	if len(lines) != 15 || !strings.HasPrefix(lines[len(lines)-1], "└") {
+	if len(lines) != 15 || !strings.HasPrefix(lines[len(lines)-1], "╰") {
 		t.Errorf("want 15 lines ending in the bottom border, got %d ending %q", len(lines), lines[len(lines)-1])
 	}
 }

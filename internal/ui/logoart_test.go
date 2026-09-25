@@ -130,37 +130,43 @@ func TestLogoShowsForSelectedGame(t *testing.T) {
 	logos := &fakeLogos{paths: map[uint32][]string{1: {logoPNG(t)}}}
 	m, _ := withLogos(t, logos, config.Settings{})
 	view := paneText(m)
-	if !hasGameLogo(view) || strings.Contains(view, "ALPHA") {
-		t.Errorf("Alpha's pane should show its logo, not its name:\n%s", view)
+	if !hasGameLogo(view) || !strings.Contains(view, "ALPHA") {
+		t.Errorf("Alpha's logo should show, and its name in the pane:\n%s", view)
+	}
+	// The logo sits beside the quarter_ box: on a line of the box, right of it.
+	for _, l := range strings.Split(view, "\n") {
+		if hasGameLogo(l) && !strings.Contains(l, "│") {
+			t.Errorf("the logo should share its lines with the quarter_ box: %q", l)
+		}
 	}
 }
 
-// Bravo has no logo anywhere: its name shows, in the same area, so the
-// details below sit on the same line as Alpha's.
-func TestLogoAreaKeepsItsHeight(t *testing.T) {
+// Bravo has no logo anywhere: its name shows in the pixel font where the
+// logo would be, and plainly in the pane as always.
+func TestNoLogoShowsPixelName(t *testing.T) {
 	logos := &fakeLogos{paths: map[uint32][]string{1: {logoPNG(t)}}, missing: map[uint32]bool{2: true}}
 	m, _ := withLogos(t, logos, config.Settings{})
-	row := func(m tea.Model) int {
-		for i, l := range strings.Split(paneText(m), "\n") {
-			if strings.Contains(l, "Last played  ") {
-				return i
-			}
-		}
-		return -1
-	}
-	alpha := row(m)
 	m, cmd := m.Update(press("j"))
 	m = pump(m, cmd)
-	cols, rows := logoArea(m.(Model).paneSize())
+	_, cols, rows, _ := m.(Model).logoBand()
 	drawn, _ := art.Name("Bravo", cols, rows)
-	if !strings.Contains(paneText(m), strings.TrimSpace(drawn[0])) || strings.Contains(paneText(m), "BRAVO") {
-		t.Fatalf("Bravo has no logo, so its name should show in the pixel font:\n%s", paneText(m))
-	}
-	if bravo := row(m); alpha < 0 || bravo != alpha {
-		t.Errorf("the details moved: row %d with a logo, %d without", alpha, bravo)
+	if !strings.Contains(paneText(m), strings.TrimSpace(drawn[0])) || !strings.Contains(paneText(m), "BRAVO") {
+		t.Fatalf("Bravo's name should show in the pixel font and in the pane:\n%s", paneText(m))
 	}
 	if !m.(Model).logoNone[2] || logos.downloads != 0 {
 		t.Error("a game the CDN is known to lack should not be downloaded")
+	}
+}
+
+// Without room beside the quarter_ box, no logo is drawn or read.
+func TestNoLogoBandWhenNarrow(t *testing.T) {
+	logos := &fakeLogos{paths: map[uint32][]string{1: {logoPNG(t)}}}
+	m, _ := withLogos(t, logos, config.Settings{})
+	logos.reads = 0
+	m, cmd := m.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
+	m = pump(m, cmd)
+	if hasGameLogo(paneText(m)) || logos.reads != 0 {
+		t.Errorf("a 100-column window has no room beside the box: reads %d", logos.reads)
 	}
 }
 
@@ -170,7 +176,7 @@ func TestLateLogoStaysWithItsGame(t *testing.T) {
 	logos := &fakeLogos{paths: map[uint32][]string{}, missing: map[uint32]bool{1: true, 2: true}}
 	m, _ := withLogos(t, logos, config.Settings{})
 	m, _ = m.Update(press("j")) // Bravo
-	cols, rows := logoArea(m.(Model).paneSize())
+	_, cols, rows, _ := m.(Model).logoBand()
 	m, _ = m.Update(logoDoneMsg{key: logoKey{1, cols, rows}, lines: []string{"▞▚▞▚"}})
 	if strings.Contains(paneText(m), "▞▚▞▚") {
 		t.Error("Alpha's logo must not show on Bravo")

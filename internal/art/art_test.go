@@ -156,6 +156,60 @@ func TestRenderGenericImage(t *testing.T) {
 	}
 }
 
+// Two white letters touching through a thin black outline, the way many
+// Steam logos are drawn: the outline counts as background, and the gap
+// survives even when it is thinner than a dot.
+func TestRenderKeepsDarkGaps(t *testing.T) {
+	img := canvas(440, 140, image.Rect(20, 20, 216, 120), image.Rect(224, 20, 420, 120))
+	black := color.NRGBA{0, 0, 0, 255}
+	for y := 20; y < 120; y++ {
+		for x := 216; x < 224; x++ { // an 8-pixel outline: under one dot at 20 cells
+			img.SetNRGBA(x, y, black)
+		}
+	}
+	lines, err := Render(img, 20, 10, Eighths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The gap may fall inside a cell (▌▐), so no row may be solid across.
+	for _, l := range lines {
+		if !strings.ContainsFunc(l, func(r rune) bool { return r != '█' }) {
+			t.Fatalf("the two shapes should stay apart:\n%s", strings.Join(lines, "\n"))
+		}
+	}
+}
+
+// Erosion opens gaps in heavy lettering, but a small piece it would wipe out
+// is put back as it was.
+func TestKeepSmallParts(t *testing.T) {
+	const w, h = 60, 30
+	orig := make([]bool, w*h)
+	set := func(x0, y0, x1, y1 int) {
+		for y := y0; y < y1; y++ {
+			for x := x0; x < x1; x++ {
+				orig[y*w+x] = true
+			}
+		}
+	}
+	set(2, 2, 40, 20)   // heavy lettering
+	set(45, 22, 48, 26) // small print
+	eroded := erode(orig, w, h, 2)
+	if eroded[23*w+46] {
+		t.Fatal("erosion by 2 should wipe out a 3-pixel stroke")
+	}
+	out := keepSmallParts(orig, eroded, w)
+	for y := 22; y < 26; y++ {
+		for x := 45; x < 48; x++ {
+			if !out[y*w+x] {
+				t.Fatalf("small print pixel %d,%d should be back", x, y)
+			}
+		}
+	}
+	if out[2*w+2] {
+		t.Error("the heavy shape should stay eroded")
+	}
+}
+
 func TestParseBlocks(t *testing.T) {
 	for in, want := range map[string]Blocks{"": Eighths, "eighths": Eighths, "sixths": Sixths} {
 		if got, ok := ParseBlocks(in); !ok || got != want {
