@@ -18,13 +18,14 @@ type gameItem struct{ library.Game }
 
 func (g gameItem) FilterValue() string { return g.Name }
 
-// columns lays out one line: marker, name (takes the free space), played
+// columns lays out one line: marker (favourite star or installed dot), name
+// (takes the free space), played
 // right-aligned, last played. The column header and every row use it, so
 // they always line up. The table never grows past maxTableWidth, so on a wide
 // terminal the numbers stay close to the names.
 func columns(width int, marker, name, played, last string) string {
 	width = min(width, maxTableWidth-rowStyle.GetHorizontalFrameSize())
-	nameWidth := max(width-1-1-hoursWidth-2-agoWidth, 1)
+	nameWidth := max(width-markerWidth-1-hoursWidth-2-agoWidth, 1)
 	return fmt.Sprintf("%s %-*s%*s  %-*s", marker, nameWidth, ansi.Truncate(name, nameWidth, "…"), hoursWidth, played, agoWidth, last)
 }
 
@@ -47,11 +48,15 @@ func (d rowDelegate) Render(w io.Writer, m list.Model, index int, item list.Item
 	if index == m.Index() {
 		style = selectedStyle
 	}
+	// A favourite's star takes the place of the installed dot.
 	marker := " "
-	if g.Installed {
+	switch {
+	case g.Favourite:
+		marker = starStyle.Render(markerFavourite)
+	case g.Installed:
 		marker = markerInstalled
 	}
-	line := columns(m.Width()-style.GetHorizontalFrameSize(), marker, g.Name,
+	line := columns(m.Width()-style.GetHorizontalFrameSize(), marker, g.Label(),
 		library.FormatHours(g.Playtime, d.playtimeKnown), library.FormatAgo(g.LastPlayed, d.now()))
 	fmt.Fprint(w, style.Render(line))
 }

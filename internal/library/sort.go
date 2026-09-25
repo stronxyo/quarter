@@ -17,9 +17,26 @@ const (
 	SortLastPlayed
 )
 
+// sortKeys name each column in saved settings. Names, not numbers, so
+// reordering the constants never scrambles what users saved.
+var sortKeys = [...]string{"name", "playtime", "last_played"}
+
 // DefaultDesc is the natural direction for each column: names A to Z, but most
 // played and most recent first.
 func (s SortOrder) DefaultDesc() bool { return s != SortName }
+
+// Key is the column's name in saved settings.
+func (s SortOrder) Key() string { return sortKeys[s] }
+
+// ParseSortOrder reads a saved column name. ok is false for unknown names.
+func ParseSortOrder(key string) (s SortOrder, ok bool) {
+	for i, k := range sortKeys {
+		if k == key {
+			return SortOrder(i), true
+		}
+	}
+	return SortName, false
+}
 
 // Filter narrows which games are shown.
 type Filter int
@@ -27,11 +44,28 @@ type Filter int
 const (
 	FilterAll Filter = iota
 	FilterRecent
+	FilterFavourites
 	filterCount
 )
 
-func (f Filter) String() string {
-	return [...]string{"All", "Recent"}[f]
+var (
+	filterLabels = [...]string{"All", "Recent", "Favourites"}
+	filterKeys   = [...]string{"all", "recent", "favourites"}
+)
+
+func (f Filter) String() string { return filterLabels[f] }
+
+// Key is the filter's name in saved settings.
+func (f Filter) Key() string { return filterKeys[f] }
+
+// ParseFilter reads a saved filter name. ok is false for unknown names.
+func ParseFilter(key string) (f Filter, ok bool) {
+	for i, k := range filterKeys {
+		if k == key {
+			return Filter(i), true
+		}
+	}
+	return FilterAll, false
 }
 
 // Next cycles to the following filter.
@@ -52,6 +86,9 @@ func View(games []Game, f Filter, s SortOrder, desc bool, now time.Time) []Game 
 	out := make([]Game, 0, len(games))
 	for _, g := range games {
 		if f == FilterRecent && (g.LastPlayed.IsZero() || now.Sub(g.LastPlayed) > config.RecentWindow) {
+			continue
+		}
+		if f == FilterFavourites && !g.Favourite {
 			continue
 		}
 		out = append(out, g)

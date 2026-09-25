@@ -1,7 +1,7 @@
-// Package cache stores small JSON files in Quarter's data folder. A cache is
-// only ever a speed-up: anything missing, corrupt or from an older format is
-// treated as "no cache", never as an error the user sees.
-package cache
+// Package store saves small JSON files in Quarter's data folder: the library
+// cache and the settings. Load treats anything missing, corrupt or from an
+// older format as "not there"; callers decide what that means.
+package store
 
 import (
 	"encoding/json"
@@ -34,24 +34,24 @@ func Load[T any](dir, name string, version int) (data T, ok bool) {
 func Save[T any](dir, name string, version int, data T) error {
 	b, err := json.Marshal(envelope[T]{Version: version, Data: data})
 	if err != nil {
-		return fmt.Errorf("cache %s: %w", name, err)
+		return fmt.Errorf("store %s: %w", name, err)
 	}
 
 	tmp, err := os.CreateTemp(dir, name+".*.tmp")
 	if err != nil {
-		return fmt.Errorf("cache %s: %w", name, err)
+		return fmt.Errorf("store %s: %w", name, err)
 	}
 	defer os.Remove(tmp.Name()) // no-op once renamed
 
 	if _, err := tmp.Write(b); err != nil {
 		tmp.Close()
-		return fmt.Errorf("cache %s: %w", name, err)
+		return fmt.Errorf("store %s: %w", name, err)
 	}
 	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("cache %s: %w", name, err)
+		return fmt.Errorf("store %s: %w", name, err)
 	}
 	if err := os.Rename(tmp.Name(), filepath.Join(dir, name)); err != nil {
-		return fmt.Errorf("cache %s: %w", name, err)
+		return fmt.Errorf("store %s: %w", name, err)
 	}
 	return nil
 }

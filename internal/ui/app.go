@@ -45,6 +45,9 @@ type Model struct {
 	statusID  int                        // tells a stale clear timer from the current message
 	fullHelp  bool                       // ? pressed: every key is listed
 
+	favs         map[uint32]bool             // starred games, by appid
+	saveSettings func(config.Settings) error // remembers favourites, sort and filter; may be nil
+
 	games    []library.Game // everything scanned; the list shows a filtered, sorted view
 	filterBy library.Filter
 	sortBy   library.SortOrder
@@ -62,6 +65,9 @@ type Options struct {
 	Cached    *library.Result            // shown immediately while a fresh scan runs
 	Save      func(library.Result) error // stores each fresh scan for the next launch
 	Open      func(uri string) error     // hands steam:// links to the OS
+
+	Settings     config.Settings             // favourites, sort and filter from the last run
+	SaveSettings func(config.Settings) error // remembers them for the next run
 }
 
 // New returns the UI model.
@@ -73,10 +79,15 @@ func New(opts Options) Model {
 		list:      newList(),
 		now:       time.Now,
 		scanning:  true,
+
+		favs:         make(map[uint32]bool),
+		saveSettings: opts.SaveSettings,
 	}
+	m.applySettings(opts.Settings)
 	if opts.Cached != nil {
 		m.state = stateReady
 		m.games = opts.Cached.Games
+		m.markFavourites()
 		m.list.SetDelegate(rowDelegate{playtimeKnown: opts.Cached.PlaytimeKnown, now: m.now})
 		m.refreshList()
 	}
@@ -165,12 +176,15 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 			for _, sk := range sortKeys {
 				if key.Matches(msg, sk.binding) {
 					m.sortBy, m.sortDesc = nextSort(m.sortBy, m.sortDesc, sk.order)
-					return m, m.refreshList()
+					return m, tea.Batch(m.refreshList(), m.persist())
 				}
 			}
 			if key.Matches(msg, keys.Filter) {
 				m.filterBy = m.filterBy.Next()
-				return m, m.refreshList()
+				return m, tea.Batch(m.refreshList(), m.persist())
+			}
+			if key.Matches(msg, keys.Favourite) {
+				return m.toggleFavourite()
 			}
 		}
 	}
@@ -199,6 +213,7 @@ func (m Model) applyScan(msg scanDoneMsg) (Model, tea.Cmd) {
 	m.state = stateReady
 	m.warnings = len(msg.res.Warnings)
 	m.games = msg.res.Games
+	m.markFavourites()
 	m.list.SetDelegate(rowDelegate{playtimeKnown: msg.res.PlaytimeKnown, now: m.now})
 	cmd := m.refreshList()
 	if m.save != nil {
@@ -319,7 +334,7 @@ func (m Model) columnHeader() string {
 		}
 		return name + " ▲"
 	}
-	line := columns(m.width-rowStyle.GetHorizontalFrameSize(), " ",
+	line := columns(m.width-rowStyle.GetHorizontalFrameSize(), strings.Repeat(" ", markerWidth),
 		label("Name", library.SortName), label("Played", library.SortPlaytime), label("Last played", library.SortLastPlayed))
 	return rowStyle.Render(dimStyle.Render(line))
 }

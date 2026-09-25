@@ -7,8 +7,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/stronxyo/quarter/internal/cache"
 	"github.com/stronxyo/quarter/internal/library"
+	"github.com/stronxyo/quarter/internal/store"
 )
 
 // The brief's speed targets for a large library.
@@ -38,7 +38,7 @@ func bigLibrary(n int) library.Result {
 // startup does what launching Quarter does before the first frame: read the
 // cached library from disk, build the UI, size it, and render it.
 func startup(dir string) string {
-	res, ok := cache.Load[library.Result](dir, "library.json", 1)
+	res, ok := store.Load[library.Result](dir, "library.json", 1)
 	if !ok {
 		panic("benchmark cache missing")
 	}
@@ -58,7 +58,7 @@ func setupBench(tb testing.TB) (dir string, ready Model) {
 	tb.Helper()
 	dir = tb.TempDir()
 	lib := bigLibrary(benchGames)
-	if err := cache.Save(dir, "library.json", 1, lib); err != nil {
+	if err := store.Save(dir, "library.json", 1, lib); err != nil {
 		tb.Fatal(err)
 	}
 	var m tea.Model = New(Options{Cached: &lib})

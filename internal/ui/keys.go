@@ -12,6 +12,7 @@ type appKeys struct {
 	Play       key.Binding
 	Install    key.Binding
 	Store      key.Binding
+	Favourite  key.Binding
 	SortName   key.Binding
 	SortPlayed key.Binding
 	SortLast   key.Binding
@@ -24,6 +25,7 @@ var keys = appKeys{
 	Play:       key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "play")),
 	Install:    key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "install")),
 	Store:      key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "store page")),
+	Favourite:  key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "favourite")),
 	SortName:   key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "sort by name")),
 	SortPlayed: key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "sort by played")),
 	SortLast:   key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "sort by last played")),
@@ -53,7 +55,7 @@ func shortHelp() []key.Binding {
 func fullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{helpMove, helpEnds, helpPage},
-		{keys.Play, keys.Install, keys.Store},
+		{keys.Play, keys.Install, keys.Store, keys.Favourite},
 		{helpSearch, keys.SortName, keys.SortPlayed, keys.SortLast},
 		{keys.Filter, keys.Refresh, helpLess, helpQuit},
 	}

@@ -55,7 +55,53 @@ func TestDefaults(t *testing.T) {
 	if SortName.DefaultDesc() || !SortPlaytime.DefaultDesc() || !SortLastPlayed.DefaultDesc() {
 		t.Error("names should default to A to Z, playtime and last played to highest first")
 	}
-	if FilterAll.Next() != FilterRecent || FilterRecent.Next() != FilterAll {
+	if FilterAll.Next() != FilterRecent || FilterRecent.Next() != FilterFavourites || FilterFavourites.Next() != FilterAll {
 		t.Error("filter does not cycle")
+	}
+}
+
+func TestFavouritesFilter(t *testing.T) {
+	games := []Game{{Name: "Alpha", Favourite: true}, {Name: "Bravo"}, {Name: "Charlie", Favourite: true}}
+	if got := names(View(games, FilterFavourites, SortName, false, time.Now())); got != "Alpha,Charlie" {
+		t.Errorf("got %v, want Alpha,Charlie", got)
+	}
+}
+
+func TestSavedNames(t *testing.T) {
+	for _, s := range []SortOrder{SortName, SortPlaytime, SortLastPlayed} {
+		if got, ok := ParseSortOrder(s.Key()); !ok || got != s {
+			t.Errorf("sort %v does not round-trip through %q", s, s.Key())
+		}
+	}
+	for _, f := range Filters() {
+		if got, ok := ParseFilter(f.Key()); !ok || got != f {
+			t.Errorf("filter %v does not round-trip through %q", f, f.Key())
+		}
+	}
+	if _, ok := ParseSortOrder("rating"); ok {
+		t.Error("unknown sort name should not parse")
+	}
+	if f, ok := ParseFilter(""); ok || f != FilterAll {
+		t.Error("unknown filter name should fall back to All")
+	}
+}
+
+func TestLabel(t *testing.T) {
+	tests := []struct{ name, want string }{
+		{"Slow Roads Demo", "Slow Roads (Demo)"},
+		{"Poetry of Pace: Rally Demo", "Poetry of Pace: Rally (Demo)"},
+		{"Dumbfire Playtest", "Dumbfire (Playtest)"},
+		{"Metropolis 1998 - Demo", "Metropolis 1998 (Demo)"},
+		{"FIFA 2013 Demo", "FIFA 2013 (Demo)"},
+		{"Sonic \u2013 Demo", "Sonic (Demo)"},
+		{"Rocket League", "Rocket League"},
+		{"Demolition Derby", "Demolition Derby"},
+		{"Demo", "Demo"},
+		{"The Demo Disc Collection", "The Demo Disc Collection"},
+	}
+	for _, tt := range tests {
+		if got := (Game{Name: tt.name}).Label(); got != tt.want {
+			t.Errorf("%q: got %q, want %q", tt.name, got, tt.want)
+		}
 	}
 }

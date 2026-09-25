@@ -1,7 +1,7 @@
 # Batch 3 Spec: Actions
 
 **Branch:** `batch/03-actions`
-**Status:** Draft, awaiting Pablo's approval.
+**Status:** Done (approved 2026-09-24). Added during the batch by Pablo: smaller installed dot, and the sort, direction and filter remembered between runs.
 **Goal:** Quarter does things, not just shows them: `Enter` plays the selected game, `i` installs it, `s` opens its store page, and `f` marks it as a favourite, with a Favourites filter.
 
 ---
@@ -75,6 +75,11 @@ git push
 ## Small change during Phase A
 
 - Installed marker `●` became the smaller `•` (Pablo's request).
+
+## Small changes during Phase B (Pablo's requests)
+
+- A favourite's `✦` replaces the installed dot instead of sitting in its own column.
+- Demos and playtests read `Slow Roads (Demo)`, `Dumbfire (Playtest)`: a trailing "Demo" or "Playtest" in the name becomes the tag, in the UI and in `--list`. Detected by name until store data gives Steam's real app type.
 
 ## PR to main
 
