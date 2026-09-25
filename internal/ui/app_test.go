@@ -243,8 +243,8 @@ func TestLogoWhenTall(t *testing.T) {
 			if hasLogo != tt.wantLogo {
 				t.Errorf("logo shown: got %v, want %v", hasLogo, tt.wantLogo)
 			}
-			if !tt.wantLogo && !strings.Contains(view, "QUARTER") {
-				t.Error("without the logo, the compact QUARTER badge must show")
+			if !tt.wantLogo && !strings.Contains(view, "quarter_") {
+				t.Error("without the logo, the compact quarter_ badge must show")
 			}
 			if lines := strings.Count(view, "\n") + 1; lines > tt.height {
 				t.Errorf("view is %d lines, taller than the %d-line window", lines, tt.height)

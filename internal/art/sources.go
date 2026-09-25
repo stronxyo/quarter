@@ -59,23 +59,39 @@ func NewSources(steamPath, dir, cdn string, timeout time.Duration, maxBytes int6
 	}
 }
 
-// Local returns the path of a logo already on this PC: Steam's cache first
-// (newer clients keep it in a hashed subfolder), then Quarter's download.
+// Local returns the path of the first logo already on this PC.
 func (s *Sources) Local(appID uint32) (string, bool) {
+	if p := s.Paths(appID); len(p) > 0 {
+		return p[0], true
+	}
+	return "", false
+}
+
+// Paths lists every logo already on this PC, best first: Steam's cache
+// (newer clients keep it in a hashed subfolder), then Quarter's download.
+// A caller whose first choice turns out unusable tries the next.
+func (s *Sources) Paths(appID uint32) []string {
 	id := strconv.FormatUint(uint64(appID), 10)
+	var out []string
 	if s.steamPath != "" {
 		cache := filepath.Join(s.steamPath, "appcache", "librarycache", id)
 		if p := filepath.Join(cache, "logo.png"); isFile(p) {
-			return p, true
-		}
-		if m, _ := filepath.Glob(filepath.Join(cache, "*", "logo.png")); len(m) > 0 {
-			return m[0], true
+			out = append(out, p)
+		} else if m, _ := filepath.Glob(filepath.Join(cache, "*", "logo.png")); len(m) > 0 {
+			out = append(out, m[0])
 		}
 	}
-	if p := filepath.Join(s.dir, id+".png"); isFile(p) {
-		return p, true
+	if p := s.saved(appID); isFile(p) {
+		out = append(out, p)
 	}
-	return "", false
+	return out
+}
+
+// Saved reports whether Quarter has downloaded the game's logo before.
+func (s *Sources) Saved(appID uint32) bool { return isFile(s.saved(appID)) }
+
+func (s *Sources) saved(appID uint32) string {
+	return filepath.Join(s.dir, strconv.FormatUint(uint64(appID), 10)+".png")
 }
 
 // Missing reports whether the CDN recently had no logo for the game, so
@@ -122,11 +138,11 @@ func (s *Sources) Download(ctx context.Context, appID uint32) (string, error) {
 	if err := os.MkdirAll(s.dir, 0o755); err != nil {
 		return "", fmt.Errorf("logo %d: %w", appID, err)
 	}
-	name := strconv.FormatUint(uint64(appID), 10) + ".png"
-	if err := store.WriteFile(s.dir, name, b); err != nil {
+	p := s.saved(appID)
+	if err := store.WriteFile(s.dir, filepath.Base(p), b); err != nil {
 		return "", fmt.Errorf("logo %d: %w", appID, err)
 	}
-	return filepath.Join(s.dir, name), nil
+	return p, nil
 }
 
 // noLogo remembers that the CDN has no logo for appID and returns ErrNoLogo.

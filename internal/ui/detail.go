@@ -69,9 +69,14 @@ func (m Model) detailView(width, height int) string {
 	if !ok {
 		b.WriteString(dimStyle.Render("No game selected."))
 	} else {
-		// The game's logo goes here; until then, its name.
-		b.WriteString(paneTitleStyle.Width(inner).Render(strings.ToUpper(g.Label())))
-		b.WriteString("\n")
+		// The game's logo, in an area of fixed height so the lines below
+		// don't jump from game to game; its name when logos are off or the
+		// pane is too short for one.
+		if cols, rows := logoArea(width, height); m.logos != nil && !m.logosHidden && rows > 0 {
+			b.WriteString(m.logoView(g, cols, rows) + "\n")
+		} else {
+			b.WriteString(paneTitleStyle.Width(inner).Render(strings.ToUpper(g.Label())) + "\n")
+		}
 
 		if g.AppID == m.running {
 			b.WriteString(runningLabelStyle.Render(markerRunning+" RUNNING NOW") + "\n")
@@ -133,8 +138,13 @@ func (m Model) detailView(width, height int) string {
 			b.WriteString("\n" + textStyle.Width(inner).Render(info.Description))
 		}
 	}
-	// MaxHeight cuts a long description at the pane's bottom edge.
-	return paneStyle.Width(width).Height(height).MaxHeight(height).Render(strings.TrimRight(b.String(), "\n"))
+	// A long description is cut to fit inside the frame, so the bottom
+	// border always shows.
+	lines := strings.Split(strings.TrimRight(b.String(), "\n"), "\n")
+	if room := max(height-paneStyle.GetVerticalFrameSize(), 0); len(lines) > room {
+		lines = lines[:room]
+	}
+	return paneStyle.Width(width).Height(height).MaxHeight(height).Render(strings.Join(lines, "\n"))
 }
 
 // selected returns the highlighted game, if the list has one.

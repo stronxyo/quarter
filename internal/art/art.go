@@ -4,7 +4,11 @@ package art
 
 import (
 	"errors"
+	"fmt"
 	"image"
+	"image/png"
+	"os"
+	"path/filepath"
 )
 
 // Blocks picks the characters a picture is drawn with.
@@ -24,6 +28,14 @@ func ParseBlocks(s string) (Blocks, bool) {
 		return Sixths, true
 	}
 	return Eighths, false
+}
+
+// Key is the setting's saved name: empty for the default.
+func (b Blocks) Key() string {
+	if b == Sixths {
+		return "sixths"
+	}
+	return ""
 }
 
 // ErrUnusable means the image has no shape worth drawing: no transparency
@@ -75,6 +87,20 @@ func Render(img image.Image, cols, rows int, b Blocks) ([]string, error) {
 		}
 	}
 	return trim(lines), nil
+}
+
+// RenderFile reads a PNG and draws it as Render does.
+func RenderFile(path string, cols, rows int, b Blocks) ([]string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	img, err := png.Decode(f)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", filepath.Base(path), err)
+	}
+	return Render(img, cols, rows, b)
 }
 
 // fit picks the cell grid for a w x h shape: as wide as cols allows, unless

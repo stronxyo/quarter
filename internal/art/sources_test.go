@@ -151,6 +151,38 @@ func TestDownloadNetworkErrorNotRemembered(t *testing.T) {
 	}
 }
 
+// When Steam's own logo turns out unusable, Quarter's download comes next.
+func TestPathsOrder(t *testing.T) {
+	steam, dir := t.TempDir(), t.TempDir()
+	steamLogo := filepath.Join(steam, "appcache", "librarycache", "10", "logo.png")
+	writeFile(t, steamLogo, pngBytes(t))
+	writeFile(t, filepath.Join(dir, "10.png"), pngBytes(t))
+	s := NewSources(steam, dir, "", time.Second, 1<<20, time.Hour)
+	got := s.Paths(10)
+	if len(got) != 2 || got[0] != steamLogo || got[1] != filepath.Join(dir, "10.png") {
+		t.Errorf("got %v, want Steam's logo then Quarter's download", got)
+	}
+	if !s.Saved(10) || s.Saved(20) {
+		t.Error("Saved should report Quarter's own downloads only")
+	}
+}
+
+func TestRenderFile(t *testing.T) {
+	dir := t.TempDir()
+	good, bad := filepath.Join(dir, "good.png"), filepath.Join(dir, "bad.png")
+	writeFile(t, good, pngBytes(t))
+	writeFile(t, bad, []byte("not a png"))
+	if lines, err := RenderFile(good, 20, 5, Eighths); err != nil || len(lines) == 0 {
+		t.Errorf("a good PNG should draw, got %v", err)
+	}
+	if _, err := RenderFile(bad, 20, 5, Eighths); err == nil {
+		t.Error("a broken file should fail")
+	}
+	if _, err := RenderFile(filepath.Join(dir, "none.png"), 20, 5, Eighths); err == nil {
+		t.Error("a missing file should fail")
+	}
+}
+
 func TestNoCDN(t *testing.T) {
 	s := NewSources("", t.TempDir(), "", time.Second, 1<<20, time.Hour)
 	if _, err := s.Download(context.Background(), 1); !errors.Is(err, ErrNoLogo) {

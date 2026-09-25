@@ -13,6 +13,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/stronxyo/quarter/internal/art"
 	"github.com/stronxyo/quarter/internal/config"
 	"github.com/stronxyo/quarter/internal/library"
 	"github.com/stronxyo/quarter/internal/steam"
@@ -74,6 +75,11 @@ func runUI(steamPath string) error {
 		StoreCache: loadStoreCache(dir),
 		SaveStore: func(c map[uint32]webapi.StoreEntry) error {
 			return store.Save(dir, config.StoreCache, config.StoreCacheVersion, c)
+		},
+
+		Logos: func(steamPath string) ui.LogoSource {
+			return art.NewSources(steamPath, filepath.Join(dir, config.LogoDir),
+				config.LogoURL, config.StoreTimeout, config.LogoMaxBytes, config.LogoRetry)
 		},
 	})).Run()
 	return err
