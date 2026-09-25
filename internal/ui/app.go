@@ -49,6 +49,7 @@ type Model struct {
 	fullHelp  bool                       // ? pressed: every key is listed
 
 	detailOpen    bool // d pressed on a narrow window: the pane covers the list
+	paneHidden    bool // d pressed on a wide window: the list takes the whole width
 	playtimeKnown bool // false when Steam's playtime file couldn't be read
 
 	fetchStore func(context.Context, uint32) (webapi.StoreInfo, error) // may be nil: no store details
@@ -231,7 +232,11 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 				m.detailOpen = false
 				return m, nil
 			}
-			if key.Matches(msg, keys.Details) && !m.sideBySide() {
+			if key.Matches(msg, keys.Details) {
+				if m.roomForPane() {
+					m.paneHidden = !m.paneHidden
+					return m, m.persist()
+				}
 				m.detailOpen = true
 				return m, nil
 			}

@@ -30,10 +30,16 @@ const (
 	barEmpty      = "─"
 )
 
-// sideBySide reports whether the window has room for the list and the detail
-// pane next to each other. Otherwise the pane opens as a pop-up with d.
-func (m Model) sideBySide() bool {
+// roomForPane reports whether the window has room for the list and the detail
+// pane next to each other. There, d shows or hides the pane; otherwise it
+// opens the pane as a pop-up.
+func (m Model) roomForPane() bool {
 	return m.width >= minTableWidth+paneGap+paneMinWidth
+}
+
+// sideBySide reports whether the pane is showing next to the list.
+func (m Model) sideBySide() bool {
+	return m.roomForPane() && !m.paneHidden
 }
 
 // tableWidth is the list's width: up to maxTableWidth, less whatever the

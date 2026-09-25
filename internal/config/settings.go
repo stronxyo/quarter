@@ -14,6 +14,7 @@ type Settings struct {
 	Sort       string   `json:"sort"`      // column name, e.g. "last_played"
 	SortDesc   bool     `json:"sort_desc"` // true for highest or newest first
 	Filter     string   `json:"filter"`    // filter name, e.g. "recent"
+	HidePane   bool     `json:"hide_pane"` // d hid the detail pane on a wide window
 }
 
 const (

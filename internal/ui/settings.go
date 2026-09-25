@@ -22,6 +22,7 @@ func (m *Model) applySettings(s config.Settings) {
 	if f, ok := library.ParseFilter(s.Filter); ok {
 		m.filterBy = f
 	}
+	m.paneHidden = s.HidePane
 }
 
 // settings snapshots what should be remembered for the next run.
@@ -36,6 +37,7 @@ func (m Model) settings() config.Settings {
 		Sort:       m.sortBy.Key(),
 		SortDesc:   m.sortDesc,
 		Filter:     m.filterBy.Key(),
+		HidePane:   m.paneHidden,
 	}
 }
 
