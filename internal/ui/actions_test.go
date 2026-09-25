@@ -106,14 +106,33 @@ func TestStatusClears(t *testing.T) {
 func TestHelpToggle(t *testing.T) {
 	m, _ := withOpener(t, nil, portal2)
 	short := ansi.Strip(m.View().Content)
-	if !strings.Contains(short, "enter play") || strings.Contains(short, "i install") {
-		t.Errorf("short help should show enter but not i:\n%s", short)
+	if !strings.Contains(short, "enter play") || !strings.Contains(short, "i install") || strings.Contains(short, "store page") {
+		t.Errorf("short help should show enter and i, not s:\n%s", short)
 	}
 	var tm tea.Model = act(m, press("?"))
 	full := ansi.Strip(tm.(Model).View().Content)
 	for _, want := range []string{"i", "install", "store page", "rescan"} {
 		if !strings.Contains(full, want) {
 			t.Errorf("full help missing %q", want)
+		}
+	}
+}
+
+// The key line always fits: at 80 columns ↑↓ move gives way so i install fits.
+func TestShortHelpFits(t *testing.T) {
+	for _, w := range []int{80, 120} {
+		m, _ := withOpener(t, nil, portal2)
+		var tm tea.Model = m
+		tm, _ = tm.Update(tea.WindowSizeMsg{Width: w, Height: 30})
+		line := lineWith(ansi.Strip(tm.(Model).View().Content), "i install")
+		if line == "" || !strings.Contains(line, "q quit") {
+			t.Fatalf("width %d: the key line should hold i install through q quit: %q", w, line)
+		}
+		if got := ansi.StringWidth(line); got > w {
+			t.Errorf("width %d: key line is %d wide", w, got)
+		}
+		if wantMove := w >= 120; strings.Contains(line, "move") != wantMove {
+			t.Errorf("width %d: move shown should be %v: %q", w, wantMove, line)
 		}
 	}
 }

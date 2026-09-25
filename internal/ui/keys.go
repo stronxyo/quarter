@@ -48,9 +48,14 @@ var (
 	helpLess   = key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "less"))
 )
 
-// shortHelp fits one line of keycaps on an 80-column terminal.
-func shortHelp() []key.Binding {
-	return []key.Binding{helpMove, keys.Play, helpSearch, helpSort, keys.Filter, keys.Help, helpQuit}
+// shortHelp is the one line of keycaps under the list. With everything it
+// is wider than 80 columns, so ↑↓ move, the most obvious key, goes first.
+func shortHelp(full bool) []key.Binding {
+	b := []key.Binding{keys.Play, keys.Install, helpSearch, helpSort, keys.Filter, keys.Help, helpQuit}
+	if full {
+		return append([]key.Binding{helpMove}, b...)
+	}
+	return b
 }
 
 // fullHelp is the ? view, every key grouped by what it does.
