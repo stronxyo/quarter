@@ -6,7 +6,8 @@ import "charm.land/lipgloss/v2"
 // background; everything else is accented with the gradient's middle color.
 var (
 	colorAccent  = lipgloss.Color("#FFAF63")
-	colorDim     = lipgloss.Color("#7F849C")
+	colorDim     = lipgloss.Color("#B07A45") // dim amber, like a CRT's fading phosphor
+	colorKeycap  = lipgloss.Color("#2E2A26") // the dark key behind each key letter
 	colorError   = lipgloss.Color("#F38BA8")
 	colorRunning = lipgloss.Color("#A6E3A1")
 

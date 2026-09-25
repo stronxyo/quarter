@@ -109,6 +109,27 @@ git push
 
 ---
 
+## Look changes during Batch 5 (Pablo's picks)
+
+- **Accent:** `#FFAF63`, the middle of the QUARTER logo gradient (was the top gold `#FFC857`).
+- **Secondary text:** `#B07A45` dim amber, like a CRT's fading phosphor (was a cool blue-grey `#7F849C`). 5.3:1 contrast on a dark background.
+- **Key help as keycaps:** each key on a dark warm key (`#2E2A26`) with an orange letter, description in dim amber. Pablo liked the style and wants to reuse it elsewhere in Quarter later.
+
+### Palette study (groundwork for themes)
+
+Every candidate was shown in a mini Quarter screen with the keycap help line. All pass WCAG AA (4.5:1) on a dark background unless noted.
+
+| Family | Colors (hex, contrast) |
+|---|---|
+| Amber (chosen) | dim amber `#B07A45` 5.3; P3 amber lifted `#A87A2A` 5.1; honey `#C08A50` 6.5; ochre `#B8904E` 6.6; copper `#B06E48` 4.8; caramel `#B08A68` 6.2; retro-term amber dimmed `#B8691A` 4.7. Too dark: P3 decayed `#8A5F00` 3.5, bronze `#9C6B3C` 4.3 |
+| Warm neutrals | Gruvbox stone `#A89984` 7.0; sand `#B8A088` 7.8; Kanagawa warm grey `#8F8A80` 5.7 |
+| Complementary (blue) | Nord frost `#81A1C1` 7.3; steel blue `#7C93AD` 6.2; teal-grey `#7A9C9A` 6.6 |
+| Split-complementary | aqua `#6FA8B0` 7.4; lilac grey (Rose Pine) `#908CAA` 6.1; dusty lavender `#9A8FB0` 6.5 |
+| Triadic / tetradic | lavender (Rose Pine iris) `#C4A7E7` 9.3; dusty rose `#C48A9A` 6.9 |
+| Avoid with the running green | sage `#8FA88A`, Everforest aqua `#83C092` |
+
+References: P3 amber phosphor (bright `#FFB000`, decayed `#8A5F00`, codefronts.com), cool-retro-term "Default Amber" `#FF8100`, Gruvbox, Nord, Rose Pine, Kanagawa, Catppuccin.
+
 ## PR to main
 
 Claude writes the title and description after Phase B. Pablo opens and merges.
