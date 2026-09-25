@@ -337,6 +337,10 @@ func (m *Model) layout() {
 	if m.showLogo() {
 		used += logoHeight()
 	}
+	// Twice: bubbles v2.2.1 sizes a page by whether the page counter showed
+	// before, so the resize that brings the counter in draws one row too
+	// many. The second call sees the counter and gets it right.
+	m.list.SetSize(m.tableWidth(), max(m.height-used, 0))
 	m.list.SetSize(m.tableWidth(), max(m.height-used, 0))
 }
 
