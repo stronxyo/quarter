@@ -185,12 +185,17 @@ func (m Model) wantLogo(msg logoWantMsg) (Model, tea.Cmd) {
 }
 
 // logoView fills the pane's logo area, cols x rows: the logo in the QUARTER
-// gradient, centered, or the game's name while there's none.
+// gradient, centered. Without one (none anywhere, or still on its way), the
+// game's name in Quarter's pixel font, in the same style; the plain name only
+// when even that doesn't fit.
 func (m Model) logoView(g library.Game, cols, rows int) string {
 	lines, state := m.logoFor(logoKey{g.AppID, cols, rows})
 	if state != logoReady {
-		name := paneTitleStyle.Width(cols).Render(strings.ToUpper(g.Label()))
-		return lipgloss.Place(cols, rows, lipgloss.Left, lipgloss.Center, name)
+		var ok bool
+		if lines, ok = art.Name(g.Label(), cols, rows); !ok {
+			name := paneTitleStyle.Width(cols).Render(strings.ToUpper(g.Label()))
+			return lipgloss.Place(cols, rows, lipgloss.Left, lipgloss.Center, name)
+		}
 	}
 	colors := lipgloss.Blend1D(len(lines), colorLogoTop, colorLogoBottom)
 	styled := make([]string, len(lines))

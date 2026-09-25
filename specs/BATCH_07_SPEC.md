@@ -1,7 +1,7 @@
 # Batch 7 Spec: Game logos as text art
 
 **Branch:** `batch/07-art`
-**Status:** Approved 2026-09-25. Phase A done: a 640x360 logo draws in 0.6 ms; 259 of the 265 local logos on Pablo's PC are usable (the other 6 fall back to the CDN, then the pixel font). Phase B done: real CDN download checked with Portal (app 400); a missing logo (app 1) answered in 0.35 s and was remembered.
+**Status:** Approved 2026-09-25. Phase A done: a 640x360 logo draws in 0.6 ms; 259 of the 265 local logos on Pablo's PC are usable (the other 6 fall back to the CDN, then the pixel font). Phase B done: real CDN download checked with Portal (app 400); a missing logo (app 1) answered in 0.35 s and was remembered. Phase C done: Rocket League (local cache) and Portal 2 (CDN) checked in the app with Pablo's library.
 **Goal:** the detail pane shows the selected game's logo, redrawn in eighth-block characters with the QUARTER gradient (design G, picked in Batch 4). Every game in the list gets one, installed or not.
 
 ---
@@ -99,6 +99,16 @@ Plain text (list rows, pane values, the search box) is ivory `#F0E4D2` instead o
 - By hand, on Pablo's PC: Rocket League, Elite Dangerous, Cyberpunk 2077 and Half-Life: Alyx look like the G preview. An uninstalled game shows its logo. Scrolling fast through 300 games stays smooth.
 
 ---
+
+## Found and decided while building (2026-09-25)
+
+- **App logo:** QUARTER became `quarter_`, a prompt with its cursor. Lowercase letters drawn in the ANSI Shadow style (the figlet font has no lowercase), gradient letters with a dim amber single-line shadow (Pablo's pick, option 3 of 4). The shadow comes from a rule, checked by rebuilding the old QUARTER logo from its blocks. The compact badge says `quarter_` too.
+- **Single lines** replaced double lines everywhere: logo shadow, logo box, detail pane.
+- **Softer text:** ivory `#F0E4D2` instead of white (see the top of this spec).
+- **Pixel font (B):** capitals, digits and common punctuation, drawn in half blocks with the logo gradient. It shows for every game without a drawn logo: none anywhere, or one still downloading. The plain bold name only when logos are hidden (`o`) or the name doesn't fit.
+- **List overflow:** bubbles v2.2.1 sizes a page by whether the page counter showed before, so a resize that brings the counter in drew one row too many. Quarter sets the list's size twice. Checked for 1 to 40 games at heights 2 to 45; only a 2-row list still overflows.
+- **Pane border:** a long description used to cut off the pane's bottom border; it is now cut inside the frame.
+- **Design record:** every option explored in Batches 4 to 7 is kept in a PDF in Pablo's Documents (`Quarter/Quarter design options.pdf`), outside the repo because it shows Steam logos.
 
 ## Deferred (recorded in Rules Appendix A if approved)
 

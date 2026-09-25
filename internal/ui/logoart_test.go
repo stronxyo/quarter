@@ -151,8 +151,10 @@ func TestLogoAreaKeepsItsHeight(t *testing.T) {
 	alpha := row(m)
 	m, cmd := m.Update(press("j"))
 	m = pump(m, cmd)
-	if !strings.Contains(paneText(m), "BRAVO") {
-		t.Fatalf("Bravo has no logo, so its name should show:\n%s", paneText(m))
+	cols, rows := logoArea(m.(Model).paneSize())
+	drawn, _ := art.Name("Bravo", cols, rows)
+	if !strings.Contains(paneText(m), strings.TrimSpace(drawn[0])) || strings.Contains(paneText(m), "BRAVO") {
+		t.Fatalf("Bravo has no logo, so its name should show in the pixel font:\n%s", paneText(m))
 	}
 	if bravo := row(m); alpha < 0 || bravo != alpha {
 		t.Errorf("the details moved: row %d with a logo, %d without", alpha, bravo)
