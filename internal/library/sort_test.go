@@ -55,7 +55,7 @@ func TestDefaults(t *testing.T) {
 	if SortName.DefaultDesc() || !SortPlaytime.DefaultDesc() || !SortLastPlayed.DefaultDesc() {
 		t.Error("names should default to A to Z, playtime and last played to highest first")
 	}
-	if FilterAll.Next() != FilterRecent || FilterRecent.Next() != FilterFavourites || FilterFavourites.Next() != FilterAll {
+	if FilterAll.Next() != FilterInstalled || FilterInstalled.Next() != FilterRecent || FilterRecent.Next() != FilterFavourites || FilterFavourites.Next() != FilterAll {
 		t.Error("filter does not cycle")
 	}
 }
@@ -109,5 +109,12 @@ func TestLabel(t *testing.T) {
 	}
 	if got := (Game{Name: "Slow Roads Demo", Demo: true}).Label(); got != "Slow Roads (Demo)" {
 		t.Errorf("store demo named Demo should be tagged once: got %q", got)
+	}
+}
+
+func TestInstalledFilter(t *testing.T) {
+	games := []Game{{Name: "Alpha", Installed: true}, {Name: "Bravo"}, {Name: "Charlie", Installed: true}}
+	if got := names(View(games, FilterInstalled, SortName, false, time.Now())); got != "Alpha,Charlie" {
+		t.Errorf("got %v, want Alpha,Charlie", got)
 	}
 }

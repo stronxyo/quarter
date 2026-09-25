@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/stronxyo/quarter/internal/library"
+	"github.com/stronxyo/quarter/internal/steam"
 )
 
 func sized(t *testing.T, width, height int) tea.Model {
@@ -41,7 +42,7 @@ func fits(t *testing.T, m tea.Model, width, height int) string {
 func TestPaneBesideListOnWideWindow(t *testing.T) {
 	m := sized(t, 140, 30)
 	view := fits(t, m, 140, 30)
-	for _, want := range []string{"ALPHA", "Played      3.0h", "Size        12.4 GB", `Library     D:\SteamLibrary`} {
+	for _, want := range []string{"ALPHA", "Played       3.0h", "Size         12.4 GB", `Library      D:\SteamLibrary`} {
 		if !strings.Contains(view, want) {
 			t.Errorf("pane missing %q", want)
 		}
@@ -97,5 +98,39 @@ func TestDetailsKeyIgnoredOnWideWindow(t *testing.T) {
 	m, _ = m.Update(press("d"))
 	if m.(Model).detailOpen {
 		t.Error("d should do nothing when the pane is already beside the list")
+	}
+}
+
+func TestAchievementBar(t *testing.T) {
+	tests := []struct {
+		achieved, total int
+		want            string
+	}{
+		{28, 49, "28/49   🬋🬋🬋🬋🬋🬋🬋🬋──────"},
+		{0, 10, "0/10    ──────────────"},
+		{1, 200, "1/200   🬋─────────────"},
+		{199, 200, "199/200 🬋🬋🬋🬋🬋🬋🬋🬋🬋🬋🬋🬋🬋─"},
+		{51, 51, "51/51   🬋🬋🬋🬋🬋🬋🬋🬋🬋🬋🬋🬋🬋🬋"},
+	}
+	for _, tt := range tests {
+		if got := ansi.Strip(achievementBar(tt.achieved, tt.total)); got != tt.want {
+			t.Errorf("%d/%d: got %q, want %q", tt.achieved, tt.total, got, tt.want)
+		}
+	}
+}
+
+func TestPaneShowsAchievements(t *testing.T) {
+	var m tea.Model = New(Options{})
+	m, _ = m.Update(tea.WindowSizeMsg{Width: 150, Height: 30})
+	m, _ = m.Update(scanDoneMsg{res: library.Result{PlaytimeKnown: true, Games: []library.Game{
+		{AppID: 1, Name: "Alpha", Installed: true, Achievements: steam.Achievements{Achieved: 28, Total: 49}},
+		{AppID: 2, Name: "Bravo", Installed: true},
+	}}})
+	if view := ansi.Strip(m.(Model).View().Content); !strings.Contains(view, "Achievements 28/49   🬋🬋🬋🬋🬋🬋🬋🬋──────") {
+		t.Errorf("pane should show Alpha's achievements:\n%s", view)
+	}
+	m, _ = m.Update(press("j"))
+	if strings.Contains(ansi.Strip(m.(Model).View().Content), "Achievements") {
+		t.Error("Bravo has no achievements; the row should not show")
 	}
 }

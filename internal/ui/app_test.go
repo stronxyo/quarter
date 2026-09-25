@@ -164,7 +164,8 @@ func TestSortKeys(t *testing.T) {
 
 func TestFilterKey(t *testing.T) {
 	var m tea.Model = withLibrary(t)
-	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyTab}) // Installed
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyTab}) // Recent
 	if got := visible(m.(Model)); strings.Join(got, ",") != "Bravo" {
 		t.Errorf("recent filter: got %v, want only Bravo", got)
 	}

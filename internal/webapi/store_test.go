@@ -53,11 +53,14 @@ func TestAppDetails(t *testing.T) {
 		strings.Join(info.Developers, ",") != "Psyonix LLC" || strings.Join(info.Genres, ",") != "Action,Indie,Racing,Sports" {
 		t.Errorf("parsed wrong: %+v", info)
 	}
+	if info.Achievements != 88 {
+		t.Errorf("achievements total: got %d, want 88", info.Achievements)
+	}
 	if info.Description != "A made-up description for tests: cars play football & score goals." {
 		t.Errorf("description should be plain text, got %q", info.Description)
 	}
 	q := (*asked)[0]
-	for _, want := range []string{"appids=252950", "l=english", "filters=basic%2Cdevelopers%2Cpublishers%2Cgenres%2Crelease_date"} {
+	for _, want := range []string{"appids=252950", "l=english", "filters=basic%2Cdevelopers%2Cpublishers%2Cgenres%2Crelease_date%2Cachievements"} {
 		if !strings.Contains(q, want) {
 			t.Errorf("request %q missing %q", q, want)
 		}

@@ -58,13 +58,15 @@ func TestSortAndFilterAreSaved(t *testing.T) {
 	m, saved := withSettings(t, config.Settings{})
 	m, cmd := m.Update(press("l"))
 	run(cmd)
-	_, cmd = m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	m, cmd = m.Update(tea.KeyPressMsg{Code: tea.KeyTab}) // Installed
+	run(cmd)
+	_, cmd = m.Update(tea.KeyPressMsg{Code: tea.KeyTab}) // Recent
 	run(cmd)
 
-	if len(*saved) != 2 {
+	if len(*saved) != 3 {
 		t.Fatalf("want a save per change, got %d", len(*saved))
 	}
-	last := (*saved)[1]
+	last := (*saved)[2]
 	if last.Sort != "last_played" || !last.SortDesc || last.Filter != "recent" {
 		t.Errorf("saved %+v, want last_played, newest first, recent", last)
 	}

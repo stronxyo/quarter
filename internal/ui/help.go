@@ -27,9 +27,17 @@ func (m Model) helpView() string {
 	h.Styles = helpStyles
 	h.ShortSeparator = "  " // keycaps already set keys apart
 	h.FullSeparator = "   "
-	h.SetWidth(max(m.width-2, 0))
-	if m.fullHelp {
-		return "\n  " + strings.ReplaceAll(h.FullHelpView(fullHelp()), "\n", "\n  ")
+	if !m.fullHelp {
+		// Measured untruncated: help cuts an overlong line down to "…".
+		lines := shortHelp()
+		for _, b := range lines {
+			if line := h.ShortHelpView(b); lipgloss.Width(line) <= m.width-2 {
+				return "\n  " + line
+			}
+		}
+		h.SetWidth(max(m.width-2, 0))
+		return "\n  " + h.ShortHelpView(lines[len(lines)-1])
 	}
-	return "\n  " + h.ShortHelpView(shortHelp())
+	h.SetWidth(max(m.width-2, 0))
+	return "\n  " + strings.ReplaceAll(h.FullHelpView(fullHelp()), "\n", "\n  ")
 }

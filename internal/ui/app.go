@@ -57,6 +57,7 @@ type Model struct {
 	offline    map[uint32]bool // store requests that failed this run
 	fetching   uint32          // the game whose store request is out, 0 for none
 	wanted     uint32          // the selected game, waiting for its turn
+	storeDown  bool            // the last request failed on the network: stop the background fill
 	debounce   time.Duration   // how long the selection must settle before fetching
 
 	runningApp func() (uint32, bool) // asks Steam which game is running; may be nil
@@ -65,11 +66,13 @@ type Model struct {
 	favs         map[uint32]bool             // starred games, by appid
 	saveSettings func(config.Settings) error // remembers favourites, sort and filter; may be nil
 
-	games    []library.Game // everything scanned; the list shows a filtered, sorted view
-	filterBy library.Filter
-	sortBy   library.SortOrder
-	sortDesc bool
-	now      func() time.Time
+	games       []library.Game // what the list can show: installed games plus resolved candidates
+	installed   []library.Game // from the scan
+	uninstalled []library.Game // from the scan: other apps Steam knows, unnamed until the store says what they are
+	filterBy    library.Filter
+	sortBy      library.SortOrder
+	sortDesc    bool
+	now         func() time.Time
 
 	list   list.Model
 	width  int
@@ -117,8 +120,8 @@ func New(opts Options) Model {
 	m.applySettings(opts.Settings)
 	if opts.Cached != nil {
 		m.state = stateReady
-		m.games = opts.Cached.Games
-		m.decorate()
+		m.installed, m.uninstalled = opts.Cached.Games, opts.Cached.Uninstalled
+		m.rebuild()
 		m.playtimeKnown = opts.Cached.PlaytimeKnown
 		m.list.SetDelegate(m.delegate())
 		m.refreshList()
@@ -278,8 +281,8 @@ func (m Model) applyScan(msg scanDoneMsg) (Model, tea.Cmd) {
 	}
 	m.state = stateReady
 	m.warnings = len(msg.res.Warnings)
-	m.games = msg.res.Games
-	m.decorate()
+	m.installed, m.uninstalled = msg.res.Games, msg.res.Uninstalled
+	m.rebuild()
 	m.playtimeKnown = msg.res.PlaytimeKnown
 	m.list.SetDelegate(m.delegate())
 	cmd := tea.Batch(m.refreshList(), m.nextStoreFetch())

@@ -18,7 +18,7 @@ func TestFromSteam(t *testing.T) {
 		999: {Playtime: time.Hour}, // not installed, ignored
 	}
 
-	games := FromSteam(installed, stats)
+	games := FromSteam(installed, stats, map[uint32]steam.Achievements{620: {Achieved: 20, Total: 51}})
 
 	wantOrder := []uint32{10, 400, 620} // case-insensitive by name
 	if len(games) != len(wantOrder) {
@@ -31,6 +31,9 @@ func TestFromSteam(t *testing.T) {
 	}
 
 	p2 := games[2]
+	if p2.Achievements != (steam.Achievements{Achieved: 20, Total: 51}) {
+		t.Errorf("Portal 2 achievements: got %+v", p2.Achievements)
+	}
 	if p2.Playtime != 754*time.Minute || !p2.LastPlayed.Equal(time.Unix(1726000000, 0)) || !p2.Installed || p2.LibraryPath != "C" {
 		t.Errorf("Portal 2 merged wrong: %+v", p2)
 	}
@@ -40,7 +43,7 @@ func TestFromSteam(t *testing.T) {
 }
 
 func TestFromSteamNilStats(t *testing.T) {
-	games := FromSteam([]steam.Manifest{{AppID: 620, Name: "Portal 2", StateFlags: 4}}, nil)
+	games := FromSteam([]steam.Manifest{{AppID: 620, Name: "Portal 2", StateFlags: 4}}, nil, nil)
 	if len(games) != 1 || games[0].Playtime != 0 {
 		t.Errorf("got %+v, want one game with zero playtime", games)
 	}

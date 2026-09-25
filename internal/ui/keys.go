@@ -48,9 +48,16 @@ var (
 	helpLess   = key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "less"))
 )
 
-// shortHelp fits one line of keycaps on an 80-column terminal.
-func shortHelp() []key.Binding {
-	return []key.Binding{helpMove, keys.Play, helpSearch, helpSort, keys.Filter, keys.Help, helpQuit}
+// shortHelp is the one line of keycaps under the list, as versions from widest
+// to narrowest: the first that fits is shown. The arrow keys, the easiest to
+// guess, give way first on narrow windows.
+func shortHelp() [][]key.Binding {
+	core := []key.Binding{keys.Play, keys.Install, helpSearch, helpSort, keys.Filter, keys.Help, helpQuit}
+	return [][]key.Binding{
+		append([]key.Binding{helpMove, helpPage}, core...),
+		append([]key.Binding{helpPage}, core...),
+		core,
+	}
 }
 
 // fullHelp is the ? view, every key grouped by what it does.

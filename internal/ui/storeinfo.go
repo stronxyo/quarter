@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"maps"
+	"slices"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -85,7 +86,12 @@ func (m *Model) nextStoreFetch() tea.Cmd {
 	if m.needsStore(m.wanted) {
 		id = m.wanted
 	} else {
-		for _, g := range m.games {
+		// Installed games first, then the candidates. When the store is
+		// unreachable, only the game the user is looking at is tried.
+		for _, g := range slices.Concat(m.installed, m.uninstalled) {
+			if m.storeDown {
+				break
+			}
 			if m.needsStore(g.AppID) {
 				id = g.AppID
 				break
@@ -110,6 +116,7 @@ func (m Model) applyStore(msg storeDoneMsg) (Model, tea.Cmd) {
 	var save tea.Cmd
 	switch {
 	case msg.err == nil:
+		m.storeDown = false
 		m.storeInfo[msg.appID] = webapi.StoreEntry{Info: msg.info, Fetched: msg.at}
 		save = m.persistStore()
 	case errors.Is(msg.err, webapi.ErrNotOnStore):
@@ -120,8 +127,9 @@ func (m Model) applyStore(msg storeDoneMsg) (Model, tea.Cmd) {
 		// the game is skipped for this run instead.
 		slog.Warn("store", "app", msg.appID, "err", msg.err)
 		m.offline[msg.appID] = true
+		m.storeDown = true
 	}
-	m.decorate()
+	m.rebuild()
 	return m, tea.Batch(m.refreshList(), save, m.nextStoreFetch())
 }
 

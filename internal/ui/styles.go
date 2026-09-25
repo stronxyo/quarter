@@ -32,20 +32,22 @@ var (
 )
 
 const (
-	markerInstalled = "•"
-	markerFavourite = "✦"
-	markerRunning   = "▶"
-	markerWidth     = 1  // one marker: the favourite star, else the installed dot
-	hoursWidth      = 9  // fits "99999.9h"
-	agoWidth        = 13 // fits "11 months ago"
-	maxTableWidth   = 80 // keeps the numbers near the names on wide terminals
-	minListRows     = 8  // the big logo gives way before the list gets shorter than this
-	listChromeRows  = 1  // the row the list keeps for its page counter
-	logoIndent      = 2  // lines the box up with the section line
-	paneMinWidth    = 40 // the detail pane beside the list, at its narrowest
-	paneMaxWidth    = 68 // wide enough for a 64-column game logo
-	paneGap         = 2
-	minTableWidth   = 56 // narrower than this, the pane becomes a pop-up
-	logoPadTop      = 1
-	logoPadBottom   = 1
+	markerInstalled            = "▸"
+	markerUninstalled          = "▹"
+	markerFavourite            = "✦"
+	markerFavouriteUninstalled = "✧"
+	markerRunning              = "▶"
+	markerWidth                = 1  // one marker: the favourite star, else the installed dot
+	hoursWidth                 = 9  // fits "99999.9h"
+	agoWidth                   = 13 // fits "11 months ago"
+	maxTableWidth              = 80 // keeps the numbers near the names on wide terminals
+	minListRows                = 8  // the big logo gives way before the list gets shorter than this
+	listChromeRows             = 1  // the row the list keeps for its page counter
+	logoIndent                 = 2  // lines the box up with the section line
+	paneMinWidth               = 40 // the detail pane beside the list, at its narrowest
+	paneMaxWidth               = 68 // wide enough for a 64-column game logo
+	paneGap                    = 2
+	minTableWidth              = 56 // narrower than this, the pane becomes a pop-up
+	logoPadTop                 = 1
+	logoPadBottom              = 1
 )

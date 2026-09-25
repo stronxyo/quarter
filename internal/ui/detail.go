@@ -18,6 +18,18 @@ var (
 	paneTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(colorAccent)
 )
 
+// paneLabelWidth fits the longest label, "Achievements", plus a space.
+const paneLabelWidth = 13
+
+// The achievement bar: a middle-third block (U+1FB0B) for unlocked, a light
+// rule for the rest.
+const (
+	barCells      = 14
+	barCountWidth = 8 // fits "999/999 "
+	barFilled     = "🬋"
+	barEmpty      = "─"
+)
+
 // sideBySide reports whether the window has room for the list and the detail
 // pane next to each other. Otherwise the pane opens as a pop-up with d.
 func (m Model) sideBySide() bool {
@@ -89,12 +101,19 @@ func (m Model) detailView(width, height int) string {
 		b.WriteString("\n")
 
 		row := func(label, value string) {
-			b.WriteString(dimStyle.Render(fmt.Sprintf("%-12s", label)))
-			b.WriteString(ansi.Truncate(value, max(inner-12, 1), "…"))
+			b.WriteString(dimStyle.Render(fmt.Sprintf("%-*s", paneLabelWidth, label)))
+			b.WriteString(ansi.Truncate(value, max(inner-paneLabelWidth, 1), "…"))
 			b.WriteString("\n")
 		}
 		row("Played", library.FormatHours(g.Playtime, m.playtimeKnown))
 		row("Last played", library.FormatAgo(g.LastPlayed, m.now()))
+		// Progress comes from Steam's local cache; when that is empty, the
+		// store still knows how many the game has, and none are unlocked.
+		if a := g.Achievements; a.Total > 0 {
+			row("Achievements", achievementBar(a.Achieved, a.Total))
+		} else if info, state := m.storeStatus(g.AppID); state == storeReady && info.Achievements > 0 {
+			row("Achievements", achievementBar(0, info.Achievements))
+		}
 		if g.Installed {
 			row("Size", library.FormatSize(g.SizeOnDisk))
 			row("Library", g.LibraryPath)
@@ -116,4 +135,19 @@ func (m Model) detailView(width, height int) string {
 func (m Model) selected() (library.Game, bool) {
 	it, ok := m.list.SelectedItem().(gameItem)
 	return it.Game, ok
+}
+
+// achievementBar draws the count, then a bar: a thicker orange band for what's
+// unlocked and a thin dim line for the rest, e.g. "72/88   🬋🬋🬋🬋🬋🬋🬋🬋🬋🬋🬋───".
+// The count is padded so bars line up from game to game.
+func achievementBar(achieved, total int) string {
+	filled := (achieved*barCells + total/2) / total // rounded
+	if achieved > 0 && filled == 0 {
+		filled = 1 // any progress shows
+	}
+	if achieved < total && filled == barCells {
+		filled = barCells - 1 // not full until it is
+	}
+	count := fmt.Sprintf("%-*s", barCountWidth, fmt.Sprintf("%d/%d", achieved, total))
+	return count + starStyle.Render(strings.Repeat(barFilled, filled)) + dimStyle.Render(strings.Repeat(barEmpty, barCells-filled))
 }
