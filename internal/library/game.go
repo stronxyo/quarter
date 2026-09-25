@@ -17,6 +17,7 @@ type Game struct {
 	Playtime    time.Duration
 	LastPlayed  time.Time // zero if never played
 	Favourite   bool      `json:"-"` // comes from settings, not from Steam, so never cached
+	Demo        bool      `json:"-"` // the store says this is a demo; set from store data
 }
 
 // trialWords end the names of builds that aren't the full game. Steam's own
@@ -26,6 +27,7 @@ var trialWords = []string{"Demo", "Playtest"}
 
 // Label is the name to show: a trailing "Demo" or "Playtest" becomes a
 // "(Demo)" or "(Playtest)" tag, so "Slow Roads Demo" reads "Slow Roads (Demo)".
+// A demo the store knows about is tagged even when its name doesn't say so.
 func (g Game) Label() string {
 	for _, w := range trialWords {
 		base, ok := strings.CutSuffix(g.Name, " "+w)
@@ -37,6 +39,9 @@ func (g Game) Label() string {
 			return g.Name
 		}
 		return base + " (" + w + ")"
+	}
+	if g.Demo {
+		return g.Name + " (Demo)"
 	}
 	return g.Name
 }

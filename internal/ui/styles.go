@@ -34,7 +34,8 @@ const (
 	minListRows     = 8  // the big logo gives way before the list gets shorter than this
 	listChromeRows  = 1  // the row the list keeps for its page counter
 	logoIndent      = 2  // lines the box up with the section line
-	paneWidth       = 40 // the detail pane beside the list
+	paneMinWidth    = 40 // the detail pane beside the list, at its narrowest
+	paneMaxWidth    = 68 // wide enough for a 64-column game logo
 	paneGap         = 2
 	minTableWidth   = 56 // narrower than this, the pane becomes a pop-up
 	logoPadTop      = 1

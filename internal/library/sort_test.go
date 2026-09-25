@@ -104,4 +104,10 @@ func TestLabel(t *testing.T) {
 			t.Errorf("%q: got %q, want %q", tt.name, got, tt.want)
 		}
 	}
+	if got := (Game{Name: "Portal Preview", Demo: true}).Label(); got != "Portal Preview (Demo)" {
+		t.Errorf("store demo: got %q", got)
+	}
+	if got := (Game{Name: "Slow Roads Demo", Demo: true}).Label(); got != "Slow Roads (Demo)" {
+		t.Errorf("store demo named Demo should be tagged once: got %q", got)
+	}
 }

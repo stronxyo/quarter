@@ -22,7 +22,8 @@
                                        ╚═══════════════════════════════════╝
 ```
 
-- The pane sits right of the list, 40 columns wide, in the same double-line gold box as the QUARTER logo. The big QUARTER logo stays on top, across both.
+- The pane sits right of the list in the same double-line gold box as the QUARTER logo. The big QUARTER logo stays on top, across both.
+- **The pane grows with the window** (Pablo's call during Phase A): the table takes up to 80 columns first, then the pane grows from 40 to 68 columns, so from about 150 columns wide the game logo (Batch 7) gets its full 64 columns.
 - The list gives up width to the pane: the table shrinks from 80 toward a minimum of 56 columns; names are cut with `…` when needed.
 - **Narrow windows** (too small for list + pane): the pane is hidden and `d` opens it as a pop-up over the list; `esc` closes it. On wide windows `d` does nothing new.
 - The logo slot shows the game's name in bold gold until Batch 7 draws the real logo there.

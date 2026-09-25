@@ -54,11 +54,14 @@ func (m Model) persist() tea.Cmd {
 	}
 }
 
-// markFavourites copies the stars onto the games, so filtering and drawing
-// can read them from each game.
-func (m *Model) markFavourites() {
+// decorate copies what Quarter knows beyond the scan onto the games (stars
+// from the settings, the demo flag from the store), so filtering and drawing
+// can read it from each game.
+func (m *Model) decorate() {
 	for i := range m.games {
-		m.games[i].Favourite = m.favs[m.games[i].AppID]
+		id := m.games[i].AppID
+		m.games[i].Favourite = m.favs[id]
+		m.games[i].Demo = m.storeInfo[id].Info.Type == "demo"
 	}
 }
 
@@ -73,6 +76,6 @@ func (m Model) toggleFavourite() (Model, tea.Cmd) {
 	} else {
 		m.favs[it.AppID] = true
 	}
-	m.markFavourites()
+	m.decorate()
 	return m, tea.Batch(m.refreshList(), m.persist())
 }

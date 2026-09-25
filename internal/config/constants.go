@@ -49,6 +49,18 @@ const LogFile = "quarter.log"
 // RecentWindow is how far back the Recent filter looks.
 const RecentWindow = 14 * 24 * time.Hour
 
+// The Steam store's app details endpoint, and how Quarter treats it: it is
+// unofficial and rate limited (about 200 requests per 5 minutes).
+const (
+	StoreURL          = "https://store.steampowered.com/api/appdetails"
+	StoreTimeout      = 10 * time.Second
+	StoreGap          = 1500 * time.Millisecond // one request per 1.5s stays under the limit
+	StoreRefresh      = 7 * 24 * time.Hour      // store details rarely change
+	StoreRetry        = 24 * time.Hour          // how long a "not on the store" answer is trusted
+	StoreCache        = "store.json"
+	StoreCacheVersion = 1
+)
+
 // LibraryCache is the scanned library saved in DataDir, shown instantly on the
 // next launch. Bump LibraryCacheVersion whenever the cached fields change.
 const (

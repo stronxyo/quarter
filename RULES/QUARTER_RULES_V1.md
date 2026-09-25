@@ -387,6 +387,7 @@ Checked 2026-09-24 in Batch 0. Anything new stated without a source goes back in
 | 17 | Where each game's `logo.png` is | **Verified on this PC:** `librarycache/<appid>/logo.png`, or `librarycache/<appid>/<hash>/logo.png` for newer assets. All 12 installed games have one (5 direct, 7 hashed). | Local listing |
 | 18 | Logos on Steam's CDN | **Verified** (HTTP 200 for 252950, 620, 70, 413150): `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/<appid>/logo.png`; the hashed path works too. | Direct test |
 | 19 | Eighth-block characters | **Verified:** 230 `BLOCK OCTANT` characters at U+1CD00 to U+1CDE5 in Unicode 16.0; the other 26 patterns use older block characters (table in `specs/BATCH_04_SPEC.md`). Rendered correctly in Windows Terminal 1.24 on this PC. | [UnicodeData 16.0.0](https://www.unicode.org/Public/16.0.0/ucd/UnicodeData.txt) |
+| 20 | Store `appdetails` details | **Verified 2026-09-24:** `filters=basic,developers,publishers,genres,release_date` returns what Quarter needs (~12 KB vs 35 KB). The answer can be keyed by a different id than asked (252950 came back as `1351431`), so the entry is matched on `data.steam_appid`. `success:false` means not on the store. `type` is `game` or `demo`. All 11 installed games on Pablo's PC parsed. | Direct requests |
 
 ---
 

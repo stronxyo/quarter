@@ -21,16 +21,25 @@ var (
 // sideBySide reports whether the window has room for the list and the detail
 // pane next to each other. Otherwise the pane opens as a pop-up with d.
 func (m Model) sideBySide() bool {
-	return m.width >= minTableWidth+paneGap+paneWidth
+	return m.width >= minTableWidth+paneGap+paneMinWidth
 }
 
 // tableWidth is the list's width: up to maxTableWidth, less whatever the
-// detail pane needs beside it.
+// detail pane needs beside it at its narrowest.
 func (m Model) tableWidth() int {
 	if m.sideBySide() {
-		return min(m.width-paneGap-paneWidth, maxTableWidth)
+		return min(m.width-paneGap-paneMinWidth, maxTableWidth)
 	}
 	return min(m.width, maxTableWidth)
+}
+
+// paneWidth grows with the window, from paneMinWidth up to paneMaxWidth, so
+// big windows give the game logo its full width.
+func (m Model) paneWidth() int {
+	if m.sideBySide() {
+		return min(m.width-paneGap-m.tableWidth(), paneMaxWidth)
+	}
+	return min(m.width, paneMaxWidth)
 }
 
 // detailView draws the selected game's pane, width by height cells.
@@ -44,7 +53,37 @@ func (m Model) detailView(width, height int) string {
 	} else {
 		// The game's logo goes here; until then, its name.
 		b.WriteString(paneTitleStyle.Width(inner).Render(strings.ToUpper(g.Label())))
-		b.WriteString("\n\n")
+		b.WriteString("\n")
+
+		info, state := m.storeStatus(g.AppID)
+		switch state {
+		case storeReady:
+			var who []string
+			if len(info.Developers) > 0 {
+				who = append(who, info.Developers[0])
+			}
+			if y := info.Year(); y != "" {
+				who = append(who, y)
+			}
+			if len(who) > 0 {
+				b.WriteString(ansi.Truncate(strings.Join(who, " · "), inner, "…") + "\n")
+			}
+			if len(info.Genres) > 0 {
+				b.WriteString(dimStyle.Render(ansi.Truncate(strings.Join(info.Genres, ", "), inner, "…")) + "\n")
+			}
+		case storeLoading:
+			b.WriteString(dimStyle.Render("loading store info…") + "\n")
+		case storeUnknown:
+			if m.fetchStore != nil {
+				b.WriteString(dimStyle.Render("loading store info…") + "\n")
+			}
+		case storeNotFound:
+			b.WriteString(dimStyle.Render("not on the Steam store") + "\n")
+		case storeOffline:
+			b.WriteString(dimStyle.Render("store info unavailable") + "\n")
+		}
+		b.WriteString("\n")
+
 		row := func(label, value string) {
 			b.WriteString(dimStyle.Render(fmt.Sprintf("%-12s", label)))
 			b.WriteString(ansi.Truncate(value, max(inner-12, 1), "…"))
@@ -59,10 +98,14 @@ func (m Model) detailView(width, height int) string {
 			row("Status", "not installed")
 		}
 		if g.Favourite {
-			b.WriteString("\n" + starStyle.Render(markerFavourite+" Favourite"))
+			b.WriteString("\n" + starStyle.Render(markerFavourite+" Favourite") + "\n")
+		}
+		if state == storeReady && info.Description != "" {
+			b.WriteString("\n" + lipgloss.NewStyle().Width(inner).Render(info.Description))
 		}
 	}
-	return paneStyle.Width(width).Height(height).Render(strings.TrimRight(b.String(), "\n"))
+	// MaxHeight cuts a long description at the pane's bottom edge.
+	return paneStyle.Width(width).Height(height).MaxHeight(height).Render(strings.TrimRight(b.String(), "\n"))
 }
 
 // selected returns the highlighted game, if the list has one.
