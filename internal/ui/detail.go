@@ -55,6 +55,10 @@ func (m Model) detailView(width, height int) string {
 		b.WriteString(paneTitleStyle.Width(inner).Render(strings.ToUpper(g.Label())))
 		b.WriteString("\n")
 
+		if g.AppID == m.running {
+			b.WriteString(runningLabelStyle.Render(markerRunning+" RUNNING NOW") + "\n")
+		}
+
 		info, state := m.storeStatus(g.AppID)
 		switch state {
 		case storeReady:

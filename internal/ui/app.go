@@ -59,6 +59,9 @@ type Model struct {
 	wanted     uint32          // the selected game, waiting for its turn
 	debounce   time.Duration   // how long the selection must settle before fetching
 
+	runningApp func() (uint32, bool) // asks Steam which game is running; may be nil
+	running    uint32                // the game Steam is running, 0 for none
+
 	favs         map[uint32]bool             // starred games, by appid
 	saveSettings func(config.Settings) error // remembers favourites, sort and filter; may be nil
 
@@ -86,6 +89,8 @@ type Options struct {
 	FetchStore func(context.Context, uint32) (webapi.StoreInfo, error) // store details for one game
 	StoreCache map[uint32]webapi.StoreEntry                            // store details from earlier runs
 	SaveStore  func(map[uint32]webapi.StoreEntry) error                // remembers them
+
+	RunningApp func() (uint32, bool) // which game Steam is running, if it says
 }
 
 // New returns the UI model.
@@ -106,6 +111,7 @@ func New(opts Options) Model {
 		storeInfo:  make(map[uint32]webapi.StoreEntry),
 		offline:    make(map[uint32]bool),
 		debounce:   storeDebounce,
+		runningApp: opts.RunningApp,
 	}
 	maps.Copy(m.storeInfo, opts.StoreCache)
 	m.applySettings(opts.Settings)
@@ -114,14 +120,19 @@ func New(opts Options) Model {
 		m.games = opts.Cached.Games
 		m.decorate()
 		m.playtimeKnown = opts.Cached.PlaytimeKnown
-		m.list.SetDelegate(rowDelegate{playtimeKnown: opts.Cached.PlaytimeKnown, now: m.now})
+		m.list.SetDelegate(m.delegate())
 		m.refreshList()
 	}
 	return m
 }
 
 func (m Model) Init() tea.Cmd {
-	return scan(m.steamPath)
+	return tea.Batch(scan(m.steamPath), checkRunning(m.runningApp, 0))
+}
+
+// delegate is the row renderer for the current state.
+func (m Model) delegate() rowDelegate {
+	return rowDelegate{playtimeKnown: m.playtimeKnown, now: m.now, running: m.running}
 }
 
 // saveScan stores a scan off the UI goroutine; a failure only costs speed on
@@ -183,6 +194,13 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case storeDoneMsg:
 		return m.applyStore(msg)
+
+	case runningMsg:
+		if msg.appID != m.running {
+			m.running = msg.appID
+			m.list.SetDelegate(m.delegate())
+		}
+		return m, checkRunning(m.runningApp, runningPoll)
 
 	case clearStatusMsg:
 		if msg.id == m.statusID {
@@ -263,7 +281,7 @@ func (m Model) applyScan(msg scanDoneMsg) (Model, tea.Cmd) {
 	m.games = msg.res.Games
 	m.decorate()
 	m.playtimeKnown = msg.res.PlaytimeKnown
-	m.list.SetDelegate(rowDelegate{playtimeKnown: msg.res.PlaytimeKnown, now: m.now})
+	m.list.SetDelegate(m.delegate())
 	cmd := tea.Batch(m.refreshList(), m.nextStoreFetch())
 	if m.save != nil {
 		cmd = tea.Batch(cmd, saveScan(m.save, msg.res))

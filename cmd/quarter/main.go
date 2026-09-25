@@ -61,10 +61,11 @@ func runUI(steamPath string) error {
 		return store.Save(dir, config.LibraryCache, config.LibraryCacheVersion, r)
 	}
 	_, err = tea.NewProgram(ui.New(ui.Options{
-		SteamPath: steamPath,
-		Cached:    loadCachedLibrary(dir, steamPath),
-		Save:      save,
-		Open:      steam.OpenURI,
+		SteamPath:  steamPath,
+		Cached:     loadCachedLibrary(dir, steamPath),
+		Save:       save,
+		Open:       steam.OpenURI,
+		RunningApp: steam.RunningApp,
 
 		Settings:     config.LoadSettings(dir),
 		SaveSettings: func(s config.Settings) error { return config.SaveSettings(dir, s) },

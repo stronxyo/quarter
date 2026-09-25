@@ -33,6 +33,7 @@ func columns(width int, marker, name, played, last string) string {
 type rowDelegate struct {
 	playtimeKnown bool
 	now           func() time.Time
+	running       uint32 // the game Steam is running, 0 for none
 }
 
 func (d rowDelegate) Height() int                         { return 1 }
@@ -44,24 +45,37 @@ func (d rowDelegate) Render(w io.Writer, m list.Model, index int, item list.Item
 	if !ok {
 		return
 	}
+	selected := index == m.Index()
+	running := d.running != 0 && g.AppID == d.running
 	style := rowStyle
-	if index == m.Index() {
+	switch {
+	case selected && running:
+		style = selectedRunningStyle
+	case selected:
 		style = selectedStyle
+	case running:
+		style = runningStyle
 	}
-	// A favourite's star takes the place of the installed dot. On the
-	// selected row the whole line is already gold, and the star's own color
-	// would end in a reset that switches that gold off for the rest of the row.
+
+	// A favourite's star takes the place of the installed dot. On a row that
+	// is colored as a whole (selected or running), the star's own color would
+	// end in a reset that switches the row's color off after it.
 	marker := " "
 	switch {
-	case g.Favourite && index == m.Index():
+	case g.Favourite && (selected || running):
 		marker = markerFavourite
 	case g.Favourite:
 		marker = starStyle.Render(markerFavourite)
 	case g.Installed:
 		marker = markerInstalled
 	}
+
+	last := library.FormatAgo(g.LastPlayed, d.now())
+	if running {
+		last = markerRunning + " running"
+	}
 	line := columns(m.Width()-style.GetHorizontalFrameSize(), marker, g.Label(),
-		library.FormatHours(g.Playtime, d.playtimeKnown), library.FormatAgo(g.LastPlayed, d.now()))
+		library.FormatHours(g.Playtime, d.playtimeKnown), last)
 	fmt.Fprint(w, style.Render(line))
 }
 

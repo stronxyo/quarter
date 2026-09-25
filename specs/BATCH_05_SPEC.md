@@ -1,7 +1,7 @@
 # Batch 5 Spec: Detail pane
 
 **Branch:** `batch/05-detail`
-**Status:** Approved 2026-09-24. In progress.
+**Status:** Done (approved 2026-09-24). Added during the batch by Pablo: the pane grows to 68 columns, the running game in green, and the accent moved to the middle of the logo gradient (#FFAF63).
 **Goal:** the selected game's details beside the list: its name (the logo slot, filled in Batch 7), developer, release year, genres, playtime, last played, size and a short description from the Steam store.
 
 ---
@@ -89,7 +89,7 @@ git push
 **Verified 2026-09-24 on Pablo's PC:** with Rocket League running, `HKCU\Software\Valve\Steam\RunningAppID` read `252950` and `HKCU\Software\Valve\Steam\Appsª950\Running` read `1`; with nothing running, `RunningAppID` is `0`.
 
 **Design**
-- `internal/steam/running.go`: `RunningApp() (uint32, error)`; Windows reads `RunningAppID` from the registry. Linux and macOS read `RunningAppID` from Steam's `registry.vdf` (to verify with a source before relying on it; until then they report "unknown", never a wrong game).
+- `internal/steam/running.go`: `RunningApp() (appID uint32, known bool)`; Windows reads `RunningAppID` from the registry. **Linux and macOS report "unknown"**: checked during the phase, Steam for Linux stopped writing `RunningAppID` to `registry.vdf` in 2023 (issue still open). A process-list fallback is deferred (Rules Appendix A).
 - The UI checks every 2 seconds in a background command.
 - The running game's row turns green and its Last played column reads `▶ running`. The detail pane shows a green `▶ RUNNING NOW`.
 - `Enter` on the running game shows "Rocket League is already running" instead of launching it again.

@@ -5,9 +5,10 @@ import "charm.land/lipgloss/v2"
 // Arcade palette: the logo's gold-to-orange gradient on the terminal's own
 // background; everything else is accented with the gradient's middle color.
 var (
-	colorAccent = lipgloss.Color("#FFAF63")
-	colorDim    = lipgloss.Color("#7F849C")
-	colorError  = lipgloss.Color("#F38BA8")
+	colorAccent  = lipgloss.Color("#FFAF63")
+	colorDim     = lipgloss.Color("#7F849C")
+	colorError   = lipgloss.Color("#F38BA8")
+	colorRunning = lipgloss.Color("#A6E3A1")
 
 	// The logo gradient runs from colorLogoTop to colorLogoBottom.
 	colorLogoTop    = lipgloss.Color("#FFE08A")
@@ -21,13 +22,18 @@ var (
 	dimStyle       = lipgloss.NewStyle().Foreground(colorDim)
 	activeTabStyle = lipgloss.NewStyle().Bold(true).Foreground(colorAccent)
 	starStyle      = lipgloss.NewStyle().Foreground(colorAccent)
-	errorStyle     = lipgloss.NewStyle().Bold(true).Foreground(colorError)
-	messageStyle   = lipgloss.NewStyle().Padding(1, 2)
+
+	runningStyle         = rowStyle.Foreground(colorRunning)
+	selectedRunningStyle = selectedStyle.Foreground(colorRunning).BorderForeground(colorRunning)
+	runningLabelStyle    = lipgloss.NewStyle().Bold(true).Foreground(colorRunning)
+	errorStyle           = lipgloss.NewStyle().Bold(true).Foreground(colorError)
+	messageStyle         = lipgloss.NewStyle().Padding(1, 2)
 )
 
 const (
 	markerInstalled = "•"
 	markerFavourite = "✦"
+	markerRunning   = "▶"
 	markerWidth     = 1  // one marker: the favourite star, else the installed dot
 	hoursWidth      = 9  // fits "99999.9h"
 	agoWidth        = 13 // fits "11 months ago"
