@@ -48,9 +48,13 @@ func (d rowDelegate) Render(w io.Writer, m list.Model, index int, item list.Item
 	if index == m.Index() {
 		style = selectedStyle
 	}
-	// A favourite's star takes the place of the installed dot.
+	// A favourite's star takes the place of the installed dot. On the
+	// selected row the whole line is already gold, and the star's own color
+	// would end in a reset that switches that gold off for the rest of the row.
 	marker := " "
 	switch {
+	case g.Favourite && index == m.Index():
+		marker = markerFavourite
 	case g.Favourite:
 		marker = starStyle.Render(markerFavourite)
 	case g.Installed:

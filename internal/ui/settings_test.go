@@ -96,3 +96,19 @@ func TestFavouriteToggle(t *testing.T) {
 		t.Error("the favourites filter should now be empty")
 	}
 }
+
+func TestSelectedFavouriteKeepsRowColor(t *testing.T) {
+	m, _ := withSettings(t, config.Settings{Favourites: []uint32{1}}) // Alpha, selected first
+	for _, line := range strings.Split(m.(Model).View().Content, "\n") {
+		star := strings.Index(line, markerFavourite)
+		name := strings.Index(line, "Alpha")
+		if star < 0 || name < 0 {
+			continue
+		}
+		if strings.Contains(line[star:name], "\x1b[m") {
+			t.Errorf("a color reset between the star and the name switches off the selected highlight: %q", line)
+		}
+		return
+	}
+	t.Fatal("selected starred row not found")
+}
