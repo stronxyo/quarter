@@ -57,7 +57,9 @@ func TestRunningGameMarked(t *testing.T) {
 	}
 }
 
-func TestRunningFavouriteKeepsRowColor(t *testing.T) {
+// A running game shows the big triangle, even when it's a favourite, and the
+// whole row stays green.
+func TestRunningFavouriteShowsTheRunningMarker(t *testing.T) {
 	m, _ := withOpener(t, nil,
 		library.Game{AppID: 1, Name: "Alpha", Installed: true},
 		library.Game{AppID: 2, Name: "Bravo", Installed: true},
@@ -69,9 +71,15 @@ func TestRunningFavouriteKeepsRowColor(t *testing.T) {
 	tm, _ = tm.Update(runningMsg{appID: 2}) // running, but not selected
 
 	raw := lineWith(tm.(Model).View().Content, "Bravo")
-	star, name := strings.Index(raw, markerFavourite), strings.Index(raw, "Bravo")
-	if star < 0 || name < 0 || strings.Contains(raw[star:name], "\x1b[m") {
-		t.Errorf("a color reset between the star and the name breaks the running color: %q", raw)
+	marker, name := strings.Index(raw, markerRunning), strings.Index(raw, "Bravo")
+	if marker < 0 || name < 0 || marker > name {
+		t.Fatalf("the running game should be marked %s before its name: %q", markerRunning, raw)
+	}
+	if strings.Contains(raw[marker:name], "\x1b[m") {
+		t.Errorf("a color reset between the marker and the name breaks the running color: %q", raw)
+	}
+	if strings.Contains(raw, markerFavourite) {
+		t.Errorf("while running, the star gives way to the running marker: %q", raw)
 	}
 }
 

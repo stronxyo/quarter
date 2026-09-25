@@ -97,3 +97,28 @@ func TestCandidatesShowAtOnceFromCache(t *testing.T) {
 		t.Error("a candidate resolved on an earlier run should show at once")
 	}
 }
+
+func TestMarkers(t *testing.T) {
+	m, _ := withOpener(t, nil,
+		library.Game{AppID: 1, Name: "Alpha", Installed: true},
+		library.Game{AppID: 2, Name: "Bravo"},
+		library.Game{AppID: 3, Name: "Charlie", Installed: true},
+		library.Game{AppID: 4, Name: "Delta"},
+	)
+	m.favs[3], m.favs[4] = true, true
+	m.decorate()
+	m.refreshList()
+	view := ansi.Strip(m.View().Content)
+	for name, want := range map[string]string{
+		"Bravo":   markerUninstalled,
+		"Charlie": markerFavourite,
+		"Delta":   markerFavouriteUninstalled,
+	} {
+		if line := lineWith(view, name); !strings.Contains(line, want+" "+name) {
+			t.Errorf("%s should be marked %s: %q", name, want, line)
+		}
+	}
+	if line := lineWith(view, "Alpha"); !strings.Contains(line, markerInstalled+" Alpha") {
+		t.Errorf("Alpha should be marked %s: %q", markerInstalled, line)
+	}
+}

@@ -57,15 +57,18 @@ func (d rowDelegate) Render(w io.Writer, m list.Model, index int, item list.Item
 		style = runningStyle
 	}
 
-	// A favourite's star takes the place of the installed dot. On a row that
-	// is colored as a whole (selected or running), the star's own color would
-	// end in a reset that switches the row's color off after it.
+	// One marker per row: a big triangle while running, else a favourite's
+	// star, else a small triangle (filled when installed). On the selected
+	// row the whole line is colored, and the star's own color would end in a
+	// reset that switches the row's color off after it.
 	marker := " "
 	switch {
-	case g.Favourite && (selected || running):
-		marker = markerFavourite
+	case running:
+		marker = markerRunning // the big triangle: playing now
+	case g.Favourite && selected:
+		marker = favouriteMarker(g)
 	case g.Favourite:
-		marker = starStyle.Render(markerFavourite)
+		marker = starStyle.Render(favouriteMarker(g))
 	case g.Installed:
 		marker = markerInstalled
 	default:
@@ -102,4 +105,12 @@ func toItems(games []library.Game) []list.Item {
 		items[i] = gameItem{g}
 	}
 	return items
+}
+
+// favouriteMarker is a filled star, or an empty one when the game isn't installed.
+func favouriteMarker(g gameItem) string {
+	if g.Installed {
+		return markerFavourite
+	}
+	return markerFavouriteUninstalled
 }

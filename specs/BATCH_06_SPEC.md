@@ -58,6 +58,19 @@
 
 ---
 
+## Markers (Pablo's picks during Batch 6, from colored previews)
+
+| Game | Marker |
+|---|---|
+| Installed | `▸` |
+| Not installed | `▹` (white) |
+| Favourite | `✦` (orange) |
+| Favourite, not installed | `✧` (orange) |
+| Running | `▶` (green, whole row green) |
+
+- Small triangles chosen over large ones: they sit almost exactly centered in Cascadia Mono (0.5% off vs 2.5%).
+- Checked with the font file: Cascadia Mono has no star characters, so `✦`/`✧` are borrowed from another font and can look slightly off-center. `◆`/`◇` (perfectly centered, in the font) were offered; Pablo kept the stars.
+
 ## Deferred (recorded in Rules Appendix A)
 
 - **Steam Web API key (optional extra):** the complete account library and server playtime. Trigger: users ask for games never touched on their PC.
