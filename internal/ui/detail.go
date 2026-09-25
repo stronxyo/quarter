@@ -12,7 +12,7 @@ import (
 
 var (
 	paneStyle = lipgloss.NewStyle().
-			Border(lipgloss.DoubleBorder()).
+			Border(lipgloss.NormalBorder()).
 			BorderForeground(colorLogoBorder).
 			Padding(0, 1)
 	paneTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(colorAccent)

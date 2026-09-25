@@ -6,14 +6,14 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// logoArt is QUARTER in the "ANSI Shadow" figlet font.
+// logoArt is QUARTER in the "ANSI Shadow" figlet font, with single-line shadows.
 var logoArt = []string{
-	" ██████╗ ██╗   ██╗ █████╗ ██████╗ ████████╗███████╗██████╗ ",
-	"██╔═══██╗██║   ██║██╔══██╗██╔══██╗╚══██╔══╝██╔════╝██╔══██╗",
-	"██║   ██║██║   ██║███████║██████╔╝   ██║   █████╗  ██████╔╝",
-	"██║▄▄ ██║██║   ██║██╔══██║██╔══██╗   ██║   ██╔══╝  ██╔══██╗",
-	"╚██████╔╝╚██████╔╝██║  ██║██║  ██║   ██║   ███████╗██║  ██║",
-	" ╚══▀▀═╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚══════╝╚═╝  ╚═╝",
+	" ██████┐ ██┐   ██┐ █████┐ ██████┐ ████████┐███████┐██████┐ ",
+	"██┌───██┐██│   ██│██┌──██┐██┌──██┐└──██┌──┘██┌────┘██┌──██┐",
+	"██│   ██│██│   ██│███████│██████┌┘   ██│   █████┐  ██████┌┘",
+	"██│▄▄ ██│██│   ██│██┌──██│██┌──██┐   ██│   ██┌──┘  ██┌──██┐",
+	"└██████┌┘└██████┌┘██│  ██│██│  ██│   ██│   ███████┐██│  ██│",
+	" └──▀▀─┘  └─────┘ └─┘  └─┘└─┘  └─┘   └─┘   └──────┘└─┘  └─┘",
 }
 
 // logoBoxWidth makes the box as wide as the table, so its right edge lines up
@@ -21,7 +21,7 @@ var logoArt = []string{
 const logoBoxWidth = maxTableWidth - logoIndent
 
 var logoBoxStyle = lipgloss.NewStyle().
-	Border(lipgloss.DoubleBorder()).
+	Border(lipgloss.NormalBorder()).
 	BorderForeground(colorLogoBorder).
 	Padding(1, 0).
 	Width(logoBoxWidth).
