@@ -2,9 +2,10 @@ package ui
 
 import "charm.land/lipgloss/v2"
 
-// Arcade palette: coin gold on the terminal's own background.
+// Arcade palette: the logo's gold-to-orange gradient on the terminal's own
+// background; everything else is accented with the gradient's middle color.
 var (
-	colorAccent = lipgloss.Color("#FFC857")
+	colorAccent = lipgloss.Color("#FFAF63")
 	colorDim    = lipgloss.Color("#7F849C")
 	colorError  = lipgloss.Color("#F38BA8")
 
