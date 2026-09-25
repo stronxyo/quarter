@@ -25,8 +25,12 @@ func Scan(override string) (Result, error) {
 	installed, warnings := steam.InstalledGames(steamPath)
 
 	var stats map[uint32]steam.PlayStats
+	var achievements map[uint32]steam.Achievements
 	acct, err := steam.ActiveAccount(steamPath)
 	if err == nil {
+		// Achievements come from Steam's cached library pages; missing ones
+		// just mean none are shown, so their errors aren't warnings.
+		achievements, _ = steam.ReadAchievements(steamPath, acct)
 		stats, err = steam.ReadPlayStats(steamPath, acct)
 	}
 	if err != nil {
@@ -35,7 +39,7 @@ func Scan(override string) (Result, error) {
 
 	return Result{
 		SteamPath:     steamPath,
-		Games:         FromSteam(installed, stats),
+		Games:         FromSteam(installed, stats, achievements),
 		PlaytimeKnown: stats != nil,
 		Warnings:      warnings,
 	}, nil

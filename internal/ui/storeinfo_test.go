@@ -176,3 +176,12 @@ func TestStaleWantIsIgnored(t *testing.T) {
 		}
 	}
 }
+
+func TestAchievementTotalFromStoreWhenCacheIsEmpty(t *testing.T) {
+	src := &fakeStoreSource{info: map[uint32]webapi.StoreInfo{1: {Type: "game", Achievements: 33}, 2: {Type: "game"}, 3: {Type: "game"}}}
+	var saved []map[uint32]webapi.StoreEntry
+	m := withStore(t, src, nil, &saved)
+	if !strings.Contains(ansi.Strip(m.(Model).View().Content), "0/33    ──────────────") {
+		t.Error("with no local progress, the store's total should show as 0/33")
+	}
+}

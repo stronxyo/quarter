@@ -30,6 +30,8 @@ type StoreInfo struct {
 	Genres      []string `json:"genres"`
 	ReleaseDate string   `json:"release_date"` // as the store writes it, e.g. "6 Jul, 2015"
 	Description string   `json:"description"`  // plain text
+
+	Achievements int `json:"achievements"` // how many the game has on Steam; 0 for none
 }
 
 // Year is the four-digit year in ReleaseDate, or "" if there isn't one.
@@ -99,7 +101,7 @@ func (c *StoreClient) AppDetails(ctx context.Context, appID uint32) (StoreInfo, 
 	q := url.Values{
 		"appids":  {strconv.FormatUint(uint64(appID), 10)},
 		"l":       {"english"},
-		"filters": {"basic,developers,publishers,genres,release_date"},
+		"filters": {"basic,developers,publishers,genres,release_date,achievements"},
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"?"+q.Encode(), nil)
 	if err != nil {
@@ -137,6 +139,9 @@ type rawDetails struct {
 		ReleaseDate struct {
 			Date string `json:"date"`
 		} `json:"release_date"`
+		Achievements struct {
+			Total int `json:"total"`
+		} `json:"achievements"`
 	} `json:"data"`
 }
 
@@ -167,6 +172,8 @@ func parseAppDetails(body map[string]json.RawMessage, appID uint32) (StoreInfo, 
 		Publishers:  raw.Data.Publishers,
 		ReleaseDate: raw.Data.ReleaseDate.Date,
 		Description: plainText(raw.Data.ShortDescription),
+
+		Achievements: raw.Data.Achievements.Total,
 	}
 	for _, g := range raw.Data.Genres {
 		info.Genres = append(info.Genres, g.Description)

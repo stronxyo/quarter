@@ -6,9 +6,9 @@ import (
 	"github.com/stronxyo/quarter/internal/steam"
 )
 
-// FromSteam joins installed games with their play stats and sorts them by
-// name. stats may be nil when play data could not be read.
-func FromSteam(installed []steam.Manifest, stats map[uint32]steam.PlayStats) []Game {
+// FromSteam joins installed games with their play stats and achievements and
+// sorts them by name. stats and achievements may be nil when unreadable.
+func FromSteam(installed []steam.Manifest, stats map[uint32]steam.PlayStats, achievements map[uint32]steam.Achievements) []Game {
 	games := make([]Game, 0, len(installed))
 	for _, m := range installed {
 		s := stats[m.AppID]
@@ -20,6 +20,8 @@ func FromSteam(installed []steam.Manifest, stats map[uint32]steam.PlayStats) []G
 			SizeOnDisk:  m.SizeOnDisk,
 			Playtime:    s.Playtime,
 			LastPlayed:  s.LastPlayed,
+
+			Achievements: achievements[m.AppID],
 		})
 	}
 	return View(games, FilterAll, SortName, false, time.Time{})

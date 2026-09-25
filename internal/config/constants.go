@@ -58,12 +58,12 @@ const (
 	StoreRefresh      = 7 * 24 * time.Hour      // store details rarely change
 	StoreRetry        = 24 * time.Hour          // how long a "not on the store" answer is trusted
 	StoreCache        = "store.json"
-	StoreCacheVersion = 1
+	StoreCacheVersion = 2 // 2: achievement totals
 )
 
 // LibraryCache is the scanned library saved in DataDir, shown instantly on the
 // next launch. Bump LibraryCacheVersion whenever the cached fields change.
 const (
 	LibraryCache        = "library.json"
-	LibraryCacheVersion = 1
+	LibraryCacheVersion = 2 // 2: games carry achievements
 )

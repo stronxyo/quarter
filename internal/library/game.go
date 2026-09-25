@@ -5,6 +5,8 @@ package library
 import (
 	"strings"
 	"time"
+
+	"github.com/stronxyo/quarter/internal/steam"
 )
 
 // Game is one entry in the library.
@@ -16,8 +18,10 @@ type Game struct {
 	SizeOnDisk  int64
 	Playtime    time.Duration
 	LastPlayed  time.Time // zero if never played
-	Favourite   bool      `json:"-"` // comes from settings, not from Steam, so never cached
-	Demo        bool      `json:"-"` // the store says this is a demo; set from store data
+
+	Achievements steam.Achievements // zero Total when the game has none, or Steam hasn't cached them
+	Favourite    bool               `json:"-"` // comes from settings, not from Steam, so never cached
+	Demo         bool               `json:"-"` // the store says this is a demo; set from store data
 }
 
 // trialWords end the names of builds that aren't the full game. Steam's own
