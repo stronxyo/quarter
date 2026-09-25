@@ -18,6 +18,7 @@ import (
 	"github.com/stronxyo/quarter/internal/steam"
 	"github.com/stronxyo/quarter/internal/store"
 	"github.com/stronxyo/quarter/internal/ui"
+	"github.com/stronxyo/quarter/internal/webapi"
 )
 
 // version is overridden at release time with -ldflags "-X main.version=<tag>".
@@ -60,15 +61,29 @@ func runUI(steamPath string) error {
 		return store.Save(dir, config.LibraryCache, config.LibraryCacheVersion, r)
 	}
 	_, err = tea.NewProgram(ui.New(ui.Options{
-		SteamPath: steamPath,
-		Cached:    loadCachedLibrary(dir, steamPath),
-		Save:      save,
-		Open:      steam.OpenURI,
+		SteamPath:  steamPath,
+		Cached:     loadCachedLibrary(dir, steamPath),
+		Save:       save,
+		Open:       steam.OpenURI,
+		RunningApp: steam.RunningApp,
 
 		Settings:     config.LoadSettings(dir),
 		SaveSettings: func(s config.Settings) error { return config.SaveSettings(dir, s) },
+
+		FetchStore: webapi.NewStoreClient(config.StoreURL, config.StoreTimeout, config.StoreGap).AppDetails,
+		StoreCache: loadStoreCache(dir),
+		SaveStore: func(c map[uint32]webapi.StoreEntry) error {
+			return store.Save(dir, config.StoreCache, config.StoreCacheVersion, c)
+		},
 	})).Run()
 	return err
+}
+
+// loadStoreCache returns the store details saved by earlier runs; a missing or
+// unreadable cache just means they are fetched again.
+func loadStoreCache(dir string) map[uint32]webapi.StoreEntry {
+	c, _ := store.Load[map[uint32]webapi.StoreEntry](dir, config.StoreCache, config.StoreCacheVersion)
+	return c
 }
 
 // loadCachedLibrary returns the library saved by the last run, or nil. A cache

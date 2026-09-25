@@ -205,7 +205,7 @@ func TestTableCappedOnWideTerminal(t *testing.T) {
 	m, _ = m.Update(tea.WindowSizeMsg{Width: 200, Height: 24})
 	for _, line := range strings.Split(ansi.Strip(m.(Model).View().Content), "\n") {
 		if strings.Contains(line, "Alpha") || strings.Contains(line, "Played") {
-			if w := ansi.StringWidth(strings.TrimRight(line, " ")); w > maxTableWidth {
+			if w := ansi.StringWidth(tablePart(line)); w > maxTableWidth {
 				t.Errorf("table row is %d wide on a 200-column terminal, want at most %d: %q", w, maxTableWidth, line)
 			}
 		}
@@ -281,7 +281,7 @@ func TestSearchOnSectionLine(t *testing.T) {
 		if !strings.Contains(line, "Search: r") {
 			t.Errorf("search box should sit on the section line: %q", line)
 		}
-		if w := ansi.StringWidth(line); w > maxTableWidth {
+		if w := ansi.StringWidth(tablePart(line)); w > maxTableWidth {
 			t.Errorf("section line is %d wide, want at most %d", w, maxTableWidth)
 		}
 		return
@@ -365,4 +365,12 @@ func TestRefreshKey(t *testing.T) {
 	if _, cmd = m.Update(press("r")); cmd != nil {
 		t.Error("r during a scan should not start a second one")
 	}
+}
+
+// tablePart is a screen line without the detail pane beside the table.
+func tablePart(line string) string {
+	if i := strings.IndexAny(line, "║╔╚"); i >= 0 {
+		line = line[:i]
+	}
+	return strings.TrimRight(line, " ")
 }

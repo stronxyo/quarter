@@ -35,3 +35,23 @@ func TestFormatAgo(t *testing.T) {
 		}
 	}
 }
+
+func TestFormatSize(t *testing.T) {
+	tests := []struct {
+		bytes int64
+		want  string
+	}{
+		{0, "-"},
+		{512, "512 B"},
+		{2048, "2.0 KB"},
+		{851_443_712, "812 MB"},
+		{12884901888, "12.0 GB"},
+		{13_314_398_618, "12.4 GB"},
+		{2 << 40, "2.0 TB"},
+	}
+	for _, tt := range tests {
+		if got := FormatSize(tt.bytes); got != tt.want {
+			t.Errorf("FormatSize(%d): got %q, want %q", tt.bytes, got, tt.want)
+		}
+	}
+}

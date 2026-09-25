@@ -18,6 +18,7 @@ type appKeys struct {
 	SortLast   key.Binding
 	Filter     key.Binding
 	Refresh    key.Binding
+	Details    key.Binding
 	Help       key.Binding
 }
 
@@ -26,11 +27,12 @@ var keys = appKeys{
 	Install:    key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "install")),
 	Store:      key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "store page")),
 	Favourite:  key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "favourite")),
-	SortName:   key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "sort by name")),
-	SortPlayed: key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "sort by played")),
-	SortLast:   key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "sort by last played")),
+	SortName:   key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "sort name")),
+	SortPlayed: key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "sort played")),
+	SortLast:   key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "sort last")),
 	Filter:     key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "filter")),
 	Refresh:    key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "rescan")),
+	Details:    key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "details")),
 	Help:       key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "more")),
 }
 
@@ -46,7 +48,7 @@ var (
 	helpLess   = key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "less"))
 )
 
-// shortHelp fits one line on an 80-column terminal.
+// shortHelp fits one line of keycaps on an 80-column terminal.
 func shortHelp() []key.Binding {
 	return []key.Binding{helpMove, keys.Play, helpSearch, helpSort, keys.Filter, keys.Help, helpQuit}
 }
@@ -57,7 +59,7 @@ func fullHelp() [][]key.Binding {
 		{helpMove, helpEnds, helpPage},
 		{keys.Play, keys.Install, keys.Store, keys.Favourite},
 		{helpSearch, keys.SortName, keys.SortPlayed, keys.SortLast},
-		{keys.Filter, keys.Refresh, helpLess, helpQuit},
+		{keys.Filter, keys.Details, keys.Refresh, helpLess, helpQuit},
 	}
 }
 

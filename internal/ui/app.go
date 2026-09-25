@@ -2,8 +2,10 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"strings"
 	"time"
 
@@ -15,6 +17,7 @@ import (
 
 	"github.com/stronxyo/quarter/internal/config"
 	"github.com/stronxyo/quarter/internal/library"
+	"github.com/stronxyo/quarter/internal/webapi"
 )
 
 type state int
@@ -45,6 +48,20 @@ type Model struct {
 	statusID  int                        // tells a stale clear timer from the current message
 	fullHelp  bool                       // ? pressed: every key is listed
 
+	detailOpen    bool // d pressed on a narrow window: the pane covers the list
+	playtimeKnown bool // false when Steam's playtime file couldn't be read
+
+	fetchStore func(context.Context, uint32) (webapi.StoreInfo, error) // may be nil: no store details
+	saveStore  func(map[uint32]webapi.StoreEntry) error
+	storeInfo  map[uint32]webapi.StoreEntry
+	offline    map[uint32]bool // store requests that failed this run
+	fetching   uint32          // the game whose store request is out, 0 for none
+	wanted     uint32          // the selected game, waiting for its turn
+	debounce   time.Duration   // how long the selection must settle before fetching
+
+	runningApp func() (uint32, bool) // asks Steam which game is running; may be nil
+	running    uint32                // the game Steam is running, 0 for none
+
 	favs         map[uint32]bool             // starred games, by appid
 	saveSettings func(config.Settings) error // remembers favourites, sort and filter; may be nil
 
@@ -68,6 +85,12 @@ type Options struct {
 
 	Settings     config.Settings             // favourites, sort and filter from the last run
 	SaveSettings func(config.Settings) error // remembers them for the next run
+
+	FetchStore func(context.Context, uint32) (webapi.StoreInfo, error) // store details for one game
+	StoreCache map[uint32]webapi.StoreEntry                            // store details from earlier runs
+	SaveStore  func(map[uint32]webapi.StoreEntry) error                // remembers them
+
+	RunningApp func() (uint32, bool) // which game Steam is running, if it says
 }
 
 // New returns the UI model.
@@ -82,20 +105,34 @@ func New(opts Options) Model {
 
 		favs:         make(map[uint32]bool),
 		saveSettings: opts.SaveSettings,
+
+		fetchStore: opts.FetchStore,
+		saveStore:  opts.SaveStore,
+		storeInfo:  make(map[uint32]webapi.StoreEntry),
+		offline:    make(map[uint32]bool),
+		debounce:   storeDebounce,
+		runningApp: opts.RunningApp,
 	}
+	maps.Copy(m.storeInfo, opts.StoreCache)
 	m.applySettings(opts.Settings)
 	if opts.Cached != nil {
 		m.state = stateReady
 		m.games = opts.Cached.Games
-		m.markFavourites()
-		m.list.SetDelegate(rowDelegate{playtimeKnown: opts.Cached.PlaytimeKnown, now: m.now})
+		m.decorate()
+		m.playtimeKnown = opts.Cached.PlaytimeKnown
+		m.list.SetDelegate(m.delegate())
 		m.refreshList()
 	}
 	return m
 }
 
 func (m Model) Init() tea.Cmd {
-	return scan(m.steamPath)
+	return tea.Batch(scan(m.steamPath), checkRunning(m.runningApp, 0))
+}
+
+// delegate is the row renderer for the current state.
+func (m Model) delegate() rowDelegate {
+	return rowDelegate{playtimeKnown: m.playtimeKnown, now: m.now, running: m.running}
 }
 
 // saveScan stores a scan off the UI goroutine; a failure only costs speed on
@@ -120,8 +157,12 @@ func scan(steamPath string) tea.Cmd {
 // Update handles a message, then lays the screen out again: whether the logo
 // fits depends on how many games are showing, which searches and filters change.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	before, _ := m.selected()
 	m, cmd := m.update(msg)
 	m.layout()
+	if after, ok := m.selected(); ok && after.AppID != before.AppID && m.needsStore(after.AppID) {
+		cmd = tea.Batch(cmd, wantStore(after.AppID, m.debounce))
+	}
 	return m, cmd
 }
 
@@ -143,6 +184,23 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 			m.status = "Could not open Steam: " + msg.err.Error()
 		}
 		return m, clearStatusAfter(msg.id)
+
+	case storeWantMsg:
+		if g, ok := m.selected(); ok && g.AppID == msg.appID {
+			m.wanted = msg.appID
+			return m, m.nextStoreFetch()
+		}
+		return m, nil
+
+	case storeDoneMsg:
+		return m.applyStore(msg)
+
+	case runningMsg:
+		if msg.appID != m.running {
+			m.running = msg.appID
+			m.list.SetDelegate(m.delegate())
+		}
+		return m, checkRunning(m.runningApp, runningPoll)
 
 	case clearStatusMsg:
 		if msg.id == m.statusID {
@@ -166,6 +224,14 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 		// While typing a search, every key belongs to the search box.
 		if !m.list.SettingFilter() {
+			if m.detailOpen && (key.Matches(msg, keys.Details) || msg.String() == "esc") {
+				m.detailOpen = false
+				return m, nil
+			}
+			if key.Matches(msg, keys.Details) && !m.sideBySide() {
+				m.detailOpen = true
+				return m, nil
+			}
 			if key.Matches(msg, keys.Help) {
 				m.fullHelp = !m.fullHelp
 				return m, nil
@@ -213,9 +279,10 @@ func (m Model) applyScan(msg scanDoneMsg) (Model, tea.Cmd) {
 	m.state = stateReady
 	m.warnings = len(msg.res.Warnings)
 	m.games = msg.res.Games
-	m.markFavourites()
-	m.list.SetDelegate(rowDelegate{playtimeKnown: msg.res.PlaytimeKnown, now: m.now})
-	cmd := m.refreshList()
+	m.decorate()
+	m.playtimeKnown = msg.res.PlaytimeKnown
+	m.list.SetDelegate(m.delegate())
+	cmd := tea.Batch(m.refreshList(), m.nextStoreFetch())
 	if m.save != nil {
 		cmd = tea.Batch(cmd, saveScan(m.save, msg.res))
 	}
@@ -262,7 +329,7 @@ func (m *Model) layout() {
 	if m.showLogo() {
 		used += logoHeight()
 	}
-	m.list.SetSize(m.width, max(m.height-used, 0))
+	m.list.SetSize(m.tableWidth(), max(m.height-used, 0))
 }
 
 // chromeRows counts the rows outside the list besides the logo: the section
@@ -280,11 +347,11 @@ func (m Model) showLogo() bool {
 	return logoFits(m.width, m.height, m.chromeRows(), len(m.list.VisibleItems()))
 }
 
-// header shows the logo above the section line, or the compact badge in
-// front of it when space is short.
+// header is the section line, led by the compact badge when the big logo
+// doesn't fit above it.
 func (m Model) header() string {
 	if m.showLogo() {
-		return renderLogo() + "\n" + m.sectionLine("  ")
+		return m.sectionLine("  ")
 	}
 	return m.sectionLine(" " + titleStyle.Render("QUARTER") + " ")
 }
@@ -319,7 +386,7 @@ func (m Model) sectionLine(lead string) string {
 		count += " · updating…"
 	}
 	line += dimStyle.Render(count + " ")
-	fill := min(m.width, maxTableWidth) - ansi.StringWidth(line)
+	fill := m.tableWidth() - ansi.StringWidth(line)
 	return line + dimStyle.Render(strings.Repeat("─", max(fill, 0)))
 }
 
@@ -334,7 +401,7 @@ func (m Model) columnHeader() string {
 		}
 		return name + " ▲"
 	}
-	line := columns(m.width-rowStyle.GetHorizontalFrameSize(), strings.Repeat(" ", markerWidth),
+	line := columns(m.tableWidth()-rowStyle.GetHorizontalFrameSize(), strings.Repeat(" ", markerWidth),
 		label("Name", library.SortName), label("Played", library.SortPlaytime), label("Last played", library.SortLastPlayed))
 	return rowStyle.Render(dimStyle.Render(line))
 }
@@ -354,6 +421,20 @@ func (m Model) footer() string {
 	return dimStyle.Render(fmt.Sprintf("  %d file(s) could not be read, see %s", m.warnings, config.LogFile))
 }
 
+// body is the list with its section line and column header, with the detail
+// pane beside it, or over it when d opened it on a narrow window.
+func (m Model) body() string {
+	list := strings.Join([]string{m.header(), m.columnHeader(), m.list.View()}, "\n")
+	height := lipgloss.Height(list)
+	switch {
+	case m.sideBySide():
+		return lipgloss.JoinHorizontal(lipgloss.Top, list, strings.Repeat(" ", paneGap), m.detailView(m.paneWidth(), height))
+	case m.detailOpen:
+		return m.header() + "\n" + m.detailView(m.paneWidth(), height-1)
+	}
+	return list
+}
+
 func (m Model) View() tea.View {
 	var content string
 	switch m.state {
@@ -364,7 +445,11 @@ func (m Model) View() tea.View {
 			"\n\nIf Steam is installed somewhere unusual, start Quarter with:\n  quarter --steam-path <steam folder>\n\n" +
 			dimStyle.Render("q quit"))
 	default:
-		content = strings.Join([]string{m.header(), m.columnHeader(), m.list.View(), m.helpView()}, "\n")
+		content = m.body()
+		if m.showLogo() {
+			content = renderLogo() + "\n" + content
+		}
+		content += "\n" + m.helpView()
 		if f := m.footer(); f != "" {
 			content += "\n" + f
 		}

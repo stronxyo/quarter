@@ -25,12 +25,16 @@ type clearStatusMsg struct{ id int }
 // action runs the play, install or store key for the selected game.
 // handled is false when msg is not an action key.
 func (m Model) action(msg tea.KeyPressMsg) (_ Model, _ tea.Cmd, handled bool) {
-	it, ok := m.list.SelectedItem().(gameItem)
+	it, ok := m.selected()
 	if !ok {
 		return m, nil, false
 	}
 	var uri, status string
 	switch {
+	case key.Matches(msg, keys.Play) && it.AppID == m.running:
+		m.statusID++
+		m.status = it.Name + " is already running"
+		return m, clearStatusAfter(m.statusID), true
 	case key.Matches(msg, keys.Play) && it.Installed:
 		uri, status = steam.PlayURI(it.AppID), "▶ Launching "+it.Name
 	case key.Matches(msg, keys.Play), key.Matches(msg, keys.Install):

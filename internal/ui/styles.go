@@ -2,11 +2,14 @@ package ui
 
 import "charm.land/lipgloss/v2"
 
-// Arcade palette: coin gold on the terminal's own background.
+// Arcade palette: the logo's gold-to-orange gradient on the terminal's own
+// background; everything else is accented with the gradient's middle color.
 var (
-	colorAccent = lipgloss.Color("#FFC857")
-	colorDim    = lipgloss.Color("#7F849C")
-	colorError  = lipgloss.Color("#F38BA8")
+	colorAccent  = lipgloss.Color("#FFAF63")
+	colorDim     = lipgloss.Color("#B07A45") // dim amber, like a CRT's fading phosphor
+	colorKeycap  = lipgloss.Color("#2E2A26") // the dark key behind each key letter
+	colorError   = lipgloss.Color("#F38BA8")
+	colorRunning = lipgloss.Color("#A6E3A1")
 
 	// The logo gradient runs from colorLogoTop to colorLogoBottom.
 	colorLogoTop    = lipgloss.Color("#FFE08A")
@@ -20,13 +23,18 @@ var (
 	dimStyle       = lipgloss.NewStyle().Foreground(colorDim)
 	activeTabStyle = lipgloss.NewStyle().Bold(true).Foreground(colorAccent)
 	starStyle      = lipgloss.NewStyle().Foreground(colorAccent)
-	errorStyle     = lipgloss.NewStyle().Bold(true).Foreground(colorError)
-	messageStyle   = lipgloss.NewStyle().Padding(1, 2)
+
+	runningStyle         = rowStyle.Foreground(colorRunning)
+	selectedRunningStyle = selectedStyle.Foreground(colorRunning).BorderForeground(colorRunning)
+	runningLabelStyle    = lipgloss.NewStyle().Bold(true).Foreground(colorRunning)
+	errorStyle           = lipgloss.NewStyle().Bold(true).Foreground(colorError)
+	messageStyle         = lipgloss.NewStyle().Padding(1, 2)
 )
 
 const (
 	markerInstalled = "•"
 	markerFavourite = "✦"
+	markerRunning   = "▶"
 	markerWidth     = 1  // one marker: the favourite star, else the installed dot
 	hoursWidth      = 9  // fits "99999.9h"
 	agoWidth        = 13 // fits "11 months ago"
@@ -34,6 +42,10 @@ const (
 	minListRows     = 8  // the big logo gives way before the list gets shorter than this
 	listChromeRows  = 1  // the row the list keeps for its page counter
 	logoIndent      = 2  // lines the box up with the section line
+	paneMinWidth    = 40 // the detail pane beside the list, at its narrowest
+	paneMaxWidth    = 68 // wide enough for a 64-column game logo
+	paneGap         = 2
+	minTableWidth   = 56 // narrower than this, the pane becomes a pop-up
 	logoPadTop      = 1
 	logoPadBottom   = 1
 )
