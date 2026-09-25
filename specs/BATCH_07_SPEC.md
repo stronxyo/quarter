@@ -1,7 +1,7 @@
 # Batch 7 Spec: Game logos as text art
 
 **Branch:** `batch/07-art`
-**Status:** Approved 2026-09-25. Phase A done: a 640x360 logo draws in 0.6 ms; 259 of the 265 local logos on Pablo's PC are usable (the other 6 fall back to the CDN, then the pixel font).
+**Status:** Approved 2026-09-25. Phase A done: a 640x360 logo draws in 0.6 ms; 259 of the 265 local logos on Pablo's PC are usable (the other 6 fall back to the CDN, then the pixel font). Phase B done: real CDN download checked with Portal (app 400); a missing logo (app 1) answered in 0.35 s and was remembered.
 **Goal:** the detail pane shows the selected game's logo, redrawn in eighth-block characters with the QUARTER gradient (design G, picked in Batch 4). Every game in the list gets one, installed or not.
 
 ---
@@ -61,10 +61,10 @@ Plain text (list rows, pane values, the search box) is ivory `#F0E4D2` instead o
 - **Rights (not legal advice, same rule as Batch 4):** logos come from the user's own Steam cache or Steam's public CDN and are redrawn on their machine. Downloads are a private cache in the user's data folder, never in the repo, never shared. To be checked properly before any paid release.
 
 **Files:**
-- `internal/steam/logos.go` (finds the local file) (+ test)
-- `internal/webapi/logo.go` (CDN download) (+ test against a local test server)
+- `internal/art/sources.go` (local file, CDN download, missing list) (+ test against a local test server). Moved from `steam`/`webapi` while building: the locked folder rules put logo sources in `internal/art`.
+- `internal/store/store.go` (`WriteFile`: the same safe write the JSON files use, for downloaded logos)
 - `internal/config/constants.go` (CDN address, limits)
-- `testdata/steam/appcache/librarycache/...`: small PNGs made by a test helper, not real logos
+- Test PNGs are made in temporary folders by the tests, not committed and not real logos.
 
 **Done when**
 - Tests: the direct file is preferred; the hashed subfolder is found; a 404 is remembered and not asked again; a network error is not remembered; an oversized download is refused.
