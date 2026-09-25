@@ -18,3 +18,6 @@ func platformCandidates() []string {
 		filepath.Join(home, "Library", "Application Support", "Steam"),
 	}
 }
+
+// realCase returns dir as is: only Windows reports paths in another casing.
+func realCase(dir string) string { return dir }

@@ -12,7 +12,7 @@ import (
 
 var (
 	paneStyle = lipgloss.NewStyle().
-			Border(lipgloss.DoubleBorder()).
+			Border(lipgloss.RoundedBorder()).
 			BorderForeground(colorLogoBorder).
 			Padding(0, 1)
 	paneTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(colorAccent)
@@ -30,10 +30,16 @@ const (
 	barEmpty      = "─"
 )
 
-// sideBySide reports whether the window has room for the list and the detail
-// pane next to each other. Otherwise the pane opens as a pop-up with d.
-func (m Model) sideBySide() bool {
+// roomForPane reports whether the window has room for the list and the detail
+// pane next to each other. There, d shows or hides the pane; otherwise it
+// opens the pane as a pop-up.
+func (m Model) roomForPane() bool {
 	return m.width >= minTableWidth+paneGap+paneMinWidth
+}
+
+// sideBySide reports whether the pane is showing next to the list.
+func (m Model) sideBySide() bool {
+	return m.roomForPane() && !m.paneHidden
 }
 
 // tableWidth is the list's width: up to maxTableWidth, less whatever the
@@ -63,9 +69,9 @@ func (m Model) detailView(width, height int) string {
 	if !ok {
 		b.WriteString(dimStyle.Render("No game selected."))
 	} else {
-		// The game's logo goes here; until then, its name.
-		b.WriteString(paneTitleStyle.Width(inner).Render(strings.ToUpper(g.Label())))
-		b.WriteString("\n")
+		// The name always shows here; the logo has its own place, beside
+		// the quarter_ box.
+		b.WriteString(paneTitleStyle.Width(inner).Render(strings.ToUpper(g.Label())) + "\n")
 
 		if g.AppID == m.running {
 			b.WriteString(runningLabelStyle.Render(markerRunning+" RUNNING NOW") + "\n")
@@ -82,7 +88,7 @@ func (m Model) detailView(width, height int) string {
 				who = append(who, y)
 			}
 			if len(who) > 0 {
-				b.WriteString(ansi.Truncate(strings.Join(who, " · "), inner, "…") + "\n")
+				b.WriteString(textStyle.Render(ansi.Truncate(strings.Join(who, " · "), inner, "…")) + "\n")
 			}
 			if len(info.Genres) > 0 {
 				b.WriteString(dimStyle.Render(ansi.Truncate(strings.Join(info.Genres, ", "), inner, "…")) + "\n")
@@ -102,7 +108,7 @@ func (m Model) detailView(width, height int) string {
 
 		row := func(label, value string) {
 			b.WriteString(dimStyle.Render(fmt.Sprintf("%-*s", paneLabelWidth, label)))
-			b.WriteString(ansi.Truncate(value, max(inner-paneLabelWidth, 1), "…"))
+			b.WriteString(textStyle.Render(ansi.Truncate(value, max(inner-paneLabelWidth, 1), "…")))
 			b.WriteString("\n")
 		}
 		row("Played", library.FormatHours(g.Playtime, m.playtimeKnown))
@@ -124,11 +130,16 @@ func (m Model) detailView(width, height int) string {
 			b.WriteString("\n" + starStyle.Render(markerFavourite+" Favourite") + "\n")
 		}
 		if state == storeReady && info.Description != "" {
-			b.WriteString("\n" + lipgloss.NewStyle().Width(inner).Render(info.Description))
+			b.WriteString("\n" + textStyle.Width(inner).Render(info.Description))
 		}
 	}
-	// MaxHeight cuts a long description at the pane's bottom edge.
-	return paneStyle.Width(width).Height(height).MaxHeight(height).Render(strings.TrimRight(b.String(), "\n"))
+	// A long description is cut to fit inside the frame, so the bottom
+	// border always shows.
+	lines := strings.Split(strings.TrimRight(b.String(), "\n"), "\n")
+	if room := max(height-paneStyle.GetVerticalFrameSize(), 0); len(lines) > room {
+		lines = lines[:room]
+	}
+	return paneStyle.Width(width).Height(height).MaxHeight(height).Render(strings.Join(lines, "\n"))
 }
 
 // selected returns the highlighted game, if the list has one.

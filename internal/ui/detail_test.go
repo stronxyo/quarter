@@ -10,6 +10,7 @@ import (
 
 	"github.com/stronxyo/quarter/internal/library"
 	"github.com/stronxyo/quarter/internal/steam"
+	"github.com/stronxyo/quarter/internal/webapi"
 )
 
 func sized(t *testing.T, width, height int) tea.Model {
@@ -21,6 +22,17 @@ func sized(t *testing.T, width, height int) tea.Model {
 		{AppID: 2, Name: "Bravo Demo", Installed: true},
 	}}})
 	return m
+}
+
+// A description too long for the pane is cut inside the frame: the bottom
+// border stays.
+func TestLongDescriptionKeepsBorder(t *testing.T) {
+	m := sized(t, 150, 30).(Model)
+	m.storeInfo[1] = webapi.StoreEntry{Info: webapi.StoreInfo{Description: strings.Repeat("word ", 400)}, Fetched: time.Now()}
+	lines := strings.Split(ansi.Strip(m.detailView(50, 15)), "\n")
+	if len(lines) != 15 || !strings.HasPrefix(lines[len(lines)-1], "╰") {
+		t.Errorf("want 15 lines ending in the bottom border, got %d ending %q", len(lines), lines[len(lines)-1])
+	}
 }
 
 // fits fails the test if any line is wider, or the view taller, than the window.

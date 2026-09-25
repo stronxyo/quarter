@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/stronxyo/quarter/internal/art"
 	"github.com/stronxyo/quarter/internal/config"
 	"github.com/stronxyo/quarter/internal/library"
 )
@@ -22,6 +23,11 @@ func (m *Model) applySettings(s config.Settings) {
 	if f, ok := library.ParseFilter(s.Filter); ok {
 		m.filterBy = f
 	}
+	m.paneHidden = s.HidePane
+	m.logosHidden = s.HideLogos
+	if b, ok := art.ParseBlocks(s.LogoBlocks); ok {
+		m.logoBlocks = b
+	}
 }
 
 // settings snapshots what should be remembered for the next run.
@@ -36,6 +42,9 @@ func (m Model) settings() config.Settings {
 		Sort:       m.sortBy.Key(),
 		SortDesc:   m.sortDesc,
 		Filter:     m.filterBy.Key(),
+		HidePane:   m.paneHidden,
+		HideLogos:  m.logosHidden,
+		LogoBlocks: m.logoBlocks.Key(),
 	}
 }
 

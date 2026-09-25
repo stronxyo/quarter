@@ -94,3 +94,25 @@ func TestCheckRunning(t *testing.T) {
 		t.Errorf("got %v, want runningMsg{620}", msg)
 	}
 }
+
+// Plain rows are ivory, and a favourite's orange star doesn't switch the
+// ivory off for the name after it.
+func TestRowsAreIvory(t *testing.T) {
+	m, _ := withOpener(t, nil,
+		library.Game{AppID: 1, Name: "Alpha", Installed: true},
+		library.Game{AppID: 2, Name: "Bravo", Installed: true},
+		library.Game{AppID: 3, Name: "Charlie", Installed: true},
+	)
+	m.favs[2] = true
+	m.decorate()
+	m.refreshList()
+	const ivory = "240;228;210"
+	raw := lineWith(m.View().Content, "Bravo")
+	star, name := strings.Index(raw, markerFavourite), strings.Index(raw, "Bravo")
+	if star < 0 || name < star || !strings.Contains(raw[star:name], ivory) {
+		t.Errorf("the name after the star should be ivory: %q", raw)
+	}
+	if raw := lineWith(m.View().Content, "Charlie"); !strings.Contains(raw[:strings.Index(raw, "Charlie")], ivory) {
+		t.Errorf("a plain row should be ivory: %q", raw)
+	}
+}

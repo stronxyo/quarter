@@ -73,7 +73,7 @@ func TestInstalledFilterHidesCandidates(t *testing.T) {
 func TestEnterOnCandidateInstalls(t *testing.T) {
 	var opened []string
 	m := withCandidates(t, &opened)
-	for !strings.Contains(lineWith(ansi.Strip(m.(Model).View().Content), "Old Favourite"), "│") {
+	for !strings.HasPrefix(lineWith(ansi.Strip(m.(Model).View().Content), "Old Favourite"), "│") { // the selection bar
 		m, _ = m.Update(press("j"))
 	}
 	act(m, tea.KeyPressMsg{Code: tea.KeyEnter})

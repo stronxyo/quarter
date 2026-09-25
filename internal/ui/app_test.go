@@ -239,12 +239,12 @@ func TestLogoWhenTall(t *testing.T) {
 			m, _ = m.Update(tea.WindowSizeMsg{Width: tt.width, Height: tt.height})
 			view := ansi.Strip(m.(Model).View().Content)
 
-			hasLogo := strings.Contains(view, "██████╗")
+			hasLogo := strings.Contains(view, "██████┐")
 			if hasLogo != tt.wantLogo {
 				t.Errorf("logo shown: got %v, want %v", hasLogo, tt.wantLogo)
 			}
-			if !tt.wantLogo && !strings.Contains(view, "QUARTER") {
-				t.Error("without the logo, the compact QUARTER badge must show")
+			if !tt.wantLogo && !strings.Contains(view, "quarter_") {
+				t.Error("without the logo, the compact quarter_ badge must show")
 			}
 			if lines := strings.Count(view, "\n") + 1; lines > tt.height {
 				t.Errorf("view is %d lines, taller than the %d-line window", lines, tt.height)
@@ -368,10 +368,11 @@ func TestRefreshKey(t *testing.T) {
 	}
 }
 
-// tablePart is a screen line without the detail pane beside the table.
+// tablePart is a screen line without the detail pane beside the table. The
+// search starts after the first character: the selected row's bar is there.
 func tablePart(line string) string {
-	if i := strings.IndexAny(line, "║╔╚"); i >= 0 {
-		line = line[:i]
+	if i := strings.IndexAny(line[min(1, len(line)):], "│╭╰"); i >= 0 {
+		line = line[:i+min(1, len(line))]
 	}
 	return strings.TrimRight(line, " ")
 }

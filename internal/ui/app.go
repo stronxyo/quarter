@@ -15,6 +15,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/stronxyo/quarter/internal/art"
 	"github.com/stronxyo/quarter/internal/config"
 	"github.com/stronxyo/quarter/internal/library"
 	"github.com/stronxyo/quarter/internal/webapi"
@@ -49,6 +50,7 @@ type Model struct {
 	fullHelp  bool                       // ? pressed: every key is listed
 
 	detailOpen    bool // d pressed on a narrow window: the pane covers the list
+	paneHidden    bool // d pressed on a wide window: the list takes the whole width
 	playtimeKnown bool // false when Steam's playtime file couldn't be read
 
 	fetchStore func(context.Context, uint32) (webapi.StoreInfo, error) // may be nil: no store details
@@ -62,6 +64,15 @@ type Model struct {
 
 	runningApp func() (uint32, bool) // asks Steam which game is running; may be nil
 	running    uint32                // the game Steam is running, 0 for none
+
+	newLogos     func(steamPath string) LogoSource // may be nil: no game logos
+	logos        LogoSource                        // set once the Steam folder is known
+	logosHidden  bool                              // o pressed: the pane shows names only
+	logoBlocks   art.Blocks
+	logoCache    map[logoKey][]string // drawn logos, by game and size
+	logoPending  map[logoKey]bool     // being drawn, or waiting for a download
+	logoNone     map[uint32]bool      // no logo anywhere, this run
+	logoFetching uint32               // the game whose logo is downloading, 0 for none
 
 	favs         map[uint32]bool             // starred games, by appid
 	saveSettings func(config.Settings) error // remembers favourites, sort and filter; may be nil
@@ -94,6 +105,8 @@ type Options struct {
 	SaveStore  func(map[uint32]webapi.StoreEntry) error                // remembers them
 
 	RunningApp func() (uint32, bool) // which game Steam is running, if it says
+
+	Logos func(steamPath string) LogoSource // game logos, once the Steam folder is known
 }
 
 // New returns the UI model.
@@ -115,12 +128,18 @@ func New(opts Options) Model {
 		offline:    make(map[uint32]bool),
 		debounce:   storeDebounce,
 		runningApp: opts.RunningApp,
+
+		newLogos:    opts.Logos,
+		logoCache:   make(map[logoKey][]string),
+		logoPending: make(map[logoKey]bool),
+		logoNone:    make(map[uint32]bool),
 	}
 	maps.Copy(m.storeInfo, opts.StoreCache)
 	m.applySettings(opts.Settings)
 	if opts.Cached != nil {
 		m.state = stateReady
 		m.installed, m.uninstalled = opts.Cached.Games, opts.Cached.Uninstalled
+		m.setSteamPath(opts.Cached.SteamPath)
 		m.rebuild()
 		m.playtimeKnown = opts.Cached.PlaytimeKnown
 		m.list.SetDelegate(m.delegate())
@@ -166,6 +185,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if after, ok := m.selected(); ok && after.AppID != before.AppID && m.needsStore(after.AppID) {
 		cmd = tea.Batch(cmd, wantStore(after.AppID, m.debounce))
 	}
+	if logo := m.ensureLogo(); logo != nil {
+		cmd = tea.Batch(cmd, logo)
+	}
 	return m, cmd
 }
 
@@ -197,6 +219,12 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case storeDoneMsg:
 		return m.applyStore(msg)
+
+	case logoDoneMsg:
+		return m.applyLogo(msg)
+
+	case logoWantMsg:
+		return m.wantLogo(msg)
 
 	case runningMsg:
 		if msg.appID != m.running {
@@ -231,9 +259,17 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 				m.detailOpen = false
 				return m, nil
 			}
-			if key.Matches(msg, keys.Details) && !m.sideBySide() {
+			if key.Matches(msg, keys.Details) {
+				if m.roomForPane() {
+					m.paneHidden = !m.paneHidden
+					return m, m.persist()
+				}
 				m.detailOpen = true
 				return m, nil
+			}
+			if key.Matches(msg, keys.Logos) {
+				m.logosHidden = !m.logosHidden
+				return m, m.persist()
 			}
 			if key.Matches(msg, keys.Help) {
 				m.fullHelp = !m.fullHelp
@@ -282,6 +318,7 @@ func (m Model) applyScan(msg scanDoneMsg) (Model, tea.Cmd) {
 	m.state = stateReady
 	m.warnings = len(msg.res.Warnings)
 	m.installed, m.uninstalled = msg.res.Games, msg.res.Uninstalled
+	m.setSteamPath(msg.res.SteamPath)
 	m.rebuild()
 	m.playtimeKnown = msg.res.PlaytimeKnown
 	m.list.SetDelegate(m.delegate())
@@ -290,6 +327,13 @@ func (m Model) applyScan(msg scanDoneMsg) (Model, tea.Cmd) {
 		cmd = tea.Batch(cmd, saveScan(m.save, msg.res))
 	}
 	return m, cmd
+}
+
+// setSteamPath points the logo sources at the Steam folder the scan found.
+func (m *Model) setSteamPath(path string) {
+	if m.newLogos != nil && m.logos == nil {
+		m.logos = m.newLogos(path)
+	}
 }
 
 // refreshList rebuilds the list from the current filter and sort, keeping the
@@ -332,6 +376,10 @@ func (m *Model) layout() {
 	if m.showLogo() {
 		used += logoHeight()
 	}
+	// Twice: bubbles v2.2.1 sizes a page by whether the page counter showed
+	// before, so the resize that brings the counter in draws one row too
+	// many. The second call sees the counter and gets it right.
+	m.list.SetSize(m.tableWidth(), max(m.height-used, 0))
 	m.list.SetSize(m.tableWidth(), max(m.height-used, 0))
 }
 
@@ -356,7 +404,7 @@ func (m Model) header() string {
 	if m.showLogo() {
 		return m.sectionLine("  ")
 	}
-	return m.sectionLine(" " + titleStyle.Render("QUARTER") + " ")
+	return m.sectionLine(" " + titleStyle.Render("quarter_") + " ")
 }
 
 // sectionLine is the rule above the columns: filters (active one
@@ -450,7 +498,7 @@ func (m Model) View() tea.View {
 	default:
 		content = m.body()
 		if m.showLogo() {
-			content = renderLogo() + "\n" + content
+			content = m.withLogoBand(renderLogo()) + "\n" + content
 		}
 		content += "\n" + m.helpView()
 		if f := m.footer(); f != "" {

@@ -29,14 +29,18 @@ func Load[T any](dir, name string, version int) (data T, ok bool) {
 	return env.Data, true
 }
 
-// Save writes dir/name through a temporary file and a rename, so a crash
-// mid-write never leaves a half-written cache behind.
+// Save writes data to dir/name as JSON, through WriteFile.
 func Save[T any](dir, name string, version int, data T) error {
 	b, err := json.Marshal(envelope[T]{Version: version, Data: data})
 	if err != nil {
 		return fmt.Errorf("store %s: %w", name, err)
 	}
+	return WriteFile(dir, name, b)
+}
 
+// WriteFile writes b to dir/name through a temporary file and a rename, so a
+// crash mid-write never leaves a half-written file behind.
+func WriteFile(dir, name string, b []byte) error {
 	tmp, err := os.CreateTemp(dir, name+".*.tmp")
 	if err != nil {
 		return fmt.Errorf("store %s: %w", name, err)

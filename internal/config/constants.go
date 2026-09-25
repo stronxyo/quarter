@@ -61,6 +61,15 @@ const (
 	StoreCacheVersion = 2 // 2: achievement totals
 )
 
+// Game logos from Steam's CDN, for games whose logo isn't in Steam's own
+// cache. Downloads and the list of games without one live in LogoDir.
+const (
+	LogoURL      = "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/%d/logo.png"
+	LogoDir      = "logos"
+	LogoMaxBytes = 2 << 20 // logos are 10 to 200 KB; anything over 2 MB is refused
+	LogoRetry    = 7 * 24 * time.Hour
+)
+
 // LibraryCache is the scanned library saved in DataDir, shown instantly on the
 // next launch. Bump LibraryCacheVersion whenever the cached fields change.
 const (

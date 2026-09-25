@@ -19,6 +19,7 @@ type appKeys struct {
 	Filter     key.Binding
 	Refresh    key.Binding
 	Details    key.Binding
+	Logos      key.Binding
 	Help       key.Binding
 }
 
@@ -33,6 +34,7 @@ var keys = appKeys{
 	Filter:     key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "filter")),
 	Refresh:    key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "rescan")),
 	Details:    key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "details")),
+	Logos:      key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "logos")),
 	Help:       key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "more")),
 }
 
@@ -66,7 +68,7 @@ func fullHelp() [][]key.Binding {
 		{helpMove, helpEnds, helpPage},
 		{keys.Play, keys.Install, keys.Store, keys.Favourite},
 		{helpSearch, keys.SortName, keys.SortPlayed, keys.SortLast},
-		{keys.Filter, keys.Details, keys.Refresh, helpLess, helpQuit},
+		{keys.Filter, keys.Details, keys.Logos, keys.Refresh, helpLess, helpQuit},
 	}
 }
 

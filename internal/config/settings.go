@@ -11,9 +11,12 @@ import (
 // Settings are the choices Quarter remembers between runs.
 type Settings struct {
 	Favourites []uint32 `json:"favourites"`
-	Sort       string   `json:"sort"`      // column name, e.g. "last_played"
-	SortDesc   bool     `json:"sort_desc"` // true for highest or newest first
-	Filter     string   `json:"filter"`    // filter name, e.g. "recent"
+	Sort       string   `json:"sort"`        // column name, e.g. "last_played"
+	SortDesc   bool     `json:"sort_desc"`   // true for highest or newest first
+	Filter     string   `json:"filter"`      // filter name, e.g. "recent"
+	HidePane   bool     `json:"hide_pane"`   // d hid the detail pane on a wide window
+	HideLogos  bool     `json:"hide_logos"`  // o hid game logos
+	LogoBlocks string   `json:"logo_blocks"` // "sixths" for fonts without eighth blocks
 }
 
 const (

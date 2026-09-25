@@ -114,3 +114,32 @@ func TestSelectedFavouriteKeepsRowColor(t *testing.T) {
 	}
 	t.Fatal("selected starred row not found")
 }
+
+// On a wide window d hides the pane and gives the list the width, and the
+// choice is saved; on a narrow one it still opens the pop-up.
+func TestDetailsToggleIsSaved(t *testing.T) {
+	m, saved := withSettings(t, config.Settings{})
+	m, _ = m.Update(tea.WindowSizeMsg{Width: 150, Height: 30})
+	if !m.(Model).sideBySide() {
+		t.Fatal("the pane should show beside the list by default")
+	}
+	m, cmd := m.Update(press("d"))
+	run(cmd)
+	if m.(Model).sideBySide() || m.(Model).tableWidth() != maxTableWidth {
+		t.Error("d should hide the pane and give the list its full width")
+	}
+	if len(*saved) != 1 || !(*saved)[0].HidePane {
+		t.Fatalf("hiding the pane should be saved, got %+v", *saved)
+	}
+
+	m, _ = withSettings(t, config.Settings{HidePane: true})
+	m, _ = m.Update(tea.WindowSizeMsg{Width: 150, Height: 30})
+	if m.(Model).sideBySide() {
+		t.Error("a hidden pane should stay hidden next run")
+	}
+	m, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 30})
+	m, _ = m.Update(press("d"))
+	if !m.(Model).detailOpen {
+		t.Error("on a narrow window d should still open the pop-up")
+	}
+}
