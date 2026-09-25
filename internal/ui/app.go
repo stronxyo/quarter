@@ -45,6 +45,9 @@ type Model struct {
 	statusID  int                        // tells a stale clear timer from the current message
 	fullHelp  bool                       // ? pressed: every key is listed
 
+	detailOpen    bool // d pressed on a narrow window: the pane covers the list
+	playtimeKnown bool // false when Steam's playtime file couldn't be read
+
 	favs         map[uint32]bool             // starred games, by appid
 	saveSettings func(config.Settings) error // remembers favourites, sort and filter; may be nil
 
@@ -88,6 +91,7 @@ func New(opts Options) Model {
 		m.state = stateReady
 		m.games = opts.Cached.Games
 		m.markFavourites()
+		m.playtimeKnown = opts.Cached.PlaytimeKnown
 		m.list.SetDelegate(rowDelegate{playtimeKnown: opts.Cached.PlaytimeKnown, now: m.now})
 		m.refreshList()
 	}
@@ -166,6 +170,14 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 		// While typing a search, every key belongs to the search box.
 		if !m.list.SettingFilter() {
+			if m.detailOpen && (key.Matches(msg, keys.Details) || msg.String() == "esc") {
+				m.detailOpen = false
+				return m, nil
+			}
+			if key.Matches(msg, keys.Details) && !m.sideBySide() {
+				m.detailOpen = true
+				return m, nil
+			}
 			if key.Matches(msg, keys.Help) {
 				m.fullHelp = !m.fullHelp
 				return m, nil
@@ -214,6 +226,7 @@ func (m Model) applyScan(msg scanDoneMsg) (Model, tea.Cmd) {
 	m.warnings = len(msg.res.Warnings)
 	m.games = msg.res.Games
 	m.markFavourites()
+	m.playtimeKnown = msg.res.PlaytimeKnown
 	m.list.SetDelegate(rowDelegate{playtimeKnown: msg.res.PlaytimeKnown, now: m.now})
 	cmd := m.refreshList()
 	if m.save != nil {
@@ -262,7 +275,7 @@ func (m *Model) layout() {
 	if m.showLogo() {
 		used += logoHeight()
 	}
-	m.list.SetSize(m.width, max(m.height-used, 0))
+	m.list.SetSize(m.tableWidth(), max(m.height-used, 0))
 }
 
 // chromeRows counts the rows outside the list besides the logo: the section
@@ -280,11 +293,11 @@ func (m Model) showLogo() bool {
 	return logoFits(m.width, m.height, m.chromeRows(), len(m.list.VisibleItems()))
 }
 
-// header shows the logo above the section line, or the compact badge in
-// front of it when space is short.
+// header is the section line, led by the compact badge when the big logo
+// doesn't fit above it.
 func (m Model) header() string {
 	if m.showLogo() {
-		return renderLogo() + "\n" + m.sectionLine("  ")
+		return m.sectionLine("  ")
 	}
 	return m.sectionLine(" " + titleStyle.Render("QUARTER") + " ")
 }
@@ -319,7 +332,7 @@ func (m Model) sectionLine(lead string) string {
 		count += " · updating…"
 	}
 	line += dimStyle.Render(count + " ")
-	fill := min(m.width, maxTableWidth) - ansi.StringWidth(line)
+	fill := m.tableWidth() - ansi.StringWidth(line)
 	return line + dimStyle.Render(strings.Repeat("─", max(fill, 0)))
 }
 
@@ -334,7 +347,7 @@ func (m Model) columnHeader() string {
 		}
 		return name + " ▲"
 	}
-	line := columns(m.width-rowStyle.GetHorizontalFrameSize(), strings.Repeat(" ", markerWidth),
+	line := columns(m.tableWidth()-rowStyle.GetHorizontalFrameSize(), strings.Repeat(" ", markerWidth),
 		label("Name", library.SortName), label("Played", library.SortPlaytime), label("Last played", library.SortLastPlayed))
 	return rowStyle.Render(dimStyle.Render(line))
 }
@@ -354,6 +367,20 @@ func (m Model) footer() string {
 	return dimStyle.Render(fmt.Sprintf("  %d file(s) could not be read, see %s", m.warnings, config.LogFile))
 }
 
+// body is the list with its section line and column header, with the detail
+// pane beside it, or over it when d opened it on a narrow window.
+func (m Model) body() string {
+	list := strings.Join([]string{m.header(), m.columnHeader(), m.list.View()}, "\n")
+	height := lipgloss.Height(list)
+	switch {
+	case m.sideBySide():
+		return lipgloss.JoinHorizontal(lipgloss.Top, list, strings.Repeat(" ", paneGap), m.detailView(paneWidth, height))
+	case m.detailOpen:
+		return m.header() + "\n" + m.detailView(min(m.width, maxTableWidth), height-1)
+	}
+	return list
+}
+
 func (m Model) View() tea.View {
 	var content string
 	switch m.state {
@@ -364,7 +391,11 @@ func (m Model) View() tea.View {
 			"\n\nIf Steam is installed somewhere unusual, start Quarter with:\n  quarter --steam-path <steam folder>\n\n" +
 			dimStyle.Render("q quit"))
 	default:
-		content = strings.Join([]string{m.header(), m.columnHeader(), m.list.View(), m.helpView()}, "\n")
+		content = m.body()
+		if m.showLogo() {
+			content = renderLogo() + "\n" + content
+		}
+		content += "\n" + m.helpView()
 		if f := m.footer(); f != "" {
 			content += "\n" + f
 		}

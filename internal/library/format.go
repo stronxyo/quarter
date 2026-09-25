@@ -51,3 +51,22 @@ func FormatDate(t time.Time) string {
 	}
 	return t.Format("2006-01-02")
 }
+
+// FormatSize renders a byte count the way Steam does, in powers of 1024:
+// "812 MB", "12.4 GB". Zero renders as "-".
+func FormatSize(bytes int64) string {
+	const unit = 1024
+	if bytes <= 0 {
+		return "-"
+	}
+	units := []string{"B", "KB", "MB", "GB", "TB"}
+	v, i := float64(bytes), 0
+	for v >= unit && i < len(units)-1 {
+		v /= unit
+		i++
+	}
+	if v >= 100 || i == 0 {
+		return fmt.Sprintf("%.0f %s", v, units[i])
+	}
+	return fmt.Sprintf("%.1f %s", v, units[i])
+}

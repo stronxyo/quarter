@@ -64,7 +64,7 @@ func (m *Model) markFavourites() {
 
 // toggleFavourite stars or unstars the selected game and saves the change.
 func (m Model) toggleFavourite() (Model, tea.Cmd) {
-	it, ok := m.list.SelectedItem().(gameItem)
+	it, ok := m.selected()
 	if !ok {
 		return m, nil
 	}

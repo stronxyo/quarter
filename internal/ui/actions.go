@@ -25,7 +25,7 @@ type clearStatusMsg struct{ id int }
 // action runs the play, install or store key for the selected game.
 // handled is false when msg is not an action key.
 func (m Model) action(msg tea.KeyPressMsg) (_ Model, _ tea.Cmd, handled bool) {
-	it, ok := m.list.SelectedItem().(gameItem)
+	it, ok := m.selected()
 	if !ok {
 		return m, nil, false
 	}
