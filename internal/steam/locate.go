@@ -24,7 +24,7 @@ func Locate(override string) (string, error) {
 	}
 	for _, dir := range platformCandidates() {
 		if isSteamDir(dir) {
-			return filepath.Clean(dir), nil
+			return realCase(filepath.Clean(dir)), nil
 		}
 	}
 	return "", ErrNotFound
@@ -34,7 +34,7 @@ func checkSteamDir(dir string) (string, error) {
 	if !isSteamDir(dir) {
 		return "", ErrNotFound
 	}
-	return filepath.Clean(dir), nil
+	return realCase(filepath.Clean(dir)), nil
 }
 
 func isSteamDir(dir string) bool {

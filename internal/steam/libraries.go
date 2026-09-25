@@ -37,7 +37,7 @@ func libraryPaths(root *vdf.Node, steamPath string) []string {
 		if !filepath.IsAbs(path) {
 			path = filepath.Join(steamPath, path)
 		}
-		paths = append(paths, filepath.Clean(path))
+		paths = append(paths, realCase(filepath.Clean(path)))
 	}
 	return paths
 }
