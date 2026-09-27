@@ -1,0 +1,86 @@
+# Batch 8 Spec: Polish and release
+
+**Branch:** `batch/08-release`
+**Status:** Phase A (logo drawing) done 2026-09-26. The other phases follow `PLAN.md` and get their own spec sections before code.
+
+---
+
+## Phase A: Logo drawing, rebuilt from a written target
+
+Batch 7 tuned the logo drawing one logo at a time, and fixes for one logo kept breaking others. This phase restarts it from a target Pablo set, checked on a fixed test set every time.
+
+### The target (Pablo, 2026-09-26)
+
+1. **Every font:** only characters every common monospace font has (block elements U+2580 to U+259F). JetBrains Mono showed `?` for the octants.
+2. **Fill spaces fixed:** big filled areas (banners, plates, discs) become a clean outline one dot wide, not a painted block.
+3. **Thick and thin letters well seen:** letters stay solid; thick ones keep their weight, thin ones stay visible, none merge.
+4. **Retro look, each word formed:** crisp pixels; each letter readable, not a blob.
+
+### The test set (12 of Pablo's logos)
+
+Cyberpunk 2077 (dark logo, thin strokes), THE FINALS (heavy letters, thin gaps), Rocket League, Portal 2, Elite Dangerous (emblem, small print), Half-Life: Alyx (hair-thin letters), APB Reloaded (letters cut into a plate), Conan Exiles (banner), ShareX (disc), Z1 Battle Royale (dark rust-red letter), Worms Revolution (heavy joined letters), Borderlands 2 (joined letters).
+
+A change ships only if it is at least as good as the last approved version on all 12. The approved sheet is kept in Pablo's Documents (`Quarter/Logo test set.png`).
+
+### How it works (`internal/art/shape.go`)
+
+- **Shape from transparency.** In a mostly bright logo, near-black pixels (brightness under 28 of 255) are outlines and count as gaps. A dark coloured letter (Z1's rust-red Z) is still a letter. A mostly near-black logo (Cyberpunk, 74% near black) is drawn by its transparency.
+- **Specks:** dark patches smaller than a dot are texture and are filled, so grunge doesn't shatter letters.
+- **Fills:** a connected piece that is at least 20% of the logo and averages at least 12 dots thick is hollowed to a rim. Measured on the test set: the fills (Conan's banner, ShareX's disc) average 12.6 and 13.3 dots; the heaviest lettering (Worms) 11.2.
+- **Thin and thick, judged locally:** strokes thinner than a dot count three times over, so lines don't vanish; gaps and holes narrower than a dot keep their dots off, so letters stay apart and counters stay open.
+- **Grid fitting:** the dot grid is shifted by quarter dots to where edges land on whole dots.
+- **Octants** stay available (`"logo_blocks": "octants"` in `config.json`) for fonts that have them: twice the detail for small print.
+
+### Limits, recorded honestly
+
+- Small print two rows tall (Conan's EXILES, Alyx's HALF-LIFE) can't be read in quarter blocks; octants handle it.
+- Drawing time over Pablo's 265 logos: median 7.5 ms, slowest 39 ms, off the UI thread and cached.
+
+### Study: the hardest logos and six techniques (2026-09-27)
+
+Pablo: "we are not there yet", show the most difficult logos with different techniques. Done in a scratch copy of the renderer; nothing in the project changed.
+
+**Choosing the hard logos by measurement.** All 273 logos on Pablo's PC (Steam's cache plus Quarter's downloads) were scored at the band size (66 x 13 cells) on stroke thickness, share of small print, dark share, number of pieces and texture specks. The 12 hardest, varied, plus Cyberpunk 2077 and Conan Exiles as references:
+
+| Logo | What makes it hard |
+|---|---|
+| DRAGON BALL FighterZ | dark red letters painted on a bright ball; 1,107 texture specks |
+| GRIS | hair-thin (0.3 dots), half-transparent lines; the title is under one row tall |
+| Golf It! | dark text on a white banner; 101 pieces |
+| Heavy Metal Machines | thin, dark-outlined metal letters |
+| The Pedestrian | text inside a plate |
+| Jurassic World Evolution | emblem with small print |
+| Shadow Tactics: Aiko's Choice | small print |
+| Euro Truck Simulator 2 | heavy italic letters over a disc |
+| Among Trees | letters under one row tall, widely spaced |
+| Dead by Daylight | several sizes of text |
+| Apex Legends | heavy letters with cracks |
+| Little Nightmares | tall thin letters |
+
+**The six techniques** (sheet kept in Pablo's Documents: `Quarter/Hard logos - 6 techniques.png`, originals in `Quarter/Hard logos - originals.png`):
+
+| | Technique | Characters | Result |
+|---|---|---|---|
+| A | Quarter blocks (current default) | every font | fine on bold logos; loses fine print |
+| B | Braille dots | every font (#22) | octant detail as dots; an "LED sign" look |
+| C | Octants | Windows Terminal's own Cascadia only (#22) | sharpest: Conan's EXILES and Shadow Tactics' small print read |
+| D | Blocks plus Braille for fine detail (chafa's idea) | every font | the two textures clash; dropped |
+| E | The game's name in the retro pixel font | every font | always readable; the only answer for GRIS and Among Trees |
+| F | Two-tone: bright parts in the gradient, dark parts in dim amber (a cell's glyph colour plus its background colour) | every font | reveals what one colour can't: Conan's banner says ENHANCED, Dead by Daylight's NEW CHAPTER AVAILABLE, depth on Apex and Little Nightmares. Fails on logos whose main body is dark (Cyberpunk, DRAGON BALL, Jurassic World): they go brown. Untested fix: give the gradient to the tone that covers more of the logo. |
+
+**The limit.** A character cell is the smallest thing a terminal draws. A title under one row tall in the original (GRIS, Among Trees) cannot become a readable word with any characters or any tool. No skill exists for this (the registry has figlet text generators only), and chafa uses the same characters (#24), so it can't exceed this either.
+
+**Recommendation (waiting for Pablo's decision):** choose per logo from measurements:
+1. art, two-tone (F, with the majority-tone fix), when its letters are big enough to survive;
+2. the name in the retro font (E) when they aren't;
+3. octants (C) as a setting for Windows Terminal's default font.
+
+Checked on these 14 and the 12-logo set before Pablo sees it.
+
+**Open decisions for Pablo:** which of A to F he likes; whether to go ahead with the recommendation; his terminal font (JetBrains Mono keeps quarter blocks as the default, Windows Terminal's Cascadia Mono allows octants). Optional: install chafa (`winget install hpjansson.Chafa`) as an outside comparison only.
+
+### Phase A mistakes, so they aren't repeated
+
+- Judging by brightness alone erased dark logos (Cyberpunk). Judge by transparency; only near black is a gap.
+- Tuning on one or two logos broke others. Always check the whole test set.
+- A commit block named a deleted file, so `git add` added nothing. Never name deleted files in `git add`.
