@@ -121,9 +121,9 @@ func messages(cmd tea.Cmd) []tea.Msg {
 }
 
 // hasGameLogo reports whether a drawn game logo is on screen: its curved
-// edges use octant characters, which nothing else in Quarter draws.
+// edges use quarter blocks (▖ to ▟), which nothing else in Quarter draws.
 func hasGameLogo(view string) bool {
-	return strings.ContainsFunc(view, func(r rune) bool { return r >= 0x1CD00 && r <= 0x1CDE5 })
+	return strings.ContainsFunc(view, func(r rune) bool { return r >= 0x2596 && r <= 0x259F })
 }
 
 func TestLogoShowsForSelectedGame(t *testing.T) {
@@ -135,7 +135,7 @@ func TestLogoShowsForSelectedGame(t *testing.T) {
 	}
 	// The logo sits beside the quarter_ box: on a line of the box, right of it.
 	for _, l := range strings.Split(view, "\n") {
-		if hasGameLogo(l) && !strings.Contains(l, "│") {
+		if hasGameLogo(l) && !strings.ContainsAny(l, "│╭╰") {
 			t.Errorf("the logo should share its lines with the quarter_ box: %q", l)
 		}
 	}
@@ -155,6 +155,34 @@ func TestNoLogoShowsPixelName(t *testing.T) {
 	}
 	if !m.(Model).logoNone[2] || logos.downloads != 0 {
 		t.Error("a game the CDN is known to lack should not be downloaded")
+	}
+}
+
+// Every character on screen comes from ranges that common monospace fonts
+// (JetBrains Mono, Cascadia Mono) have: a character outside them shows as
+// "?" in those fonts. The favourite stars are the one known exception: no
+// monospace font has them, and terminals borrow them from a symbol font.
+func TestScreenUsesCommonCharacters(t *testing.T) {
+	logos := &fakeLogos{paths: map[uint32][]string{1: {logoPNG(t)}}}
+	m, _ := withLogos(t, logos, config.Settings{Favourites: []uint32{2}})
+	common := func(r rune) bool {
+		switch {
+		case r < 0x250: // Latin letters, digits, punctuation
+			return true
+		case r >= 0x2190 && r <= 0x21FF: // arrows, for the key help
+			return true
+		case r >= 0x2500 && r <= 0x25FF: // box lines, blocks, triangles
+			return true
+		}
+		return r == '·' || r == '…' || string(r) == markerFavourite || string(r) == markerFavouriteUninstalled
+	}
+	for _, r := range paneText(m) {
+		if !common(r) {
+			t.Errorf("%q (%U) is missing from common monospace fonts", r, r)
+		}
+	}
+	if !hasGameLogo(paneText(m)) {
+		t.Fatal("the check needs a logo on screen")
 	}
 }
 

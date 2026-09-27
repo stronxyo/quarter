@@ -21,12 +21,13 @@ var (
 // paneLabelWidth fits the longest label, "Achievements", plus a space.
 const paneLabelWidth = 13
 
-// The achievement bar: a middle-third block (U+1FB0B) for unlocked, a light
-// rule for the rest.
+// The achievement bar: a heavy line for unlocked, a light line for the rest.
+// Both are box drawing, which every monospace font has (the middle-third
+// block first used here, U+1FB0B, is missing from most).
 const (
 	barCells      = 14
 	barCountWidth = 8 // fits "999/999 "
-	barFilled     = "🬋"
+	barFilled     = "━"
 	barEmpty      = "─"
 )
 
@@ -149,7 +150,7 @@ func (m Model) selected() (library.Game, bool) {
 }
 
 // achievementBar draws the count, then a bar: a thicker orange band for what's
-// unlocked and a thin dim line for the rest, e.g. "72/88   🬋🬋🬋🬋🬋🬋🬋🬋🬋🬋🬋───".
+// unlocked and a thin dim line for the rest, e.g. "72/88   ━━━━━━━━━━━───".
 // The count is padded so bars line up from game to game.
 func achievementBar(achieved, total int) string {
 	filled := (achieved*barCells + total/2) / total // rounded

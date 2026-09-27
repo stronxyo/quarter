@@ -24,7 +24,7 @@ type LogoSource interface {
 }
 
 // The game's logo sits beside the quarter_ box, above the detail pane, in a
-// band with no frame of its own, level with the inside of the box.
+// band with no frame of its own, as tall as the box, border to border.
 const logoBandMinCols = 24 // narrower than this, there's no band
 
 // logoKey is one drawing of one game's logo: each pane size draws anew.
@@ -63,7 +63,7 @@ func (m Model) logoBand() (x, cols, rows int, ok bool) {
 	}
 	x = max(m.tableWidth(), logoIndent+logoBoxWidth) + paneGap
 	cols = min(m.width-x, m.paneWidth())
-	rows = len(logoArt) + logoBoxStyle.GetVerticalPadding() // the box's inside
+	rows = len(logoArt) + logoBoxStyle.GetVerticalFrameSize() // the box, border to border
 	return x, cols, rows, cols >= logoBandMinCols
 }
 
@@ -191,14 +191,14 @@ func (m Model) logoView(g library.Game, cols, rows int) string {
 }
 
 // withLogoBand puts the selected game's logo beside the quarter_ block,
-// level with the inside of its box.
+// as tall as its box.
 func (m Model) withLogoBand(header string) string {
 	x, cols, rows, ok := m.logoBand()
 	g, selected := m.selected()
 	if !ok || !selected || m.logos == nil || m.logosHidden {
 		return header
 	}
-	above := logoPadTop + 1 // the box's top border
+	above := logoPadTop // level with the box's top border
 	band := strings.Repeat("\n", above) + m.logoView(g, cols, rows)
 	gap := strings.Repeat(" ", max(x-lipgloss.Width(header), 0))
 	return lipgloss.JoinHorizontal(lipgloss.Top, header, gap, band)

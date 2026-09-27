@@ -1,5 +1,6 @@
 // Package art redraws an image's shape as text. Each character cell holds a
-// small grid of dots, and the image's transparency decides which are on.
+// small grid of dots, and what shows of the image on a dark terminal decides
+// which are on.
 package art
 
 import (
@@ -15,25 +16,34 @@ import (
 type Blocks int
 
 const (
-	Eighths Blocks = iota // 2x4 dots per cell: Unicode 16 block octants
-	Sixths                // 2x3 dots per cell, for fonts without octants
+	// Quadrants draw 2x2 dots per cell with the block elements (U+2580 to
+	// U+259F), which every common monospace font has. The default.
+	Quadrants Blocks = iota
+	// Eighths draw 2x4 dots per cell with Unicode 16's block octants: twice
+	// the detail, but only some fonts have them (JetBrains Mono and Cascadia
+	// Mono don't; Cascadia Code does). Chosen in config.json.
+	Eighths
 )
 
-// ParseBlocks reads a Blocks setting; empty means the default, Eighths.
+// quadrantRunes maps each 2x2 dot pattern (bit i is dot i+1, dots numbered
+// 1 2 / 3 4) to its block element.
+var quadrantRunes = []rune(" ▘▝▀▖▌▞▛▗▚▐▜▄▙▟█")
+
+// ParseBlocks reads a Blocks setting; empty means the default, Quadrants.
 func ParseBlocks(s string) (Blocks, bool) {
 	switch s {
-	case "", "eighths":
+	case "", "quadrants":
+		return Quadrants, true
+	case "octants", "eighths":
 		return Eighths, true
-	case "sixths":
-		return Sixths, true
 	}
-	return Eighths, false
+	return Quadrants, false
 }
 
 // Key is the setting's saved name: empty for the default.
 func (b Blocks) Key() string {
-	if b == Sixths {
-		return "sixths"
+	if b == Eighths {
+		return "octants"
 	}
 	return ""
 }
@@ -56,15 +66,17 @@ func Render(img image.Image, cols, rows int, b Blocks) ([]string, error) {
 	if cols < 1 || rows < 1 {
 		return nil, ErrUnusable
 	}
-	p := read(img)
+	p := read(shrinkLarge(img))
 	crop, ok := p.shape()
 	if !ok {
 		return nil, ErrUnusable
 	}
+	// Work on the logo and a small margin only, not the empty space around it.
+	p, crop = p.sub(crop.Inset(-cropMargin))
 
-	dx, dy := 2, 4
-	if b == Sixths {
-		dy = 3
+	dx, dy := 2, 2
+	if b == Eighths {
+		dy = 4
 	}
 	c, r := fit(crop.Dx(), crop.Dy(), cols, rows)
 	on := p.sample(crop, c*dx, r*dy)
@@ -79,10 +91,10 @@ func Render(img image.Image, cols, rows int, b Blocks) ([]string, error) {
 					n |= 1 << i
 				}
 			}
-			if b == Sixths {
-				lines[y][x] = sextant(n)
-			} else {
+			if b == Eighths {
 				lines[y][x] = octants[n]
+			} else {
+				lines[y][x] = quadrantRunes[n]
 			}
 		}
 	}

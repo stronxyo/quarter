@@ -118,11 +118,11 @@ func TestAchievementBar(t *testing.T) {
 		achieved, total int
 		want            string
 	}{
-		{28, 49, "28/49   🬋🬋🬋🬋🬋🬋🬋🬋──────"},
+		{28, 49, "28/49   ━━━━━━━━──────"},
 		{0, 10, "0/10    ──────────────"},
-		{1, 200, "1/200   🬋─────────────"},
-		{199, 200, "199/200 🬋🬋🬋🬋🬋🬋🬋🬋🬋🬋🬋🬋🬋─"},
-		{51, 51, "51/51   🬋🬋🬋🬋🬋🬋🬋🬋🬋🬋🬋🬋🬋🬋"},
+		{1, 200, "1/200   ━─────────────"},
+		{199, 200, "199/200 ━━━━━━━━━━━━━─"},
+		{51, 51, "51/51   ━━━━━━━━━━━━━━"},
 	}
 	for _, tt := range tests {
 		if got := ansi.Strip(achievementBar(tt.achieved, tt.total)); got != tt.want {
@@ -138,7 +138,7 @@ func TestPaneShowsAchievements(t *testing.T) {
 		{AppID: 1, Name: "Alpha", Installed: true, Achievements: steam.Achievements{Achieved: 28, Total: 49}},
 		{AppID: 2, Name: "Bravo", Installed: true},
 	}}})
-	if view := ansi.Strip(m.(Model).View().Content); !strings.Contains(view, "Achievements 28/49   🬋🬋🬋🬋🬋🬋🬋🬋──────") {
+	if view := ansi.Strip(m.(Model).View().Content); !strings.Contains(view, "Achievements 28/49   ━━━━━━━━──────") {
 		t.Errorf("pane should show Alpha's achievements:\n%s", view)
 	}
 	m, _ = m.Update(press("j"))
