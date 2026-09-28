@@ -1,5 +1,7 @@
 # Logo work: handoff for the next session
 
+> **Superseded 2026-09-28.** Logos are now real pictures (Sixel) where the terminal draws them, with one-colour text blocks as the fallback. The text-block research below is history; the decision, wins and caveats are in `specs/BATCH_08_SPEC.md`, "Decision: pictures". Its working rules (approved results are tests, check every image, keep reports short) still apply.
+
 Read this before touching logos. It records what Pablo approved, what was tried and failed, and the mistakes that must not repeat. Written 2026-09-27, end of a long session (Batch 8, branch `batch/08-release`).
 
 ## 1. The goal, in Pablo's words

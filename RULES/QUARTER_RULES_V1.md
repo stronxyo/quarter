@@ -344,14 +344,14 @@ Do not propose building these until the trigger fires.
 
 | Feature | Trigger |
 |---|---|
-| Images of any kind (sixel, Kitty, iTerm) | **Rejected in Batch 4** (Pablo: keep the terminal look classic). Not to be proposed again unless Pablo asks. |
+| Logo pictures on Kitty and Ghostty (Kitty graphics protocol) | Batch 9, planned. Sixel logo pictures shipped in Batch 8 (Pablo asked, 2026-09-28; `specs/BATCH_08_SPEC.md`). Other images (screenshots, covers) stay deferred until Pablo asks. |
 | Read `appinfo.vdf` (binary) | The appid denylist misses non-games in real libraries, or we need app metadata offline. |
 | Windows Credential Manager for the API key | A user asks, or before any paid release. |
 | Non-Steam shortcuts (`shortcuts.vdf`) | After v0.1 ships. |
 | Import Steam favourites | Users ask for it. |
-| Store screenshots in the detail pane | **Rejected with images in Batch 4.** |
+| Store screenshots in the detail pane | Pablo asks (rejected with images in Batch 4; logos have since become pictures). |
 | Profile-guided optimization (PGO) | `pprof` shows a CPU hot spot the code can't fix directly. |
-| Epic / GOG | v1.0 per the brief's roadmap. |
+| Other launchers (Epic, GOG, Ubisoft Connect, Battle.net, Xbox, EA app and more) | After v0.1, one launcher per batch, per `PLAN.md` "After v0.1". |
 | Running game on Linux/macOS | Linux builds ship (Batch 8). Steam starts games through a `SteamLaunch AppId=<id>` process that could be read from the process list, since `RunningAppID` is no longer written there. |
 | CI pipeline (GitHub Actions) + the `golang-continuous-integration` skill | Batch 8 (release). Skill removed 2026-09-24: not needed before then, and it was flagged Medium risk. Re-check its security rating before reinstalling. |
 | `golangci-lint` (+ the `golang-lint` skill) | `go vet` + `staticcheck` miss a class of bug we actually hit. Removed 2026-09-24 to avoid a config file we don't need yet. |

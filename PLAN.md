@@ -98,6 +98,7 @@ Workflow per batch (see `RULES/QUARTER_RULES_V1.md` section 6): spec in `specs/B
 - **Phase A, prototype:** one sixel image beside a Bubbletea list; move selection; resize the window.
 - **Phase B, decision:** sixel as opt-in in v0.1, or half-block only. Record in the rules (Appendix A) and the brief.
 - Done when: the decision is written down. Prototype code merges only if the decision is "yes".
+- Outcome: rejected then (keep the classic look); reversed in Batch 8, when logos became Sixel pictures at Pablo's request.
 
 ### Batch 5: Detail pane (`batch/05-detail`)
 - **Phase A, layout:** two panes; collapse to overlay on narrow terminals.
@@ -117,11 +118,28 @@ Workflow per batch (see `RULES/QUARTER_RULES_V1.md` section 6): spec in `specs/B
 - Done when: the selected game's logo shows in the detail pane, for every game in the list. Spec: `specs/BATCH_07_SPEC.md`.
 
 ### Batch 8: Polish and release (`batch/08-release`)
-- **Phase A, UX:** `?` help overlay, "INSERT COIN" first-run splash, "GAME OVER" on quit.
+- **Done first, logos:** real pictures (Sixel) in amber tones where the terminal draws them, one-colour text blocks elsewhere. Spec: `specs/BATCH_08_SPEC.md`.
+- **Phase A, UX:** `?` help overlay, "INSERT COIN" first-run splash, "GAME OVER" on quit; a setting to turn logo pictures off.
 - **Phase B, error states:** Steam not found, no libraries, offline.
-- **Phase C, performance:** re-check the brief's targets; `pprof` any misses.
+- **Phase C, performance:** re-check the brief's targets; `pprof` any misses; logo pictures with very fast scrolling on a large library, and inside tmux.
 - **Phase D, release:** GoReleaser (Windows/macOS/Linux, amd64 + arm64, stripped binaries); smoke test on a clean terminal and, if available, a Steam Deck.
 - Done when: v0.1 tagged.
+
+### Batch 9: Pictures on Kitty and Ghostty (`batch/09-kitty-pictures`)
+- Kitty and Ghostty don't draw Sixel; they have their own image protocol (the Kitty graphics protocol). Today they get the text fallback.
+- **Phase A, research:** how each terminal announces the protocol, how a picture is placed in a cell area and removed, how it behaves with redraws; verified with sources, per the rules.
+- **Phase B, render:** the same pictures as Sixel (same crop, fit, amber tones and accent rule, from `internal/art`), sent through the Kitty protocol instead; Sixel stays for the terminals that have it.
+- Done when: the 20 test logos look the same in Kitty and Ghostty as in Windows Terminal, checked side by side.
+
+## After v0.1: more launchers
+
+The v1.0 goal is one terminal library for every PC launcher. One launcher per batch, in this order unless Pablo changes it: Epic Games, GOG, Ubisoft Connect, Battle.net, Xbox / Microsoft Store (PC Game Pass), EA app, then Amazon Games, itch.io and others as asked. Each batch has the same phases:
+- **Phase A, research:** where the launcher keeps its installed games, how a game is started, whether owned but uninstalled games can be listed, where logos come from. Nothing is assumed: every claim verified with sources, per the rules.
+- **Phase B, scan:** installed games read into the same `Game` model, marked with their launcher; parsers fail soft and are tested against `testdata/`.
+- **Phase C, launch and logos:** play and install through the launcher; logos through the same picture and text renderers.
+- **Phase D, UI:** a launcher filter, and the launcher shown in the detail pane.
+
+The v0.2 and v0.3 features in the brief (collections, backlog, stats) are planned alongside; the order is decided before v0.1 ships.
 
 ## Testing
 

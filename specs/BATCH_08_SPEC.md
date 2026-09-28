@@ -1,7 +1,7 @@
 # Batch 8 Spec: Polish and release
 
 **Branch:** `batch/08-release`
-**Status:** Phase A (logo drawing) done 2026-09-26. The other phases follow `PLAN.md` and get their own spec sections before code.
+**Status:** Phase A (logo drawing) done 2026-09-28: logos are real pictures (Sixel) where the terminal draws them, one-colour text blocks elsewhere. See "Decision: pictures" below. The other phases follow `PLAN.md` and get their own spec sections before code.
 
 ---
 
@@ -70,17 +70,49 @@ Pablo: "we are not there yet", show the most difficult logos with different tech
 
 **The limit.** A character cell is the smallest thing a terminal draws. A title under one row tall in the original (GRIS, Among Trees) cannot become a readable word with any characters or any tool. No skill exists for this (the registry has figlet text generators only), and chafa uses the same characters (#24), so it can't exceed this either.
 
-**Recommendation (waiting for Pablo's decision):** choose per logo from measurements:
-1. art, two-tone (F, with the majority-tone fix), when its letters are big enough to survive;
-2. the name in the retro font (E) when they aren't;
-3. octants (C) as a setting for Windows Terminal's default font.
+This study's recommendation (two-tone art, the name in the retro font, octants as a setting) was overtaken by the decision below.
 
-Checked on these 14 and the 12-logo set before Pablo sees it.
+### Better text blocks: tried and rejected (2026-09-27 to 09-28)
 
-**Open decisions for Pablo:** which of A to F he likes; whether to go ahead with the recommendation; his terminal font (JetBrains Mono keeps quarter blocks as the default, Windows Terminal's Cascadia Mono allows octants). Optional: install chafa (`winget install hpjansson.Chafa`) as an outside comparison only.
+Several days of work to make the hard logos readable in text blocks. Everything is kept in Pablo's Documents (`Quarter/Logo lab/`); nothing of it is in the app.
+
+- **Round 1, four agents on the 8 hardest logos:** layered rebuild (drop small parts, banners as outlines, hinted letters), vector redraw, optimisation search, and a hand-drawn target. Only the hand-drawn one beat today; the automatic ones broke as many logos as they fixed.
+- **Round 2, two automatic templates** built from the hand-drawn decisions (mask search, colour-based text detection). Clean on Dead by Daylight, Apex, Euro Truck; failed on brush and metal lettering (Shadow Tactics, DRAGON BALL, Heavy Metal) and lost Golf It's banner.
+- **Amber tones in text blocks** ("crisp: 4 amber tones", main colour as the accent): added real information (Golf It's letters, Portal 2's figure), but its own shape melted letters together (THE FINALS, Rocket League), and every clean-up pass added noise. Putting the tones on the one-colour shape kept the edges but didn't read better.
+- **The lesson:** a cell of 2 x 2 dots was the limit behind every failure. Improving one logo broke another. Pablo: "any time you try to improve you break and add some ugly stuff". What removed the limit was drawing real pixels.
+
+### Decision: pictures (Pablo, 2026-09-28)
+
+Pablo compared real pictures in amber tones (smooth, chunky x3, chunky x5) with today's text blocks and picked the smooth one ("A. real image, amber tones"). Seen in his Windows Terminal: "the massive extremely perfect point".
+
+**How it works.**
+- `internal/art/sixel.go`, `RenderImage`: the logo cropped to its visible part, fitted and centred in the band in pixels (an area average when shrinking), transparent around it.
+- **Colour rule** (`internal/art/colour.go`, `amberTones`): the logo's colours are grouped into up to five in OKLab. The group covering the most of the logo becomes the app accent (`#FFAF63`), the brightest tone. The others step down from it in the accent's hue (at most 0.11 OKLab lightness per step, no darker than 0.40), nearest in the logo's own lightness first, so nothing outshines the accent. A one-colour logo is all accent.
+- A game with no logo shows its name in Quarter's pixel font as a picture, in the logo gradient (`LinesImage`).
+- `internal/ui/picture.go`: at start Quarter asks the terminal for Sixel support (device attribute 4) and its cell size in pixels (`CSI 16 t`). With Sixel, the band stays blank on screen and the picture is written into it directly (`tea.Raw`), 60 ms after the screen has drawn, the previous picture erased first. It is redrawn when the game, the band or the window size changes.
+- Without Sixel: the one-colour text blocks, unchanged (Pablo: the cleanest of the text versions).
+- Pictures are drawn off the UI thread and cached per game and band size, like the text logos. 12 to 37 KB per logo at 660 x 260 pixels.
+
+**Wins.**
+- Every hard logo reads, small print included: GOLF IT with its banner and clubs, DRAGON BALL FighterZ, HEAVY METAL MACHINES, EURO TRUCK SIMULATOR 2, AIKO'S CHOICE, NEW CHAPTER AVAILABLE, GRIS's hair-thin rings.
+- One renderer for every logo: no per-logo rules, no thresholds tuned on single logos.
+- The accent is the main colour of every logo, so the band matches the app.
+- Checked: the app's pictures are byte for byte the ones Pablo approved, on the 20 test logos (8 hard plus the 12-logo set).
+
+**Caveats, recorded honestly.**
+- **Terminals.** Sixel is drawn by Windows Terminal 1.22 and later (tested on Pablo's PC) and, per their documentation (not tested by us), WezTerm, iTerm2, foot, Konsole and mlterm. Kitty and Ghostty don't draw Sixel; they use the Kitty graphics protocol and get the text fallback for now (planned: Batch 9).
+- **Cell size.** If the terminal doesn't answer `CSI 16 t`, a cell is taken as 8 x 16 pixels, so the picture may be smaller than the band but never spills out of it.
+- **Drawn outside the screen renderer.** A full redraw clears pictures; Quarter redraws them on window size changes, but any other full redraw would leave the band empty until the selection changes. Not yet tested: inside tmux (needs Sixel passthrough), and very fast scrolling through a large library. Both go into Phase C (performance).
+- **No setting to turn pictures off yet.** Proposed for the UX phase, like `logo_blocks`.
+- The chunky variants lost GRIS's hair-thin lines; the smooth one Pablo chose keeps them.
 
 ### Phase A mistakes, so they aren't repeated
 
 - Judging by brightness alone erased dark logos (Cyberpunk). Judge by transparency; only near black is a gap.
 - Tuning on one or two logos broke others. Always check the whole test set.
 - A commit block named a deleted file, so `git add` added nothing. Never name deleted files in `git add`.
+- An approved result (Golf It "6 dots tall, 2 apart") was generalised away by an automatic method. An approved result is a regression test.
+- Pablo showed an example to follow ("crisp: 4 amber tones") and it was rewritten from scratch, which broke it. Reproduce an example exactly first, then change one thing at a time beside it.
+- Experiments were started inside the app code. Experiments go in the lab (a copy); only the chosen result is ported.
+- Pablo was told to run a build from the repo folder; he launches Quarter by typing `quarter` (`go install ./cmd/quarter`).
+- Agents' self-reports claimed wins their sheets didn't show. Judge every sheet by eye.

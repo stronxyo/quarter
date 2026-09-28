@@ -162,7 +162,7 @@ Responsive: on narrow terminals, collapse to list only and open details as an ov
 
 ## Risks
 
-- **Eighth-block characters are new (Unicode 16, 2024).** Older fonts may not draw them. Mitigation: sixth blocks as a fallback setting. (Sixel images were prototyped in Batch 4 and rejected on looks.)
+- **Terminal pictures.** Logos are Sixel pictures where the terminal draws them (Windows Terminal 1.22+, WezTerm, iTerm2, foot, Konsole), one-colour quarter-block text elsewhere (every monospace font has those characters). Kitty and Ghostty need their own protocol (planned, Batch 9). Pictures are written outside the screen renderer, so redraws and tmux need care (`specs/BATCH_08_SPEC.md`).
 - **Undocumented local formats.** `localconfig.vdf`, `librarycache` layout and `appinfo.vdf` can change with Steam updates. Parse defensively: a failed read degrades a feature, it never crashes the app.
 - **Store API rate limits.** See Store metadata above.
 
@@ -170,7 +170,7 @@ Responsive: on narrow terminals, collapse to list only and open details as an ov
 
 - **v0.2:** tags and custom collections, backlog status (playing, finished, dropped), themes
 - **v0.3:** news/patch notes per game, "random game from backlog", stats screen (total hours, most played, never played)
-- **v1.0:** Epic Games and GOG detection and launching (unified terminal game library)
+- **v1.0:** every major PC launcher, one per batch: Epic Games, GOG, Ubisoft Connect, Battle.net, Xbox / Microsoft Store (PC Game Pass), EA app, then Amazon Games, itch.io and others (unified terminal game library). Order and batches in `PLAN.md`.
 
 ## License and monetization
 
