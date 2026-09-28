@@ -192,13 +192,16 @@ PLAN.md's Phase A, with Pablo's decisions of 2026-09-28.
 - **`?` help:** stays as it is (the key help at the bottom expands to every key). No pop-up overlay. Done.
 - **Turning logos off:** `o` already does it. No separate setting for pictures versus text blocks; added later only if someone asks.
 - **Paging wraps:** `→` on the last page goes to the first, `←` on the first page to the last.
-- **Moving stays on the page:** `↓` on a page's last game goes to that page's first game, `↑` on its first game to its last. Only `←` `→` change pages. Built with the paging in `internal/ui/navigate.go`.
+- **Moving runs on across pages** (Pablo changed it, 2026-09-28: better UX): `↓` on a page's last game goes to the next page's first, `↑` on its first game to the previous page's last; past the very ends it wraps round, like `←` `→`. In `internal/ui/navigate.go`.
 - **The look for the start and the end:** "a PC machine mixed with arcade", not full arcade.
 
 ### Start: INSERT QUARTER (first run only)
 
 - A short boot screen in the spirit of a 90s PC checking its hardware, with arcade words, for example `QUARTER BIOS v0.1 · scanning libraries... 300 games OK`, then the big quarter_ logo with `INSERT QUARTER` blinking under it. Any key starts.
 - Only on the very first run; afterwards Quarter opens straight to the list. Built: the setting `splash_seen` in `config.json` is saved when a key leaves the splash (so anyone upgrading sees it once too); `main.go` passes `Splash: !splash_seen`. `q` and `ctrl+c` still quit from it; no game logo is drawn over it. Code in `internal/ui/splash.go`.
+- **Built 2026-09-28 (Pablo: "agree in everything, so go"):** `internal/intro` holds the start screen and all 32 intros (ported from the lab unchanged but for one dot character not every font has). On every start a random intro, never last start's (`last_intro` in config.json), leads into the start screen; any key skips it, the next key starts (q counts as any key there, Pablo: it mustn't quit by habit; only ctrl+c quits from the start screen); `"intro": "off"` or an intro's key (`"crt-power-on"`) in config.json. Beside the double-size logo (windows about 144 x 38 and up), "insert quarter" in the logo's own lowercase letters at half size; on smaller windows the normal logo and a line of text; below the box's size, a compact screen with the badge. Tests: every intro at three sizes stays in the window, uses only common characters and ends with at least 80% of the logo in place; picking never repeats; skip, off, named, resize, quit.
+- **Still to do before release:** rename and redesign the four intros drawn from known games (Pong, Pac-Man, Tetris, Invaders), lab first.
+- **Intros (lab, 2026-09-28):** Pablo loved the intro lab ("love them all"): 32 intro animations in `Documents\Quarter\Intro lab\` (run `quarter-intro`), researched and sourced in its `research\RESEARCH.md`. Planned for the app after his review: a random intro on every start, any key skips it; the logo at double size on big windows (built from the art, shadow lines kept thin); INSERT QUARTER as one smaller spaced line ("the title needs to be the principal"). Not in the app yet.
 - **For now it shows on every start** (Pablo, 2026-09-28, to review and fix it). `splash_seen` is still saved; switching back to once is one line in `main.go`. Options left open: once ever, once a day, every start.
 - The boot lines show the real scan as it happens, so the splash never adds waiting of its own.
 

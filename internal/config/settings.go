@@ -17,7 +17,9 @@ type Settings struct {
 	HidePane   bool     `json:"hide_pane"`   // d hid the detail pane on a wide window
 	HideLogos  bool     `json:"hide_logos"`  // o hid game logos
 	LogoBlocks string   `json:"logo_blocks"` // "sixths" for fonts without eighth blocks
-	SplashSeen bool     `json:"splash_seen"` // the first-run INSERT QUARTER screen was shown
+	SplashSeen bool     `json:"splash_seen"` // the start screen has been shown
+	Intro      string   `json:"intro"`       // "" a random intro each start, "off", or one intro's name
+	LastIntro  string   `json:"last_intro"`  // the intro played last, so the next start picks another
 }
 
 const (

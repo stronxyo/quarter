@@ -29,6 +29,7 @@ func (m *Model) applySettings(s config.Settings) {
 		m.logoBlocks = b
 	}
 	m.splashSeen = s.SplashSeen
+	m.introSetting, m.lastIntro = s.Intro, s.LastIntro
 }
 
 // settings snapshots what should be remembered for the next run.
@@ -47,6 +48,8 @@ func (m Model) settings() config.Settings {
 		HideLogos:  m.logosHidden,
 		LogoBlocks: m.logoBlocks.Key(),
 		SplashSeen: m.splashSeen,
+		Intro:      m.introSetting,
+		LastIntro:  m.lastIntro,
 	}
 }
 

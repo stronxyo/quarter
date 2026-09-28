@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"math/rand/v2"
 	"strings"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 
 	"github.com/stronxyo/quarter/internal/art"
 	"github.com/stronxyo/quarter/internal/config"
+	"github.com/stronxyo/quarter/internal/intro"
 	"github.com/stronxyo/quarter/internal/library"
 	"github.com/stronxyo/quarter/internal/webapi"
 )
@@ -81,9 +83,16 @@ type Model struct {
 	pictureShown sixelSig  // the picture drawn last, erased before the next
 	resizedAt    time.Time // the window's last size change: pictures wait for it to settle
 
-	splash     bool // the INSERT QUARTER screen is up
-	splashSeen bool // it has been shown once, so it isn't again (saved)
-	blinkOn    bool // INSERT QUARTER is lit, in its blink
+	splash     bool // the start screen is up
+	splashSeen bool // it has been shown once (saved)
+	blinkOn    bool // insert quarter is lit, in its blink
+
+	introSetting string     // config.json's "intro": "" random, "off", or an intro's name
+	lastIntro    string     // the intro played last, never played twice in a row (saved)
+	introIndex   int        // this start's intro, -1 for none
+	introRun     *intro.Run // it playing, once the window's size is known
+	introStart   time.Time  // when it started
+	introDone    bool       // it has ended, or a key skipped it
 
 	favs         map[uint32]bool             // starred games, by appid
 	saveSettings func(config.Settings) error // remembers favourites, sort and filter; may be nil
@@ -151,6 +160,7 @@ func New(opts Options) Model {
 	}
 	maps.Copy(m.storeInfo, opts.StoreCache)
 	m.applySettings(opts.Settings)
+	m.pickIntro(rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), 1)))
 	if opts.Cached != nil {
 		m.state = stateReady
 		m.installed, m.uninstalled = opts.Cached.Games, opts.Cached.Uninstalled
@@ -164,7 +174,11 @@ func New(opts Options) Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(scan(m.steamPath), checkRunning(m.runningApp, 0), askPictures(), m.blink())
+	cmd := tea.Batch(scan(m.steamPath), checkRunning(m.runningApp, 0), askPictures(), m.blink(), m.introTick())
+	if m.introIndex >= 0 {
+		cmd = tea.Batch(cmd, m.persist()) // remember it, so the next start picks another
+	}
+	return cmd
 }
 
 // delegate is the row renderer for the current state.
@@ -212,7 +226,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
+		// Bubble Tea sends the size twice at startup: only a real change of
+		// size ends an intro laid out for the old one.
+		if m.introRun != nil && (msg.Width != m.width || msg.Height != m.height) {
+			m.introDone = true
+		}
 		m.width, m.height = msg.Width, msg.Height
+		m.startIntro()
 		return m, m.resized()
 
 	case uv.PrimaryDeviceAttributesEvent, uv.CellSizeEvent, pictureMsg, sizeSettledMsg:
@@ -254,6 +274,9 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 		return m, checkRunning(m.runningApp, runningPoll)
 
+	case introTickMsg:
+		return m.stepIntro()
+
 	case blinkMsg:
 		m.blinkOn = !m.blinkOn
 		return m, m.blink()
@@ -266,7 +289,7 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case tea.KeyPressMsg:
 		if m.splash {
-			return m.leaveSplash(msg)
+			return m.splashKey(msg)
 		}
 		if key.Matches(msg, keys.Refresh) && !m.list.SettingFilter() && m.state != stateScanning {
 			if m.scanning {

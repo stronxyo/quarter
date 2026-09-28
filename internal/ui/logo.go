@@ -25,10 +25,13 @@ var logoArt = []string{
 // with the end of the section line.
 const logoBoxWidth = maxTableWidth - logoIndent
 
+// The letters are centred in the box by their solid part, the t's top to the
+// q's bottom: 2 rows above, 2 below. The last art row is the q's thin shadow
+// line, so the box pads 1 under it.
 var logoBoxStyle = lipgloss.NewStyle().
 	Border(lipgloss.RoundedBorder()).
 	BorderForeground(colorLogoBorder).
-	Padding(1, 0).
+	Padding(2, 0, 1, 0).
 	Width(logoBoxWidth).
 	Align(lipgloss.Center)
 

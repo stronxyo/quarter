@@ -71,8 +71,8 @@ func runUI(steamPath string) error {
 
 		Settings:     settings,
 		SaveSettings: func(s config.Settings) error { return config.SaveSettings(dir, s) },
-		// Every start for now, while Pablo reviews it; the plan is once,
-		// !settings.SplashSeen, which is still saved.
+		// The start screen on every start, led by a random intro (Pablo,
+		// Batch 8); config.json's "intro" turns the intros off.
 		Splash: true,
 
 		FetchStore: webapi.NewStoreClient(config.StoreURL, config.StoreTimeout, config.StoreGap).AppDetails,

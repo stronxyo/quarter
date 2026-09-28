@@ -27,8 +27,8 @@ func where(m Model) (page, index int) {
 	return m.list.Paginator.Page, m.list.Index()
 }
 
-// ↑ ↓ wrap within the page; only ← → change it.
-func TestMoveStaysOnPage(t *testing.T) {
+// ↑ ↓ run on across pages, and past the very ends wrap round.
+func TestMoveRunsAcrossPages(t *testing.T) {
 	m := paged(t, 100)
 	per := m.list.Paginator.PerPage
 	if m.list.Paginator.TotalPages < 3 {
@@ -36,24 +36,29 @@ func TestMoveStaysOnPage(t *testing.T) {
 	}
 
 	m = keyPress(m, tea.KeyUp)
-	if p, i := where(m); p != 0 || i != per-1 {
-		t.Errorf("↑ on the first game: page %d game %d, want page 0 game %d", p, i, per-1)
+	if p, i := where(m); p != m.list.Paginator.TotalPages-1 || i != 99 {
+		t.Errorf("↑ on the first game: page %d game %d, want the last page's last game, 99", p, i)
 	}
 	m = keyPress(m, tea.KeyDown)
 	if p, i := where(m); p != 0 || i != 0 {
-		t.Errorf("↓ on the page's last game: page %d game %d, want page 0 game 0", p, i)
+		t.Errorf("↓ on the last game: page %d game %d, want page 0 game 0", p, i)
 	}
 	m = keyPress(m, tea.KeyDown)
 	if _, i := where(m); i != 1 {
 		t.Errorf("↓ inside the page should move down one, got game %d", i)
 	}
 
-	// The same on a middle page.
-	m = keyPress(m, tea.KeyRight)
-	m = keyPress(m, tea.KeyUp) // row 1 to row 0
+	// From a page's last game to the next page's first, and back.
+	for range per - 2 {
+		m = keyPress(m, tea.KeyDown)
+	}
+	m = keyPress(m, tea.KeyDown)
+	if p, i := where(m); p != 1 || i != per {
+		t.Errorf("↓ on page 0's last game: page %d game %d, want page 1 game %d", p, i, per)
+	}
 	m = keyPress(m, tea.KeyUp)
-	if p, i := where(m); p != 1 || i != 2*per-1 {
-		t.Errorf("↑ on page 1's first game: page %d game %d, want page 1 game %d", p, i, 2*per-1)
+	if p, i := where(m); p != 0 || i != per-1 {
+		t.Errorf("↑ on page 1's first game: page %d game %d, want page 0 game %d", p, i, per-1)
 	}
 }
 
@@ -86,10 +91,10 @@ func TestPagesWrap(t *testing.T) {
 		t.Errorf("← from row %d: page %d game %d, want the last game, 99", per-1, p, i)
 	}
 
-	// The last page's own edges wrap within it.
+	// Past the last game of all, back to the first.
 	m = keyPress(m, tea.KeyDown)
-	if _, i := where(m); i != last {
-		t.Errorf("↓ on the last game: game %d, want the last page's first, %d", i, last)
+	if p, i := where(m); p != 0 || i != 0 {
+		t.Errorf("↓ on the last game: page %d game %d, want page 0 game 0", p, i)
 	}
 }
 
