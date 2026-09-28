@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"errors"
+	"image"
 	"log/slog"
 	"strings"
 	"time"
@@ -33,10 +34,18 @@ type logoKey struct {
 	cols, rows int
 }
 
+// drawnLogo is one drawn logo: text blocks, or on terminals that draw
+// Sixel, a picture (see picture.go).
+type drawnLogo struct {
+	lines   []string
+	picture string
+}
+
 // logoDoneMsg carries a drawn logo, or why there is none.
 type logoDoneMsg struct {
 	key      logoKey
 	lines    []string
+	picture  string
 	err      error
 	download bool // none on disk: the CDN may have one
 	fetched  bool // this answer came from a download
@@ -74,14 +83,14 @@ func (m Model) showsLogos() bool {
 }
 
 // logoFor reports what the pane can show for appID at the given area.
-func (m Model) logoFor(key logoKey) ([]string, logoState) {
-	if lines, ok := m.logoCache[key]; ok {
-		return lines, logoReady
+func (m Model) logoFor(key logoKey) (drawnLogo, logoState) {
+	if logo, ok := m.logoCache[key]; ok {
+		return logo, logoReady
 	}
 	if m.logoPending[key] || m.logoFetching == key.appID {
-		return nil, logoLoading
+		return drawnLogo{}, logoLoading
 	}
-	return nil, logoName
+	return drawnLogo{}, logoName
 }
 
 // ensureLogo starts drawing the selected game's logo when the pane needs it
@@ -93,16 +102,18 @@ func (m *Model) ensureLogo() tea.Cmd {
 	}
 	_, cols, rows, _ := m.logoBand()
 	key := logoKey{g.AppID, cols, rows}
-	if _, ok := m.logoCache[key]; ok || m.logoPending[key] {
+	if logo, ok := m.logoCache[key]; ok && (!m.sixel || logo.picture != "") || m.logoPending[key] {
 		return nil
 	}
+	delete(m.logoCache, key) // drawn as text before pictures were known
 	m.logoPending[key] = true
-	return drawLogo(m.logos, key, m.logoBlocks, false)
+	return drawLogo(m.logos, key, m.logoBlocks, false, m.pictureSize(cols, rows))
 }
 
 // drawLogo reads the game's logo from disk (or, with download, from Steam's
-// CDN first) and draws it, off the UI goroutine.
-func drawLogo(src LogoSource, key logoKey, blocks art.Blocks, download bool) tea.Cmd {
+// CDN first) and draws it, off the UI goroutine: as a pic-sized picture when
+// pic is set, otherwise in text blocks.
+func drawLogo(src LogoSource, key logoKey, blocks art.Blocks, download bool, pic image.Point) tea.Cmd {
 	return func() tea.Msg {
 		done := logoDoneMsg{key: key, fetched: download}
 		if download {
@@ -114,7 +125,12 @@ func drawLogo(src LogoSource, key logoKey, blocks art.Blocks, download bool) tea
 		// Steam's copy first; if it can't be drawn, Quarter's download.
 		var err error = art.ErrUnusable
 		for _, p := range src.Paths(key.appID) {
-			if done.lines, err = art.RenderFile(p, key.cols, key.rows, blocks); err == nil {
+			if pic.X > 0 {
+				done.picture, err = art.RenderImageFile(p, pic.X, pic.Y, colorAccent)
+			} else {
+				done.lines, err = art.RenderFile(p, key.cols, key.rows, blocks)
+			}
+			if err == nil {
 				return done
 			}
 		}
@@ -135,7 +151,7 @@ func (m Model) applyLogo(msg logoDoneMsg) (Model, tea.Cmd) {
 	}
 	switch {
 	case msg.err == nil:
-		m.logoCache[msg.key] = msg.lines
+		m.logoCache[msg.key] = drawnLogo{msg.lines, msg.picture}
 	case msg.download:
 		m.logoPending[msg.key] = true // waiting for its turn on the CDN
 		return m, m.logoWantAfter(msg.key)
@@ -167,15 +183,20 @@ func (m Model) wantLogo(msg logoWantMsg) (Model, tea.Cmd) {
 		return m, m.logoWantAfter(msg.key) // another download is out
 	}
 	m.logoFetching = msg.key.appID
-	return m, drawLogo(m.logos, msg.key, m.logoBlocks, true)
+	return m, drawLogo(m.logos, msg.key, m.logoBlocks, true, m.pictureSize(msg.key.cols, msg.key.rows))
 }
 
 // logoView fills the logo band, cols x rows: the logo in the QUARTER
 // gradient, centered. Without one (none anywhere, or still on its way), the
 // game's name in Quarter's pixel font, in the same style; nothing when even
-// that doesn't fit, since the pane below names the game anyway.
+// that doesn't fit, since the pane below names the game anyway. On a Sixel
+// terminal the band stays blank for the picture.
 func (m Model) logoView(g library.Game, cols, rows int) string {
-	lines, state := m.logoFor(logoKey{g.AppID, cols, rows})
+	if m.sixel { // blank: the picture is drawn into it (picture.go)
+		return lipgloss.Place(cols, rows, lipgloss.Left, lipgloss.Top, "")
+	}
+	logo, state := m.logoFor(logoKey{g.AppID, cols, rows})
+	lines := logo.lines
 	if state != logoReady {
 		var ok bool
 		if lines, ok = art.Name(g.Label(), cols, rows); !ok {

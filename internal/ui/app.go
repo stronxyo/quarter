@@ -13,6 +13,7 @@ import (
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/stronxyo/quarter/internal/art"
@@ -69,10 +70,15 @@ type Model struct {
 	logos        LogoSource                        // set once the Steam folder is known
 	logosHidden  bool                              // o pressed: the pane shows names only
 	logoBlocks   art.Blocks
-	logoCache    map[logoKey][]string // drawn logos, by game and size
-	logoPending  map[logoKey]bool     // being drawn, or waiting for a download
-	logoNone     map[uint32]bool      // no logo anywhere, this run
-	logoFetching uint32               // the game whose logo is downloading, 0 for none
+	logoCache    map[logoKey]drawnLogo // drawn logos, by game and size
+	logoPending  map[logoKey]bool      // being drawn, or waiting for a download
+	logoNone     map[uint32]bool       // no logo anywhere, this run
+	logoFetching uint32                // the game whose logo is downloading, 0 for none
+
+	sixel        bool     // the terminal draws Sixel: logos are pictures
+	cellW, cellH int      // a cell in pixels, as the terminal reports it
+	pictureWant  sixelSig // the picture the band should show
+	pictureShown sixelSig // the picture drawn last, erased before the next
 
 	favs         map[uint32]bool             // starred games, by appid
 	saveSettings func(config.Settings) error // remembers favourites, sort and filter; may be nil
@@ -130,7 +136,7 @@ func New(opts Options) Model {
 		runningApp: opts.RunningApp,
 
 		newLogos:    opts.Logos,
-		logoCache:   make(map[logoKey][]string),
+		logoCache:   make(map[logoKey]drawnLogo),
 		logoPending: make(map[logoKey]bool),
 		logoNone:    make(map[uint32]bool),
 	}
@@ -149,7 +155,7 @@ func New(opts Options) Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(scan(m.steamPath), checkRunning(m.runningApp, 0))
+	return tea.Batch(scan(m.steamPath), checkRunning(m.runningApp, 0), askPictures())
 }
 
 // delegate is the row renderer for the current state.
@@ -188,6 +194,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if logo := m.ensureLogo(); logo != nil {
 		cmd = tea.Batch(cmd, logo)
 	}
+	if pic := m.wantPicture(); pic != nil {
+		cmd = tea.Batch(cmd, pic)
+	}
 	return m, cmd
 }
 
@@ -196,6 +205,9 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		return m, nil
+
+	case uv.PrimaryDeviceAttributesEvent, uv.CellSizeEvent, pictureMsg:
+		return m.picturesMsg(msg)
 
 	case scanDoneMsg:
 		return m.applyScan(msg)
