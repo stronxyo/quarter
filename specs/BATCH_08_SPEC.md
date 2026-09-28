@@ -106,7 +106,7 @@ Pablo compared real pictures in amber tones (smooth, chunky x3, chunky x5) with 
 - **No setting to turn pictures off yet.** Proposed for the UX phase, like `logo_blocks`.
 - The chunky variants lost GRIS's hair-thin lines; the smooth one Pablo chose keeps them.
 
-## Phase A2: Screen layout, anchored left and right (approved and built 2026-09-28; screenshots from Pablo pending)
+## Phase A2: Screen layout, anchored left and right (done 2026-09-28; Pablo: "now it looks perfect")
 
 Pablo, 2026-09-28: at a normal zoom the screen looks right (quarter_ box and list on the left, logo and info on the right); zoomed out, everything sits in the left half and the right half is empty. He wants the quarter_ box and the names to stay on the left, and the logo and info always on the right, like cliamp (left block pinned left, right block pinned right, lines stretching between).
 
@@ -182,6 +182,41 @@ Pablo: "looks really good, but I don't like so much how that empty center is see
 
 - **The right block's widest: 80 columns, not 84.** Text inside the pane is then 76 characters a line. Readable line length is 45 to 75 characters, 66 the most cited ideal (Bringhurst, via [Baymard](https://baymard.com/blog/line-length-readability) and [Wikipedia](https://en.wikipedia.org/wiki/Line_length)); WCAG 1.4.8 sets 80 as the upper limit ([W3C](https://www.w3.org/WAI/WCAG22/Understanding/visual-presentation.html)). 80 also mirrors the list's 80, so the two blocks are the same width at their widest. The logo picture loses nothing: at 13 rows tall a typical logo is limited by its height well before 80 columns.
 - **The list stays at 80 on wide windows; the gap takes the rest.** In a table, text is left-aligned and numbers right-aligned so the eye can compare them, and spreading columns apart makes rows hard to follow ([A List Apart](https://alistapart.com/article/web-typography-tables/), [Pencil & Paper](https://www.pencilandpaper.io/articles/ux-pattern-analysis-enterprise-data-tables)). Material Design's list-detail layout keeps the list a fixed width and lets the detail grow ([Android Developers](https://developer.android.com/develop/adaptive-apps/guides/canonical-layouts)); here the detail is capped too, by line length, so what's left is a gap. lazygit instead splits by fractions (`sidePanelWidth: 0.3333`, [docs](https://github.com/jesseduffield/lazygit/blob/master/docs/Config.md)), which suits its wide diffs; Quarter's rows are a name and two short numbers, so wider rows only add empty space inside them.
+
+## Phase A3: UX (paging and INSERT QUARTER built 2026-09-28; GAME OVER open)
+
+PLAN.md's Phase A, with Pablo's decisions of 2026-09-28.
+
+### Decided
+
+- **`?` help:** stays as it is (the key help at the bottom expands to every key). No pop-up overlay. Done.
+- **Turning logos off:** `o` already does it. No separate setting for pictures versus text blocks; added later only if someone asks.
+- **Paging wraps:** `→` on the last page goes to the first, `←` on the first page to the last.
+- **Moving stays on the page:** `↓` on a page's last game goes to that page's first game, `↑` on its first game to its last. Only `←` `→` change pages. Built with the paging in `internal/ui/navigate.go`.
+- **The look for the start and the end:** "a PC machine mixed with arcade", not full arcade.
+
+### Start: INSERT QUARTER (first run only)
+
+- A short boot screen in the spirit of a 90s PC checking its hardware, with arcade words, for example `QUARTER BIOS v0.1 · scanning libraries... 300 games OK`, then the big quarter_ logo with `INSERT QUARTER` blinking under it. Any key starts.
+- Only on the very first run; afterwards Quarter opens straight to the list. Built: the setting `splash_seen` in `config.json` is saved when a key leaves the splash (so anyone upgrading sees it once too); `main.go` passes `Splash: !splash_seen`. `q` and `ctrl+c` still quit from it; no game logo is drawn over it. Code in `internal/ui/splash.go`.
+- **For now it shows on every start** (Pablo, 2026-09-28, to review and fix it). `splash_seen` is still saved; switching back to once is one line in `main.go`. Options left open: once ever, once a day, every start.
+- The boot lines show the real scan as it happens, so the splash never adds waiting of its own.
+
+### End: GAME OVER (style open)
+
+- Quitting stays instant: no delay or animation before the terminal is back. The goodbye is printed into the shell after Quarter closes.
+- Options to mock up for Pablo when he's ready, all in the PC-plus-arcade mix:
+  1. `GAME OVER · CREDITS 0` and then the prompt, like a DOS machine after the game ends.
+  2. `Saving high scores... done. It's now safe to close your terminal.` (a nod to the Windows 95 shutdown screen).
+  3. A one-line session log: `PLAYER 1 · 2712.3h on record · last: ROCKET LEAGUE · see you soon.`
+- Possibly a setting for no goodbye at all, for people who want a clean shell.
+
+### Tests
+
+- Paging: wraps both ways; a list of one page; after a search; `g`/`G` unchanged.
+- Moving: wraps within the page at both ends; on the last, shorter page; with a single game.
+- Splash: shows on first run only, any key leaves it, never delays the list when the scan is quick.
+- Goodbye: printed after the screen is restored, one short block, nothing when turned off.
 
 ### Phase A mistakes, so they aren't repeated
 

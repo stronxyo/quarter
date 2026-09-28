@@ -28,6 +28,7 @@ func (m *Model) applySettings(s config.Settings) {
 	if b, ok := art.ParseBlocks(s.LogoBlocks); ok {
 		m.logoBlocks = b
 	}
+	m.splashSeen = s.SplashSeen
 }
 
 // settings snapshots what should be remembered for the next run.
@@ -45,6 +46,7 @@ func (m Model) settings() config.Settings {
 		HidePane:   m.paneHidden,
 		HideLogos:  m.logosHidden,
 		LogoBlocks: m.logoBlocks.Key(),
+		SplashSeen: m.splashSeen,
 	}
 }
 

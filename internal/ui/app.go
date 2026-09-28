@@ -81,6 +81,10 @@ type Model struct {
 	pictureShown sixelSig  // the picture drawn last, erased before the next
 	resizedAt    time.Time // the window's last size change: pictures wait for it to settle
 
+	splash     bool // the INSERT QUARTER screen is up
+	splashSeen bool // it has been shown once, so it isn't again (saved)
+	blinkOn    bool // INSERT QUARTER is lit, in its blink
+
 	favs         map[uint32]bool             // starred games, by appid
 	saveSettings func(config.Settings) error // remembers favourites, sort and filter; may be nil
 
@@ -114,6 +118,8 @@ type Options struct {
 	RunningApp func() (uint32, bool) // which game Steam is running, if it says
 
 	Logos func(steamPath string) LogoSource // game logos, once the Steam folder is known
+
+	Splash bool // open on the INSERT QUARTER screen (the first run)
 }
 
 // New returns the UI model.
@@ -140,6 +146,8 @@ func New(opts Options) Model {
 		logoCache:   make(map[logoKey]drawnLogo),
 		logoPending: make(map[logoKey]bool),
 		logoNone:    make(map[uint32]bool),
+
+		splash: opts.Splash,
 	}
 	maps.Copy(m.storeInfo, opts.StoreCache)
 	m.applySettings(opts.Settings)
@@ -156,7 +164,7 @@ func New(opts Options) Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(scan(m.steamPath), checkRunning(m.runningApp, 0), askPictures())
+	return tea.Batch(scan(m.steamPath), checkRunning(m.runningApp, 0), askPictures(), m.blink())
 }
 
 // delegate is the row renderer for the current state.
@@ -246,6 +254,10 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 		return m, checkRunning(m.runningApp, runningPoll)
 
+	case blinkMsg:
+		m.blinkOn = !m.blinkOn
+		return m, m.blink()
+
 	case clearStatusMsg:
 		if msg.id == m.statusID {
 			m.status = ""
@@ -253,6 +265,9 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyPressMsg:
+		if m.splash {
+			return m.leaveSplash(msg)
+		}
 		if key.Matches(msg, keys.Refresh) && !m.list.SettingFilter() && m.state != stateScanning {
 			if m.scanning {
 				return m, nil
@@ -303,6 +318,9 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 			if key.Matches(msg, keys.Favourite) {
 				return m.toggleFavourite()
+			}
+			if m.wrapMove(msg) {
+				return m, nil
 			}
 		}
 	}
@@ -513,10 +531,12 @@ func (m Model) body() string {
 
 func (m Model) View() tea.View {
 	var content string
-	switch m.state {
-	case stateScanning:
+	switch {
+	case m.splash:
+		content = m.splashView()
+	case m.state == stateScanning:
 		content = messageStyle.Render("Scanning Steam libraries...")
-	case stateFailed:
+	case m.state == stateFailed:
 		content = messageStyle.Render(errorStyle.Render("Steam not found.") +
 			"\n\nIf Steam is installed somewhere unusual, start Quarter with:\n  quarter --steam-path <steam folder>\n\n" +
 			dimStyle.Render("q quit"))

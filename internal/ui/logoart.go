@@ -81,7 +81,7 @@ func (m Model) logoBand() (x, cols, rows int, ok bool) {
 // showsLogos reports whether game logos are drawn at all right now.
 func (m Model) showsLogos() bool {
 	_, _, _, ok := m.logoBand()
-	return m.logos != nil && !m.logosHidden && ok
+	return m.logos != nil && !m.logosHidden && !m.splash && ok
 }
 
 // logoFor reports what the pane can show for appID at the given area.

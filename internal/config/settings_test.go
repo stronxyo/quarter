@@ -8,12 +8,12 @@ import (
 
 func TestSettingsRoundTrip(t *testing.T) {
 	dir := t.TempDir()
-	want := Settings{Favourites: []uint32{620, 400}, Sort: "last_played", SortDesc: true, Filter: "recent"}
+	want := Settings{Favourites: []uint32{620, 400}, Sort: "last_played", SortDesc: true, Filter: "recent", SplashSeen: true}
 	if err := SaveSettings(dir, want); err != nil {
 		t.Fatalf("SaveSettings: %v", err)
 	}
 	got := LoadSettings(dir)
-	if got.Sort != want.Sort || got.SortDesc != want.SortDesc || got.Filter != want.Filter ||
+	if got.Sort != want.Sort || got.SortDesc != want.SortDesc || got.Filter != want.Filter || !got.SplashSeen ||
 		len(got.Favourites) != 2 || got.Favourites[0] != 620 || got.Favourites[1] != 400 {
 		t.Errorf("got %+v, want %+v", got, want)
 	}

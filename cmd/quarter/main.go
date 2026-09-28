@@ -61,6 +61,7 @@ func runUI(steamPath string) error {
 	save := func(r library.Result) error {
 		return store.Save(dir, config.LibraryCache, config.LibraryCacheVersion, r)
 	}
+	settings := config.LoadSettings(dir)
 	_, err = tea.NewProgram(ui.New(ui.Options{
 		SteamPath:  steamPath,
 		Cached:     loadCachedLibrary(dir, steamPath),
@@ -68,8 +69,11 @@ func runUI(steamPath string) error {
 		Open:       steam.OpenURI,
 		RunningApp: steam.RunningApp,
 
-		Settings:     config.LoadSettings(dir),
+		Settings:     settings,
 		SaveSettings: func(s config.Settings) error { return config.SaveSettings(dir, s) },
+		// Every start for now, while Pablo reviews it; the plan is once,
+		// !settings.SplashSeen, which is still saved.
+		Splash: true,
 
 		FetchStore: webapi.NewStoreClient(config.StoreURL, config.StoreTimeout, config.StoreGap).AppDetails,
 		StoreCache: loadStoreCache(dir),
