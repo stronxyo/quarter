@@ -21,7 +21,7 @@ func tri(v float64) float64 {
 	return v
 }
 
-// ball is the Pong ball's position at time t, inside the box.
+// ball is the Rally coin's position at time t, bouncing inside the box.
 func (s scene) ball(t float64) (float64, float64) {
 	return float64(s.lx+2) + tri(t*2.3)*float64(s.bw-5), float64(s.ly+1) + tri(t*3.1+0.3)*float64(s.bh-3)
 }
@@ -40,12 +40,12 @@ func wave(v float64) rgb {
 
 var more = []intro{
 	{
-		name: "Pong",
-		note: "a ball rallies between two paddles and paints the logo wherever it passes",
+		name: "Rally",
+		note: "two paddles rally a coin across the box; the logo lights up wherever it passes",
 		dur:  1.8,
 		draw: func(g *grid, s scene, t float64, fx *fxState) {
 			// When the ball first came near each piece.
-			first := fx.memo("pong", func() []float64 {
+			first := fx.memo("rally", func() []float64 {
 				out := make([]float64, len(s.logo))
 				for i := range out {
 					out[i] = 99
@@ -76,7 +76,7 @@ var more = []intro{
 			}
 			if t < 1.4 {
 				bx, by := s.ball(t)
-				g.set(int(bx), int(by), cell{r: '█', fg: colHot})
+				g.set(int(bx), int(by), cell{r: '●', fg: colHot}) // the coin
 				for d := -1; d <= 1; d++ {
 					g.set(s.lx-3, int(by)+d, cell{r: '▐', fg: colAccent})
 					g.set(s.lx+s.bw+2, int(by)+d, cell{r: '▌', fg: colAccent})
@@ -85,12 +85,12 @@ var more = []intro{
 		},
 	},
 	{
-		name: "Pac-Man",
-		note: "a chomping Pac-Man eats a row of dots across the box, a ghost on his tail, and leaves the logo behind",
+		name: "Coin roll",
+		note: "a quarter spins as it rolls across the box, gathering a row of dots, and leaves the logo behind it",
 		dur:  1.9,
 		draw: func(g *grid, s scene, t float64, fx *fxState) {
 			_, cy := s.centre()
-			px := float64(s.lx-8) + float64(s.bw+16)*span(t, 0, 1.6)
+			px := float64(s.lx-6) + float64(s.bw+12)*span(t, 0, 1.6)
 			for _, pc := range s.logo {
 				if d := px - float64(pc.x); d > 0 {
 					c := pc.c
@@ -98,29 +98,30 @@ var more = []intro{
 					g.set(pc.x, pc.y, c)
 				}
 			}
-			for x := int(px) + 4; x < s.lx+s.bw+6; x += 3 {
+			for x := int(px) + 4; x < s.lx+s.bw+4; x += 3 {
 				g.set(x, int(cy), cell{r: '·', fg: colDim})
 			}
 			if t < 1.6 {
-				open := [3]string{" ▄███▄", "████▀ ", " ▀███▀"}
-				if fx.frame/3%2 == 0 {
-					open = [3]string{" ▄███▄", "██████", " ▀███▀"}
+				// A coin spinning as it rolls: face on, three quarters, edge on.
+				spin := [4][3]string{
+					{" ▄██▄ ", "██████", " ▀██▀ "},
+					{"  ▄█▄ ", "  ███ ", "  ▀█▀ "},
+					{"  ▐▌  ", "  ▐▌  ", "  ▐▌  "},
+					{" ▄█▄  ", " ███  ", " ▀█▀  "},
 				}
-				for r, row := range open {
-					g.text(int(px)-3, int(cy)-1+r, row, colTop)
-				}
-				for r, row := range [3]string{"▄██▄", "█▌▐█", "▀▀▀▀"} {
-					g.text(int(px)-14, int(cy)-1+r, row, colDim)
+				rows := blocksAt(spin[fx.frame/2%4][:], s.scale) // as big as the logo's scale
+				for r, row := range rows {
+					g.text(int(px)-3*s.scale, int(cy)-len(rows)/2+r, row, mix(colTop, colBottom, float64(r)/float64(len(rows)-1)))
 				}
 			}
 		},
 	},
 	{
-		name: "Tetris",
-		note: "the logo falls in as blocks, one column band at a time, stepping down row by row and locking into the well",
+		name: "Block drop",
+		note: "the logo drops in as blocks, one column band at a time, stepping down row by row and locking into the box",
 		dur:  1.9,
 		draw: func(g *grid, s scene, t float64, fx *fxState) {
-			order := fx.memo("tetris", func() []float64 {
+			order := fx.memo("blocks", func() []float64 {
 				bands := (s.bw + 5) / 6
 				perm := make([]float64, bands)
 				for i := range perm {
@@ -154,11 +155,11 @@ var more = []intro{
 		},
 	},
 	{
-		name: "Invaders",
-		note: "the logo marches in as an invader formation, stepping side to side and down, then lands in place",
+		name: "March",
+		note: "the logo marches in step, side to side and down, then lands in place",
 		dur:  1.7,
 		draw: func(g *grid, s scene, t float64, fx *fxState) {
-			step := int(t / 0.12) // invaders move in steps, not smoothly
+			step := int(t / 0.12) // a march: steps, not a glide
 			settle := 1 - span(t, 0.2, 1.4)
 			dx := int(math.Round(float64([]int{-4, -2, 0, 2, 4, 2, 0, -2}[step%8]) * settle))
 			dy := -int(math.Round(8 * settle))
@@ -168,14 +169,6 @@ var more = []intro{
 					c.fg = mix(colDim, c.fg, 1-settle)
 				}
 				g.set(pc.x+dx, pc.y+dy, c)
-			}
-			if t < 1.4 {
-				cx, _ := s.centre()
-				ship := int(cx) + int(10*math.Sin(t*5))
-				g.text(ship-1, s.ly+s.bh+2, "▄█▄", colAccent)
-				if shot := math.Mod(t, 0.35) / 0.35; shot < 0.8 {
-					g.set(ship, s.ly+s.bh+1-int(shot*float64(s.bh)), cell{r: '│', fg: colHot})
-				}
 			}
 		},
 	},
@@ -537,6 +530,33 @@ var more = []intro{
 			}
 		},
 	},
+}
+
+// blocks2x maps a block character to its 2 x 2 cells at double size.
+var blocks2x = map[rune][2]string{
+	' ': {"  ", "  "},
+	'█': {"██", "██"},
+	'▄': {"  ", "██"},
+	'▀': {"██", "  "},
+	'▐': {" █", " █"},
+	'▌': {"█ ", "█ "},
+}
+
+// blocksAt draws block-character art at scale 1 or 2.
+func blocksAt(rows []string, scale int) []string {
+	if scale == 1 {
+		return rows
+	}
+	var out []string
+	for _, row := range rows {
+		var top, bottom string
+		for _, r := range row {
+			q := blocks2x[r]
+			top, bottom = top+q[0], bottom+q[1]
+		}
+		out = append(out, top, bottom)
+	}
+	return out
 }
 
 // memo computes a per-run value once and keeps it for the rest of the run.
