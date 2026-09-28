@@ -89,17 +89,20 @@ func TestPaneGrowsWithWindow(t *testing.T) {
 	tests := []struct {
 		width, wantTable, wantPane int
 	}{
-		{98, 56, 40},  // just wide enough for both
-		{122, 80, 40}, // the table reaches its full width first
-		{140, 80, 58}, // then the pane grows
-		{150, 80, 68}, // full logo width
-		{200, 80, 68}, // and stops there
-		{80, 80, 68},  // narrow: the pop-up
+		{98, 56, 40},   // just wide enough for both
+		{122, 80, 40},  // the table reaches its full width first
+		{140, 80, 58},  // then the pane grows
+		{162, 80, 80},  // out to the right edge
+		{240, 80, 158}, // at any width: no empty centre
+		{80, 80, 80},   // narrow: the pop-up
 	}
 	for _, tt := range tests {
 		m := sized(t, tt.width, 30).(Model)
 		if m.tableWidth() != tt.wantTable || m.paneWidth() != tt.wantPane {
 			t.Errorf("width %d: table %d pane %d, want %d and %d", tt.width, m.tableWidth(), m.paneWidth(), tt.wantTable, tt.wantPane)
+		}
+		if m.sideBySide() && m.paneX()+m.paneWidth() != tt.width {
+			t.Errorf("width %d: the pane should end at the right edge", tt.width)
 		}
 		fits(t, m, tt.width, 30)
 	}

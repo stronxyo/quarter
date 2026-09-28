@@ -46,6 +46,7 @@ type logoDoneMsg struct {
 	key      logoKey
 	lines    []string
 	picture  string
+	px       image.Point // the picture's size in pixels, zero for text
 	err      error
 	download bool // none on disk: the CDN may have one
 	fetched  bool // this answer came from a download
@@ -64,16 +65,17 @@ const (
 )
 
 // logoBand is where the selected game's logo goes: its left column, and its
-// size in cells. ok is false when there's no room: no big quarter_ logo, no
-// pane beside the list, or too narrow a strip beside the box.
+// size in cells: over the pane, pinned to the right edge. ok is false when
+// there's no room: no big quarter_ logo, no pane beside the list, or the pane
+// doesn't clear the quarter_ box.
 func (m Model) logoBand() (x, cols, rows int, ok bool) {
 	if !m.showLogo() || !m.sideBySide() {
 		return 0, 0, 0, false
 	}
-	x = max(m.tableWidth(), logoIndent+logoBoxWidth) + paneGap
-	cols = min(m.width-x, m.paneWidth())
+	// Over the pane, as wide as it, when the quarter_ box fits to its left.
+	x, cols = m.paneX(), m.paneWidth()
 	rows = len(logoArt) + logoBoxStyle.GetVerticalFrameSize() // the box, border to border
-	return x, cols, rows, cols >= logoBandMinCols
+	return x, cols, rows, x >= logoIndent+logoBoxWidth+paneGap && cols >= logoBandMinCols
 }
 
 // showsLogos reports whether game logos are drawn at all right now.
@@ -105,6 +107,19 @@ func (m *Model) ensureLogo() tea.Cmd {
 	if logo, ok := m.logoCache[key]; ok && (!m.sixel || logo.picture != "") || m.logoPending[key] {
 		return nil
 	}
+	if m.sixel {
+		// Pictures wait for the window to stop changing size, and only
+		// the band's current size is kept: dragging the window's edge would
+		// otherwise draw and keep a picture at every width it passes.
+		if m.now().Sub(m.resizedAt) < m.debounce {
+			return nil
+		}
+		for k, logo := range m.logoCache {
+			if logo.picture != "" && (k.cols != cols || k.rows != rows) {
+				delete(m.logoCache, k)
+			}
+		}
+	}
 	delete(m.logoCache, key) // drawn as text before pictures were known
 	m.logoPending[key] = true
 	return drawLogo(m.logos, key, m.logoBlocks, false, m.pictureSize(cols, rows))
@@ -115,7 +130,7 @@ func (m *Model) ensureLogo() tea.Cmd {
 // pic is set, otherwise in text blocks.
 func drawLogo(src LogoSource, key logoKey, blocks art.Blocks, download bool, pic image.Point) tea.Cmd {
 	return func() tea.Msg {
-		done := logoDoneMsg{key: key, fetched: download}
+		done := logoDoneMsg{key: key, px: pic, fetched: download}
 		if download {
 			if _, err := src.Download(context.Background(), key.appID); err != nil {
 				done.err = err
@@ -150,6 +165,9 @@ func (m Model) applyLogo(msg logoDoneMsg) (Model, tea.Cmd) {
 		m.logoFetching = 0
 	}
 	switch {
+	case msg.err == nil && msg.px != m.pictureSize(msg.key.cols, msg.key.rows):
+		// Drawn for a cell size or a mode that has changed since: drop it,
+		// and the next update draws it again.
 	case msg.err == nil:
 		m.logoCache[msg.key] = drawnLogo{msg.lines, msg.picture}
 	case msg.download:

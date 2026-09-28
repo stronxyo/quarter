@@ -75,10 +75,11 @@ type Model struct {
 	logoNone     map[uint32]bool       // no logo anywhere, this run
 	logoFetching uint32                // the game whose logo is downloading, 0 for none
 
-	sixel        bool     // the terminal draws Sixel: logos are pictures
-	cellW, cellH int      // a cell in pixels, as the terminal reports it
-	pictureWant  sixelSig // the picture the band should show
-	pictureShown sixelSig // the picture drawn last, erased before the next
+	sixel        bool      // the terminal draws Sixel: logos are pictures
+	cellW, cellH int       // a cell in pixels, as the terminal reports it
+	pictureWant  sixelSig  // the picture the band should show
+	pictureShown sixelSig  // the picture drawn last, erased before the next
+	resizedAt    time.Time // the window's last size change: pictures wait for it to settle
 
 	favs         map[uint32]bool             // starred games, by appid
 	saveSettings func(config.Settings) error // remembers favourites, sort and filter; may be nil
@@ -204,9 +205,9 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
-		return m, nil
+		return m, m.resized()
 
-	case uv.PrimaryDeviceAttributesEvent, uv.CellSizeEvent, pictureMsg:
+	case uv.PrimaryDeviceAttributesEvent, uv.CellSizeEvent, pictureMsg, sizeSettledMsg:
 		return m.picturesMsg(msg)
 
 	case scanDoneMsg:
@@ -421,7 +422,7 @@ func (m Model) header() string {
 
 // sectionLine is the rule above the columns: filters (active one
 // highlighted), the search box while searching, and the game count, with a
-// dim line running out to the table's edge.
+// dim line running out to the table's edge, or on to the pane beside it.
 func (m Model) sectionLine(lead string) string {
 	var tabs []string
 	for _, f := range library.Filters() {
@@ -448,8 +449,19 @@ func (m Model) sectionLine(lead string) string {
 	if m.scanning {
 		count += " · updating…"
 	}
-	line += dimStyle.Render(count + " ")
-	fill := m.tableWidth() - ansi.StringWidth(line)
+	// Beside the pane, the line runs on to it across any gap.
+	end := m.tableWidth()
+	if m.sideBySide() {
+		end = m.paneX() - paneGap
+	}
+	// On a narrow window the count goes first, then the line is cut, so it
+	// never pushes the pane past the window's edge. At least one ─ ends it.
+	if full := line + dimStyle.Render(count+" "); ansi.StringWidth(full) < end {
+		line = full
+	} else if ansi.StringWidth(line) >= end {
+		line = ansi.Truncate(line, max(end-1, 0), "")
+	}
+	fill := end - ansi.StringWidth(line)
 	return line + dimStyle.Render(strings.Repeat("─", max(fill, 0)))
 }
 
@@ -491,7 +503,8 @@ func (m Model) body() string {
 	height := lipgloss.Height(list)
 	switch {
 	case m.sideBySide():
-		return lipgloss.JoinHorizontal(lipgloss.Top, list, strings.Repeat(" ", paneGap), m.detailView(m.paneWidth(), height))
+		gap := strings.Repeat(" ", max(m.paneX()-lipgloss.Width(list), 0))
+		return lipgloss.JoinHorizontal(lipgloss.Top, list, gap, m.detailView(m.paneWidth(), height))
 	case m.detailOpen:
 		return m.header() + "\n" + m.detailView(m.paneWidth(), height-1)
 	}

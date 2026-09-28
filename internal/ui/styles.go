@@ -47,7 +47,8 @@ const (
 	listChromeRows             = 1  // the row the list keeps for its page counter
 	logoIndent                 = 2  // lines the box up with the section line
 	paneMinWidth               = 40 // the detail pane beside the list, at its narrowest
-	paneMaxWidth               = 68 // wide enough for a 64-column game logo
+	paneMaxWidth               = 80 // the pop-up pane on a narrow window
+	paneTextWidth              = 76 // the pane's contents, a centred column: readable lines stop at about 75 (Batch 8, A2)
 	paneGap                    = 2
 	minTableWidth              = 56 // narrower than this, the pane becomes a pop-up
 	logoPadTop                 = 1

@@ -30,7 +30,24 @@ const (
 // askPictures asks the terminal whether it draws Sixel (device attribute 4)
 // and how big a cell is in pixels.
 func askPictures() tea.Cmd {
-	return tea.Sequence(tea.Raw(ansi.RequestPrimaryDeviceAttributes), tea.Raw("\x1b[16t"))
+	return tea.Sequence(tea.Raw(ansi.RequestPrimaryDeviceAttributes), tea.Raw(askCellSize))
+}
+
+// askCellSize asks the terminal for a cell's size in pixels (XTWINOPS 16).
+const askCellSize = "\x1b[16t"
+
+// sizeSettledMsg comes a moment after a window size change, to draw the
+// pictures that waited for it.
+type sizeSettledMsg struct{}
+
+// resized notes a window size change. A zoom changes a cell's size in pixels
+// too, so the terminal is asked again.
+func (m *Model) resized() tea.Cmd {
+	m.resizedAt = m.now()
+	if !m.sixel {
+		return nil
+	}
+	return tea.Batch(tea.Raw(askCellSize), tea.Tick(m.debounce, func(time.Time) tea.Msg { return sizeSettledMsg{} }))
 }
 
 // sixelSig is what the band shows as a picture: which game, where, and at

@@ -106,6 +106,83 @@ Pablo compared real pictures in amber tones (smooth, chunky x3, chunky x5) with 
 - **No setting to turn pictures off yet.** Proposed for the UX phase, like `logo_blocks`.
 - The chunky variants lost GRIS's hair-thin lines; the smooth one Pablo chose keeps them.
 
+## Phase A2: Screen layout, anchored left and right (approved and built 2026-09-28; screenshots from Pablo pending)
+
+Pablo, 2026-09-28: at a normal zoom the screen looks right (quarter_ box and list on the left, logo and info on the right); zoomed out, everything sits in the left half and the right half is empty. He wants the quarter_ box and the names to stay on the left, and the logo and info always on the right, like cliamp (left block pinned left, right block pinned right, lines stretching between).
+
+### What happens today (read from the code)
+
+- The list is capped at 80 columns (`maxTableWidth`), so the numbers stay near the names. The info pane grows from 40 to 68 columns (`paneMinWidth`, `paneMaxWidth`). The right column starts where the list ends, so the whole layout stops at about 150 columns. On a 240-column window (zoomed out), 90 columns on the right are empty.
+- The logo band starts after the quarter_ box (column 82), but the info pane starts after the list. When the list shrinks below 80 columns (windows 98 to 121 wide), the logo and the pane don't line up.
+- Zoom is the terminal's font size, set by each user; no app can change it. A zoom arrives as a new window size in columns and rows.
+- **Found while planning:** Quarter asks the terminal for its cell size in pixels once, at start. After a zoom, pictures keep the old pixel size, too big or too small for the band.
+
+### The layout
+
+W is the window's width in columns.
+
+- **Left block, pinned to the left edge:** the quarter_ box (as now, 2 columns in) and under it the list. The list keeps its readable width: at most 80 columns, and 56 at the least before the pane becomes a pop-up (as now).
+- **Right block, pinned to the right edge:** the logo band and under it the info pane, one column, the same width R, left edges lined up. R = W - list - 2, kept between 40 and 80 columns (was 68; see "Decided from common practice").
+- **The gap between them** is whatever is left, at least 2 columns (as now). On big windows it grows; nothing is centred, so the left block never moves.
+- **The section line** (`▸─ [All]  Installed  Recent  Favourites ── 300 games ──`) runs from the left edge to 2 columns before the right block, bridging the gap as cliamp's lines do. The column headers and the rows stay within the list's 80 columns.
+- **Logo band:** shown when the quarter_ box and the right block both fit: W at least 82 + 40 = 122, and the box's own height rules as now. Between 106 and 121 today a narrow band (24 to 39 columns) shows beside the box, not lined up with the pane; it goes, and the pane starts right under the box.
+- **Heights:** unchanged. The list fills down to the key help; the pane is as tall as the list.
+
+### At three sizes
+
+```
+~100 columns (normal zoom, narrow): no logo band; list 58, pane 40 pinned right
+ ┌ quarter_ ────────────────────┐
+ └──────────────────────────────┘
+ ▸─ [All] Installed ── 300 games ──  ╭ ROCKET LEAGUE ────╮
+   Name            Played  Last      │ Psyonix · 2015     │
+ ✦ Rocket League   2712h   today     │ ...                │
+
+~160 columns: list 80, gap 2, right block 78, like Pablo's reference screenshot
+ ┌ quarter_ ───────────────────────────────────┐  ROCKET LEAGUE (picture)
+ └─────────────────────────────────────────────┘
+ ▸─ [All] Installed Recent Favourites ── 300 ──  ╭ ROCKET LEAGUE ───────────╮
+   Name                     Played  Last played  │ ...                       │
+
+~240 columns (zoomed out): list 80, right block 80 at the right edge, gap 80
+ ┌ quarter_ ─────────────────────┐                                  ROCKET LEAGUE (picture)
+ └───────────────────────────────┘
+ ▸─ [All] ... ── 300 games ──────────────────────────────────  ╭ ROCKET LEAGUE ─────╮
+   Name                Played  Last played                      │ ...                 │
+```
+
+### Revision after Pablo saw it (2026-09-28): no empty centre
+
+Pablo: "looks really good, but I don't like so much how that empty center is seen". Changed, option A of two:
+- **The pane fills the right side:** it starts 2 columns after the list and runs to the right edge at every width; no gap, no 80-column cap. The logo band is the pane's width, so the logo (picture or text) is centred over the pane.
+- **Its contents are a centred column at most 76 characters wide** (title, info rows, description): readable lines (see above), on the same centred axis as the logo. Up to a pane 80 wide, exactly as before.
+- Option B, text across the whole pane, was not chosen: very long lines on big windows, and text off to the left of a centred logo.
+- Then, Pablo after seeing it: the column goes to the pane's left edge, wrapped the same (76 at most). The logo stays centred over the pane.
+
+### Unchanged
+
+- Narrow windows: under 98 columns the pane is a pop-up (`d`), as now; under 80 no quarter_ box, the compact badge instead.
+- `d` hides the pane on wide windows (the list takes the left as now; no right block, no logo band). `o` hides logos (the right block keeps the pane).
+- The key help and the footer stay on the left.
+
+### Pictures and zoom (fixes)
+
+1. **Ask the cell size again on every window size change,** and draw pictures at the size it reports. Until the answer comes (or if none comes), the old size is used, capped so a picture never spills out of the band.
+2. **Resizing by dragging:** each new band width is a new picture. Pictures are drawn only once the size has settled (the existing debounce), and pictures for other sizes are dropped from the cache, so dragging doesn't build up dozens of pictures in memory.
+3. The picture is redrawn when the right block moves (it already follows the band's position and size).
+
+### Tests (before Pablo sees it)
+
+- A table of window sizes, 60 to 260 columns wide and 20 to 70 rows tall, checking on the drawn screen: the quarter_ box starts at column 2; the pane's right border is the window's last column; the logo band and the pane start at the same column; the list is at most 80 wide; the gap is at least 2; no line is wider than the window; the section line ends 2 columns before the right block.
+- The same with `d` (pane hidden), `o` (logos hidden), a search in progress, the full key help (`?`), and fewer games than rows.
+- Pictures: after a size change the cell size is asked again, and the picture's pixel size follows the reply; pictures of old sizes are dropped.
+- Then by eye in Windows Terminal at three zooms, screenshots to Pablo before the commit.
+
+### Decided from common practice (Pablo left both to research, 2026-09-28)
+
+- **The right block's widest: 80 columns, not 84.** Text inside the pane is then 76 characters a line. Readable line length is 45 to 75 characters, 66 the most cited ideal (Bringhurst, via [Baymard](https://baymard.com/blog/line-length-readability) and [Wikipedia](https://en.wikipedia.org/wiki/Line_length)); WCAG 1.4.8 sets 80 as the upper limit ([W3C](https://www.w3.org/WAI/WCAG22/Understanding/visual-presentation.html)). 80 also mirrors the list's 80, so the two blocks are the same width at their widest. The logo picture loses nothing: at 13 rows tall a typical logo is limited by its height well before 80 columns.
+- **The list stays at 80 on wide windows; the gap takes the rest.** In a table, text is left-aligned and numbers right-aligned so the eye can compare them, and spreading columns apart makes rows hard to follow ([A List Apart](https://alistapart.com/article/web-typography-tables/), [Pencil & Paper](https://www.pencilandpaper.io/articles/ux-pattern-analysis-enterprise-data-tables)). Material Design's list-detail layout keeps the list a fixed width and lets the detail grow ([Android Developers](https://developer.android.com/develop/adaptive-apps/guides/canonical-layouts)); here the detail is capped too, by line length, so what's left is a gap. lazygit instead splits by fractions (`sidePanelWidth: 0.3333`, [docs](https://github.com/jesseduffield/lazygit/blob/master/docs/Config.md)), which suits its wide diffs; Quarter's rows are a name and two short numbers, so wider rows only add empty space inside them.
+
 ### Phase A mistakes, so they aren't repeated
 
 - Judging by brightness alone erased dark logos (Cyberpunk). Judge by transparency; only near black is a gap.

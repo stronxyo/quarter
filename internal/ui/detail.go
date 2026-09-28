@@ -52,18 +52,27 @@ func (m Model) tableWidth() int {
 	return min(m.width, maxTableWidth)
 }
 
-// paneWidth grows with the window, from paneMinWidth up to paneMaxWidth, so
-// big windows give the game logo its full width.
+// paneWidth is the pane's width. Beside the list, the pane and the logo above
+// it fill the rest of the window, out to its right edge; as a pop-up on a
+// narrow window, up to paneMaxWidth.
 func (m Model) paneWidth() int {
 	if m.sideBySide() {
-		return min(m.width-paneGap-m.tableWidth(), paneMaxWidth)
+		return m.width - paneGap - m.tableWidth()
 	}
 	return min(m.width, paneMaxWidth)
 }
 
-// detailView draws the selected game's pane, width by height cells.
+// paneX is the column the right block (logo band and pane) starts at, so it
+// ends at the window's right edge.
+func (m Model) paneX() int {
+	return m.width - m.paneWidth()
+}
+
+// detailView draws the selected game's pane, width by height cells. On a
+// wide pane its contents stay a column at most paneTextWidth wide, on the
+// left, so lines stay readable.
 func (m Model) detailView(width, height int) string {
-	inner := width - paneStyle.GetHorizontalFrameSize()
+	inner := min(width-paneStyle.GetHorizontalFrameSize(), paneTextWidth)
 	var b strings.Builder
 
 	g, ok := m.selected()
