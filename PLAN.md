@@ -131,9 +131,9 @@ Workflow per batch (see `RULES/QUARTER_RULES_V1.md` section 6): spec in `specs/B
 - **Phase B, render:** the same pictures as Sixel (same crop, fit, amber tones and accent rule, from `internal/art`), sent through the Kitty protocol instead; Sixel stays for the terminals that have it.
 - Done when: the 20 test logos look the same in Kitty and Ghostty as in Windows Terminal, checked side by side.
 
-## After v0.1: session history (its own batch)
+## Session history (moved into Batch 8)
 
-Pablo's idea (2026-09-29): a history of the games actually played (runs only, never what was scrolled past), arranged by most played and split into periods. This is the "stats" feature in the brief. Saved as ideas; the batch number and which ideas go in are decided when it starts.
+Pablo's idea (2026-09-29): a history of the games actually played (runs only, never what was scrolled past), arranged by most played and split into periods. This is the "stats" feature in the brief. Planned for after v0.1; moved into Batch 8 the same day, before Phase C, once Steam's own log gave six months of real sessions to design against. Built: the ranking and the HIGH SCORES board on `h` (`specs/BATCH_08_SPEC.md`, "Session history"). The ideas below that aren't built stay for later.
 
 - **Why it needs its own record:** Steam keeps only each game's total hours and last played date (`localconfig.vdf`), no history. Quarter has to build it and cannot recover the past, so recording could start earlier than the screen (open question: start recording in Batch 8).
 - **Source 1, sessions Quarter sees:** it already polls the running game every 2 s. Each run saved with game, start and length: exact sessions.

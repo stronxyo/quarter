@@ -74,6 +74,7 @@ func runUI(steamPath string) error {
 		Open:      steam.OpenURI,
 
 		RecordSessions: sessionRecorder(dir),
+		Sessions:       loadSessions(dir),
 		RunningApp:     steam.RunningApp,
 
 		Settings:     settings,
@@ -120,13 +121,14 @@ func sayGoodbye(final tea.Model, save func(config.Settings) error) {
 }
 
 // sessionRecorder adds the game sessions in Steam's log to sessions.json in
-// dir. One record runs at a time, so two scans never race on the file.
-func sessionRecorder(dir string) func(steamPath string) error {
+// dir, and returns every session recorded, for the history screen. One
+// record runs at a time, so two scans never race on the file.
+func sessionRecorder(dir string) func(steamPath string) ([]steam.Session, error) {
 	var mu sync.Mutex
-	return func(steamPath string) error {
+	return func(steamPath string) ([]steam.Session, error) {
 		found, err := steam.ReadSessions(steamPath, time.Local)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		mu.Lock()
 		defer mu.Unlock()
@@ -134,15 +136,22 @@ func sessionRecorder(dir string) func(steamPath string) error {
 		if !ok {
 			// Unreadable history is kept aside, never overwritten.
 			if _, err := store.SetAside(dir, config.SessionsFile); err != nil {
-				return err
+				return nil, err
 			}
 		}
 		all, added := library.MergeSessions(saved, found)
 		if added == 0 {
-			return nil
+			return all, nil
 		}
-		return store.Save(dir, config.SessionsFile, config.SessionsVersion, all)
+		return all, store.Save(dir, config.SessionsFile, config.SessionsVersion, all)
 	}
+}
+
+// loadSessions returns the sessions recorded by earlier runs, so history
+// shows at once; a missing or unreadable file means none yet.
+func loadSessions(dir string) []steam.Session {
+	s, _ := store.Load[[]steam.Session](dir, config.SessionsFile, config.SessionsVersion)
+	return s
 }
 
 // loadStoreCache returns the store details saved by earlier runs; a missing or

@@ -285,6 +285,39 @@ Steam writes every game start and stop to `<Steam>\logs\gameprocess_log.txt`, wh
 - Merging: nothing added twice, new sessions added, order by start.
 - By hand, read-only: Pablo's real log gives 294 sessions.
 
+## Session history (Pablo, 2026-09-29: moved before Phase C; "if all is ready to implement go")
+
+`PLAN.md` had the history screen after v0.1, to wait for weeks of real data. Reading Steam's own log gave six months at once (298 sessions on Pablo's PC), so it moved into Batch 8. Chosen in the history lab (`Documents\Quarter\History lab`, run `quarter-history`) out of five layouts: his mix of the ranking (C) and the board (D), both in the main screen.
+
+### How it works
+
+- **`h` cycles three views:** the games (as now), then the ranking, then the board, then the games again. `esc` goes straight back to the games.
+- **Ranking (first `h`):** the game list becomes MOST PLAYED: games ranked by time played in the period, with a bar each. The section line holds the periods: 7 days, 1 month, 3 months, 6 months, 1 year (no "since", Pablo). `←` `→` change the period, wrapping round. `↑` `↓` move exactly as in the game list: past a page's last game to the next page's first, and round past either end; `g` `G` jump to the first and last. Pages are the game list's length, with the same `2/3` counter.
+- **The pane beside the ranking:** the ranked game's history: its time in each of the five periods, `Total` (the game's lifetime playtime from its launcher, Steam today; launcher-neutral words, Pablo: "we will have other platforms"), longest session, streak (days in a row, and best), the last 16 weeks as bars, the weekdays as bars, the 6 latest sessions.
+- **Board (second `h`):** the ranking stays; the pane becomes HIGH SCORES: the period's top 8 like an arcade board (`1ST ROCKET LEAGUE....... 83.0H`), a year of played days as a calendar (a column per week, Monday on top, amber shades for how long), and records: total for the period, longest session, streak, the weekday played most. The ranking and the board's top 8 both stay (Pablo: "leave them"). When the pane is short (the logo band takes its rows on smaller windows), the calendar and the records always show and the places give way, down to a podium of 3.
+- **Empty days and weeks** are the achievement bar's thin dim line (`─`), not a new grey (Pablo picked it over plain black in the lab).
+- **The logo band and the pane follow the ranked game**, not the list's selection. While history is open, only its keys, `r`, `?` and quitting work; play, install, favourite, search and the others wait for the games view, so a key never acts on a game that isn't the one on show.
+- **Narrow windows** (no pane beside the list): the ranking takes the list's place, and the board takes it on the second `h`.
+- **Live:** Quarter loads `sessions.json` at start, and every time new sessions are saved (after each library scan: at start, `r`, and the checks after a game stops) the ranking and the board update.
+
+### Counting
+
+- Sessions under a minute, and sessions with no known end (Steam stopped first), count no time. Steam tools (SteamVR, Proton) are left out of the ranking.
+- Periods end today and count whole days back (7 days is today and the 6 before). Weeks run Monday to Sunday. A session counts on the day it starts, in the PC's time zone.
+- History starts where Steam's log starts (2026-03-21 on Pablo's PC); `Total` is the launcher's lifetime figure.
+
+### Code
+
+- `internal/history`: the counting, from sessions to periods, weeks, days, weekdays, streaks and records. Knows nothing about the screen.
+- `internal/ui/history.go`: the three views and their keys. Colours in `styles.go`, the key in `keys.go`.
+- `cmd/quarter/main.go`: loads `sessions.json` for the UI; the recorder hands the full list back after each save.
+
+### Tests
+
+- History: every figure on made-up sessions (periods, top, weeks, days, weekdays, last, longest, streaks), short and unknown sessions not counted, days in the local time zone.
+- UI: the `h` cycle and `esc`; the periods wrap round and leave out "since"; moving like the game list (wrap, pages, `g` `G`) on 40 games; the pane and the logo follow the ranked game; other keys wait; narrow windows; no sessions at all; new sessions arriving; every view fits the window.
+- The real program loop in a lab copy, with Pablo's real data read-only, before installing.
+
 ## Phase B: Error states (approved 2026-09-29, "go")
 
 Every case below was researched (sources at the end) and is tested on fake Steam folders in `testdata/`, never Pablo's real Steam.

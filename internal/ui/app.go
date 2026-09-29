@@ -19,6 +19,7 @@ import (
 
 	"github.com/stronxyo/quarter/internal/art"
 	"github.com/stronxyo/quarter/internal/config"
+	"github.com/stronxyo/quarter/internal/history"
 	"github.com/stronxyo/quarter/internal/intro"
 	"github.com/stronxyo/quarter/internal/library"
 	"github.com/stronxyo/quarter/internal/steam"
@@ -44,18 +45,20 @@ type Model struct {
 	steamPath   string // --steam-path override; empty means detect
 	state       state
 	err         error
-	warnings    []error                      // Steam files the last scan couldn't read
-	missing     []steam.LibraryFolder        // libraries whose drive isn't connected
-	noAccount   bool                         // no one has signed in to Steam here: no playtime
-	scanning    bool                         // a background scan is running
-	scanErr     error                        // a rescan failed while a cached library is shown
-	save        func(library.Result) error   // stores a fresh scan for the next launch; may be nil
-	record      func(steamPath string) error // saves the game sessions in Steam's log; may be nil
-	open        func(uri string) error       // hands a steam:// link to the OS
-	status      string                       // short-lived footer message after an action
-	statusID    int                          // tells a stale clear timer from the current message
-	statusWrong bool                         // the status says an action failed
-	fullHelp    bool                         // ? pressed: every key is listed
+	warnings    []error                    // Steam files the last scan couldn't read
+	missing     []steam.LibraryFolder      // libraries whose drive isn't connected
+	noAccount   bool                       // no one has signed in to Steam here: no playtime
+	scanning    bool                       // a background scan is running
+	scanErr     error                      // a rescan failed while a cached library is shown
+	save        func(library.Result) error // stores a fresh scan for the next launch; may be nil
+	open        func(uri string) error     // hands a steam:// link to the OS
+	status      string                     // short-lived footer message after an action
+	statusID    int                        // tells a stale clear timer from the current message
+	statusWrong bool                       // the status says an action failed
+	fullHelp    bool                       // ? pressed: every key is listed
+
+	// record saves the game sessions in Steam's log and returns them all; may be nil.
+	record func(steamPath string) ([]steam.Session, error)
 
 	detailOpen    bool // d pressed on a narrow window: the pane covers the list
 	paneHidden    bool // d pressed on a wide window: the list takes the whole width
@@ -111,6 +114,11 @@ type Model struct {
 	played         time.Duration // time in games this session, finished runs
 	playingSince   time.Time     // when the game running now started, zero for none
 
+	hist       history.History // every recorded session
+	histView   histView        // h: the games, the ranking, or the board
+	histPeriod int             // the period ranked, in histPeriods
+	histSel    int             // the game selected in the ranking
+
 	favs         map[uint32]bool             // starred games, by appid
 	saveSettings func(config.Settings) error // remembers favourites, sort and filter; may be nil
 
@@ -134,7 +142,8 @@ type Options struct {
 	Save      func(library.Result) error // stores each fresh scan for the next launch
 	Open      func(uri string) error     // hands steam:// links to the OS
 
-	RecordSessions func(steamPath string) error // saves the game sessions in Steam's log, after each scan
+	RecordSessions func(steamPath string) ([]steam.Session, error) // saves the game sessions in Steam's log after each scan, returns them all
+	Sessions       []steam.Session                                 // the sessions recorded before, for the history views
 
 	Settings     config.Settings             // favourites, sort and filter from the last run
 	SaveSettings func(config.Settings) error // remembers them for the next run
@@ -178,6 +187,7 @@ func New(opts Options) Model {
 		logoNone:    make(map[uint32]bool),
 
 		splash: opts.Splash,
+		hist:   history.New(opts.Sessions, time.Local),
 	}
 	maps.Copy(m.storeInfo, opts.StoreCache)
 	m.applySettings(opts.Settings)
@@ -307,6 +317,10 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 	case afterPlayMsg:
 		return m.afterPlayTick(msg)
 
+	case sessionsMsg:
+		m.hist = history.New(msg.all, time.Local)
+		return m, nil
+
 	case updatePollMsg:
 		return m.updateTick()
 
@@ -326,6 +340,11 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		if m.splash {
 			return m.splashKey(msg)
+		}
+		if m.state == stateReady && !m.list.SettingFilter() {
+			if m, cmd, ok := m.histKey(msg); ok {
+				return m, cmd
+			}
 		}
 		if key.Matches(msg, keys.Refresh) && !m.list.SettingFilter() && m.state != stateScanning {
 			if m.scanning {
@@ -430,12 +449,14 @@ func (m Model) applyScanResult(msg scanDoneMsg) (Model, tea.Cmd) {
 
 // recordSessions saves the sessions in Steam's log off the UI goroutine. A
 // failure only delays the history until the next scan, so it is logged.
-func recordSessions(record func(string) error, steamPath string) tea.Cmd {
+func recordSessions(record func(string) ([]steam.Session, error), steamPath string) tea.Cmd {
 	return func() tea.Msg {
-		if err := record(steamPath); err != nil {
+		all, err := record(steamPath)
+		if err != nil {
 			slog.Warn("sessions", "err", err)
+			return nil
 		}
-		return nil
+		return sessionsMsg{all: all}
 	}
 }
 
@@ -675,18 +696,38 @@ func (m Model) emptyMessage() string {
 }
 
 // body is the list with its section line and column header, with the detail
-// pane beside it, or over it when d opened it on a narrow window.
+// pane beside it, or over it when d opened it on a narrow window. With
+// history open, the ranking takes the list's place and the pane shows the
+// ranked game's history or the board.
 func (m Model) body() string {
 	list := strings.Join([]string{m.header(), m.columnHeader(), m.listView()}, "\n")
 	height := lipgloss.Height(list)
+	pane := m.detailView
+	if m.histView != histOff {
+		list = m.rankHeader() + "\n" + m.rankRows(height-1)
+		pane = func(width, height int) string {
+			if m.histView == histBoard {
+				return m.boardPane(width, height)
+			}
+			if g, ok := m.selected(); ok { // the ranked game
+				return m.historyPane(g, width, height)
+			}
+			return paneBox([]string{dimStyle.Render("Nothing played in this period.")}, width, height, width-paneStyle.GetHorizontalFrameSize())
+		}
+		if !m.sideBySide() && m.histView == histBoard {
+			return m.boardPane(m.tableWidth(), height) // no room beside: the board takes the list's place
+		}
+	}
 	switch {
 	case m.sideBySide():
 		gap := strings.Repeat(" ", max(m.paneX()-lipgloss.Width(list), 0))
-		pane := m.detailView(m.paneWidth(), height)
+		right := pane(m.paneWidth(), height)
 		if n := m.paneNotice(m.paneWidth()); n != "" {
-			pane = m.detailView(m.paneWidth(), height-lipgloss.Height(n)) + "\n" + n
+			right = pane(m.paneWidth(), height-lipgloss.Height(n)) + "\n" + n
 		}
-		return lipgloss.JoinHorizontal(lipgloss.Top, list, gap, pane)
+		return lipgloss.JoinHorizontal(lipgloss.Top, list, gap, right)
+	case m.histView != histOff:
+		return list
 	case m.detailOpen:
 		return m.header() + "\n" + m.detailView(m.paneWidth(), height-1)
 	}

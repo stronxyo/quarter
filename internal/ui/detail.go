@@ -159,8 +159,12 @@ func (m Model) detailView(width, height int) string {
 	return paneStyle.Width(width).Height(height).MaxHeight(height).Render(strings.Join(lines, "\n"))
 }
 
-// selected returns the highlighted game, if the list has one.
+// selected returns the game on show: the list's highlighted game, or with
+// history open the ranking's, so the logo and the pane follow it.
 func (m Model) selected() (library.Game, bool) {
+	if m.histView != histOff {
+		return m.rankedGame()
+	}
 	it, ok := m.list.SelectedItem().(gameItem)
 	return it.Game, ok
 }

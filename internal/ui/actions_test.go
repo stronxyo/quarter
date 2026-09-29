@@ -118,12 +118,13 @@ func TestHelpToggle(t *testing.T) {
 	}
 }
 
-// The key line always fits: on narrow windows the arrows give way, move first.
+// The key line always fits: on narrow windows the arrows give way, move
+// first, then h history (still listed under ?).
 func TestShortHelpFits(t *testing.T) {
 	for _, tc := range []struct {
-		w          int
-		move, page bool
-	}{{80, false, false}, {84, false, true}, {120, true, true}} {
+		w                int
+		move, page, hist bool
+	}{{80, false, false, false}, {84, false, false, true}, {95, false, true, true}, {120, true, true, true}} {
 		w := tc.w
 		m, _ := withOpener(t, nil, portal2)
 		var tm tea.Model = m
@@ -135,8 +136,8 @@ func TestShortHelpFits(t *testing.T) {
 		if got := ansi.StringWidth(line); got > w {
 			t.Errorf("width %d: key line is %d wide", w, got)
 		}
-		if strings.Contains(line, "move") != tc.move || strings.Contains(line, "page") != tc.page {
-			t.Errorf("width %d: want move %v, page %v: %q", w, tc.move, tc.page, line)
+		if strings.Contains(line, "move") != tc.move || strings.Contains(line, "page") != tc.page || strings.Contains(line, "h history") != tc.hist {
+			t.Errorf("width %d: want move %v, page %v, history %v: %q", w, tc.move, tc.page, tc.hist, line)
 		}
 	}
 }

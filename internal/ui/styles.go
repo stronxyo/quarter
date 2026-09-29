@@ -1,6 +1,10 @@
 package ui
 
-import "charm.land/lipgloss/v2"
+import (
+	"image/color"
+
+	"charm.land/lipgloss/v2"
+)
 
 // Arcade palette: the logo's gold-to-orange gradient on the terminal's own
 // background; everything else is accented with the gradient's middle color.
@@ -12,6 +16,10 @@ var (
 	colorError   = lipgloss.Color("#FF7B72") // light red: something is wrong
 	colorRunning = lipgloss.Color("#A6E3A1")
 	colorUpdate  = lipgloss.Color("#89B4FA") // blue, the running green's neighbour in the same palette
+
+	// colorHeat shades the history calendar's days, least played first:
+	// the dim amber up to the logo's gold.
+	colorHeat = []color.Color{lipgloss.Color("#7A5530"), colorDim, lipgloss.Color("#E09A55"), lipgloss.Color("#FFC070"), colorLogoTop}
 
 	// The logo gradient runs from colorLogoTop to colorLogoBottom.
 	colorLogoTop    = lipgloss.Color("#FFE08A")

@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"slices"
+
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 
@@ -20,6 +22,7 @@ type appKeys struct {
 	Refresh    key.Binding
 	Details    key.Binding
 	Logos      key.Binding
+	History    key.Binding
 	Help       key.Binding
 }
 
@@ -35,6 +38,7 @@ var keys = appKeys{
 	Refresh:    key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "rescan")),
 	Details:    key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "details")),
 	Logos:      key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "logos")),
+	History:    key.NewBinding(key.WithKeys("h"), key.WithHelp("h", "history")),
 	Help:       key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "more")),
 }
 
@@ -48,16 +52,33 @@ var (
 	helpSort   = key.NewBinding(key.WithKeys("n", "p", "l"), key.WithHelp("n/p/l", "sort"))
 	helpQuit   = key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit"))
 	helpLess   = key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "less"))
+
+	// While history is open.
+	helpHistNext   = key.NewBinding(key.WithKeys("h"), key.WithHelp("h", "next view"))
+	helpHistPeriod = key.NewBinding(key.WithKeys("left", "right"), key.WithHelp("←→", "period"))
+	helpHistBack   = key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "games"))
 )
 
 // shortHelp is the one line of keycaps under the list, as versions from widest
 // to narrowest: the first that fits is shown. The arrow keys, the easiest to
 // guess, give way first on narrow windows.
 func shortHelp() [][]key.Binding {
-	core := []key.Binding{keys.Play, keys.Install, helpSearch, helpSort, keys.Filter, keys.Help, helpQuit}
+	core := []key.Binding{keys.Play, keys.Install, helpSearch, helpSort, keys.Filter, keys.History, keys.Help, helpQuit}
+	narrow := slices.DeleteFunc(slices.Clone(core), func(b key.Binding) bool { return b.Help() == keys.History.Help() }) // h stays in ? on narrow windows
 	return [][]key.Binding{
 		append([]key.Binding{helpMove, helpPage}, core...),
 		append([]key.Binding{helpPage}, core...),
+		core,
+		narrow,
+	}
+}
+
+// historyHelp is the key line while history is open, widest first.
+func historyHelp() [][]key.Binding {
+	core := []key.Binding{helpHistPeriod, helpHistNext, helpHistBack, helpQuit}
+	return [][]key.Binding{
+		append([]key.Binding{helpMove, helpEnds}, core...),
+		append([]key.Binding{helpMove}, core...),
 		core,
 	}
 }
@@ -68,7 +89,7 @@ func fullHelp() [][]key.Binding {
 		{helpMove, helpEnds, helpPage},
 		{keys.Play, keys.Install, keys.Store, keys.Favourite},
 		{helpSearch, keys.SortName, keys.SortPlayed, keys.SortLast},
-		{keys.Filter, keys.Details, keys.Logos, keys.Refresh, helpLess, helpQuit},
+		{keys.Filter, keys.History, keys.Details, keys.Logos, keys.Refresh, helpLess, helpQuit},
 	}
 }
 

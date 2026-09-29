@@ -30,6 +30,9 @@ func (m Model) helpView() string {
 	if !m.fullHelp {
 		// Measured untruncated: help cuts an overlong line down to "…".
 		lines := shortHelp()
+		if m.histView != histOff {
+			lines = historyHelp()
+		}
 		for _, b := range lines {
 			if line := h.ShortHelpView(b); lipgloss.Width(line) <= m.width-2 {
 				return "\n  " + line
