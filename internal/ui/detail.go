@@ -112,7 +112,11 @@ func (m Model) detailView(width, height int) string {
 		case storeNotFound:
 			b.WriteString(dimStyle.Render("not on the Steam store") + "\n")
 		case storeOffline:
-			b.WriteString(dimStyle.Render("store info unavailable") + "\n")
+			msg := "store info unavailable, retrying"
+			if m.storePause.busy {
+				msg = "store busy, retrying"
+			}
+			b.WriteString(alertStyle.Render(msg) + "\n")
 		}
 		b.WriteString("\n")
 

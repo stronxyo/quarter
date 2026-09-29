@@ -32,17 +32,20 @@ func (m Manifest) Installed() bool {
 }
 
 // InstalledGames scans every library for fully installed games, dropping
-// Steam tools. Files that can't be read are skipped and returned as warnings.
-func InstalledGames(steamPath string) ([]Manifest, []error) {
-	var games []Manifest
-	var warnings []error
-
-	libs, err := Libraries(steamPath)
+// Steam tools. Libraries that aren't connected (an unplugged drive) are
+// returned in missing; files that can't be read are skipped and returned as
+// warnings.
+func InstalledGames(steamPath string) (games []Manifest, missing []LibraryFolder, warnings []error) {
+	libs, err := LibraryFolders(steamPath)
 	if err != nil {
 		warnings = append(warnings, err)
 	}
 	for _, lib := range libs {
-		manifests, errs := Manifests(lib)
+		if !lib.connected() {
+			missing = append(missing, lib)
+			continue
+		}
+		manifests, errs := Manifests(lib.Path)
 		warnings = append(warnings, errs...)
 		for _, m := range manifests {
 			if m.Installed() && IsGame(m.AppID) {
@@ -50,7 +53,7 @@ func InstalledGames(steamPath string) ([]Manifest, []error) {
 			}
 		}
 	}
-	return games, warnings
+	return games, missing, warnings
 }
 
 // Manifests reads every appmanifest in one library, sorted by appid.
@@ -70,7 +73,7 @@ func Manifests(library string) ([]Manifest, []error) {
 		}
 		m, err := parseManifest(root, library)
 		if err != nil {
-			warnings = append(warnings, fmt.Errorf("%s: %w", filepath.Base(file), err))
+			warnings = append(warnings, &FileError{Name: filepath.Base(file), Err: err})
 			continue
 		}
 		manifests = append(manifests, m)

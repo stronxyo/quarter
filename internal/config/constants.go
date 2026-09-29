@@ -43,6 +43,10 @@ var NonGameAppIDs = map[uint32]string{
 	858280:  "Proton 3.7",
 }
 
+// SteamReadRetry is the wait before a Steam file that couldn't be read is
+// read again, in case Steam was writing it.
+const SteamReadRetry = 100 * time.Millisecond
+
 // LogFile is written in DataDir while the UI runs, since the terminal is taken.
 const LogFile = "quarter.log"
 
@@ -68,6 +72,13 @@ const (
 	LogoDir      = "logos"
 	LogoMaxBytes = 2 << 20 // logos are 10 to 200 KB; anything over 2 MB is refused
 	LogoRetry    = 7 * 24 * time.Hour
+)
+
+// SessionsFile keeps every game session read from Steam's game process log,
+// so play history outlives the log.
+const (
+	SessionsFile    = "sessions.json"
+	SessionsVersion = 1
 )
 
 // LibraryCache is the scanned library saved in DataDir, shown instantly on the

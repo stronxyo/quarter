@@ -2,7 +2,9 @@ package library
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
+	"os"
 	"slices"
 
 	"github.com/stronxyo/quarter/internal/steam"
@@ -15,6 +17,9 @@ type Result struct {
 	Uninstalled   []Game  // other apps Steam knows from this PC, unnamed until the store says what they are
 	PlaytimeKnown bool    // false when the account or localconfig.vdf could not be read
 	Warnings      []error `json:"-"` // files that failed to read; never cached
+
+	Missing   []steam.LibraryFolder `json:"-"` // libraries whose drive isn't connected
+	NoAccount bool                  `json:"-"` // no one has signed in to Steam on this PC, so no playtime
 }
 
 // Scan locates Steam (override may be empty) and builds the library from
@@ -25,18 +30,21 @@ func Scan(override string) (Result, error) {
 		return Result{}, err
 	}
 
-	installed, warnings := steam.InstalledGames(steamPath)
+	installed, missing, warnings := steam.InstalledGames(steamPath)
 
 	var stats map[uint32]steam.PlayStats
 	var achievements map[uint32]steam.Achievements
 	acct, err := steam.ActiveAccount(steamPath)
+	// Never signed in (no loginusers.vdf, or no account in it) isn't a
+	// damaged file: there's simply no playtime yet.
+	noAccount := errors.Is(err, os.ErrNotExist) || errors.Is(err, steam.ErrNoAccount)
 	if err == nil {
 		// Achievements come from Steam's cached library pages; missing ones
 		// just mean none are shown, so their errors aren't warnings.
 		achievements, _ = steam.ReadLibraryPages(steamPath, acct)
 		stats, err = steam.ReadPlayStats(steamPath, acct)
 	}
-	if err != nil {
+	if err != nil && !noAccount {
 		warnings = append(warnings, fmt.Errorf("playtime unavailable: %w", err))
 	}
 
@@ -46,6 +54,8 @@ func Scan(override string) (Result, error) {
 		Uninstalled:   uninstalled(installed, stats, achievements),
 		PlaytimeKnown: stats != nil,
 		Warnings:      warnings,
+		Missing:       missing,
+		NoAccount:     noAccount,
 	}, nil
 }
 

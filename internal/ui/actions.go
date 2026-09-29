@@ -34,6 +34,7 @@ func (m Model) action(msg tea.KeyPressMsg) (_ Model, _ tea.Cmd, handled bool) {
 	case key.Matches(msg, keys.Play) && it.AppID == m.running:
 		m.statusID++
 		m.status = it.Name + " is already running"
+		m.statusWrong = false
 		return m, clearStatusAfter(m.statusID), true
 	case key.Matches(msg, keys.Play) && it.Installed:
 		uri, status = steam.PlayURI(it.AppID), "▶ Launching "+it.Name
@@ -46,6 +47,7 @@ func (m Model) action(msg tea.KeyPressMsg) (_ Model, _ tea.Cmd, handled bool) {
 	}
 	m.statusID++
 	m.status = status
+	m.statusWrong = false
 	return m, openURI(m.open, uri, m.statusID), true
 }
 

@@ -13,6 +13,7 @@ import (
 
 	"github.com/stronxyo/quarter/internal/art"
 	"github.com/stronxyo/quarter/internal/library"
+	"github.com/stronxyo/quarter/internal/webapi"
 )
 
 // LogoSource finds game logos: files already on this PC, and downloads from
@@ -89,10 +90,10 @@ func (m Model) logoFor(key logoKey) (drawnLogo, logoState) {
 	if logo, ok := m.logoCache[key]; ok {
 		return logo, logoReady
 	}
-	if m.logoPending[key] || m.logoFetching == key.appID {
+	if m.logoFetching == key.appID || m.logoPending[key] && !m.logoPause.active(m.now()) {
 		return drawnLogo{}, logoLoading
 	}
-	return drawnLogo{}, logoName
+	return drawnLogo{}, logoName // none, or downloads are paused: the name meanwhile
 }
 
 // ensureLogo starts drawing the selected game's logo when the pane needs it
@@ -173,13 +174,27 @@ func (m Model) applyLogo(msg logoDoneMsg) (Model, tea.Cmd) {
 	case msg.download:
 		m.logoPending[msg.key] = true // waiting for its turn on the CDN
 		return m, m.logoWantAfter(msg.key)
+	case msg.fetched && isNetFailure(msg.err):
+		// Says nothing about the logo: downloads pause, the pane shows the
+		// name meanwhile, and the logo is asked again when they resume.
+		slog.Warn("logo", "app", msg.key.appID, "err", msg.err)
+		m.logoPending[msg.key] = true
+		cmd := m.failed(&m.logoPause, msg.err, true)
+		if !errors.Is(msg.err, webapi.ErrUnreachable) {
+			cmd = tea.Batch(cmd, m.answered())
+		}
+		return m, cmd
 	default:
-		// No logo anywhere, so the pane shows the name for this run. A
-		// network problem isn't remembered on disk: the next run asks again.
+		// No logo anywhere, so the pane shows the name for this run.
 		if msg.fetched && !errors.Is(msg.err, art.ErrNoLogo) && !errors.Is(msg.err, art.ErrUnusable) {
 			slog.Warn("logo", "app", msg.key.appID, "err", msg.err)
 		}
 		m.logoNone[msg.key.appID] = true
+	}
+	if msg.fetched {
+		// The CDN answered (a logo, or none): the network is up.
+		m.logoPause = pause{}
+		return m, m.answered()
 	}
 	return m, nil
 }
@@ -192,6 +207,9 @@ func (m Model) logoWantAfter(key logoKey) tea.Cmd {
 // one download at a time. Scrolled past, the game is dropped; selecting it
 // again starts over.
 func (m Model) wantLogo(msg logoWantMsg) (Model, tea.Cmd) {
+	if !m.logoPending[msg.key] {
+		return m, nil // drawn or dropped since this was asked
+	}
 	g, ok := m.selected()
 	if !ok || g.AppID != msg.key.appID || m.logos == nil {
 		delete(m.logoPending, msg.key)
@@ -199,6 +217,9 @@ func (m Model) wantLogo(msg logoWantMsg) (Model, tea.Cmd) {
 	}
 	if m.logoFetching != 0 {
 		return m, m.logoWantAfter(msg.key) // another download is out
+	}
+	if m.logoPause.active(m.now()) {
+		return m, nil // downloads are paused; resuming asks again
 	}
 	m.logoFetching = msg.key.appID
 	return m, drawLogo(m.logos, msg.key, m.logoBlocks, true, m.pictureSize(msg.key.cols, msg.key.rows))

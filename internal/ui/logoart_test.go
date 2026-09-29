@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"errors"
 	"image"
 	"image/color"
 	"image/png"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -16,6 +18,7 @@ import (
 	"github.com/stronxyo/quarter/internal/art"
 	"github.com/stronxyo/quarter/internal/config"
 	"github.com/stronxyo/quarter/internal/library"
+	"github.com/stronxyo/quarter/internal/webapi"
 )
 
 // fakeLogos serves logos from temporary files and counts what was asked.
@@ -23,6 +26,7 @@ type fakeLogos struct {
 	paths     map[uint32][]string
 	missing   map[uint32]bool
 	cdn       map[uint32]string // what a download finds
+	fail      error             // every download fails with this, when set
 	downloads int
 	reads     int
 }
@@ -32,6 +36,9 @@ func (f *fakeLogos) Saved(id uint32) bool     { return false }
 func (f *fakeLogos) Missing(id uint32) bool   { return f.missing[id] }
 func (f *fakeLogos) Download(_ context.Context, id uint32) (string, error) {
 	f.downloads++
+	if f.fail != nil {
+		return "", f.fail
+	}
 	p, ok := f.cdn[id]
 	if !ok {
 		return "", art.ErrNoLogo
@@ -77,7 +84,7 @@ func pump(m tea.Model, cmd tea.Cmd) tea.Model {
 		switch msg := c().(type) {
 		case tea.BatchMsg:
 			queue = append(queue, msg...)
-		case logoDoneMsg, logoWantMsg:
+		case logoDoneMsg, logoWantMsg, resumeMsg:
 			var next tea.Cmd
 			m, next = m.Update(msg)
 			queue = append(queue, next)
@@ -138,6 +145,42 @@ func TestLogoShowsForSelectedGame(t *testing.T) {
 		if hasGameLogo(l) && !strings.ContainsAny(l, "│╭╰") {
 			t.Errorf("the logo should share its lines with the quarter_ box: %q", l)
 		}
+	}
+}
+
+// Offline, a download fails without marking the game as having no logo:
+// the name shows meanwhile, downloads pause, and when they resume with the
+// network back, the logo comes.
+func TestLogoOfflineThenBack(t *testing.T) {
+	logos := &fakeLogos{paths: map[uint32][]string{1: {logoPNG(t)}}, cdn: map[uint32]string{2: logoPNG(t)},
+		fail: webapi.Unreachable("logo 2", errors.New("dial tcp: no route"))}
+	m, _ := withLogos(t, logos, config.Settings{})
+	mm := m.(Model)
+	clock := mm.now()
+	mm.now = func() time.Time { return clock }
+	mm.jitter = func(time.Duration) time.Duration { return time.Millisecond }
+	m, cmd := tea.Model(mm).Update(press("j")) // Bravo: not on disk, downloaded
+	m = pump(m, cmd)
+
+	mm = m.(Model)
+	if logos.downloads != 1 || mm.logoNone[2] {
+		t.Fatalf("one download, and no 'no logo' mark: downloads %d, none %v", logos.downloads, mm.logoNone[2])
+	}
+	if !mm.logoPause.active(mm.now()) || !mm.netDown {
+		t.Error("downloads should pause, and offline show")
+	}
+	_, cols, rows, _ := mm.logoBand()
+	drawn, _ := art.Name("Bravo", cols, rows)
+	view := paneText(m)
+	if !strings.Contains(view, strings.TrimSpace(drawn[0])) || !strings.Contains(view, "· offline") {
+		t.Errorf("the name should show while offline, and the marker:\n%s", view)
+	}
+
+	logos.fail = nil
+	m = later(m, time.Hour)
+	m = pump(m, func() tea.Msg { return resumeMsg{logos: true} })
+	if logos.downloads != 2 || !hasGameLogo(paneText(m)) || strings.Contains(paneText(m), "offline") {
+		t.Errorf("back online: want a second download and Bravo's logo, downloads %d:\n%s", logos.downloads, paneText(m))
 	}
 }
 

@@ -9,7 +9,7 @@ var (
 	colorAccent  = lipgloss.Color("#FFAF63")
 	colorDim     = lipgloss.Color("#B07A45") // dim amber, like a CRT's fading phosphor
 	colorKeycap  = lipgloss.Color("#2E2A26") // the dark key behind each key letter
-	colorError   = lipgloss.Color("#F38BA8")
+	colorError   = lipgloss.Color("#FF7B72") // light red: something is wrong
 	colorRunning = lipgloss.Color("#A6E3A1")
 
 	// The logo gradient runs from colorLogoTop to colorLogoBottom.
@@ -30,6 +30,7 @@ var (
 	selectedRunningStyle = selectedStyle.Foreground(colorRunning).BorderForeground(colorRunning)
 	runningLabelStyle    = lipgloss.NewStyle().Bold(true).Foreground(colorRunning)
 	errorStyle           = lipgloss.NewStyle().Bold(true).Foreground(colorError)
+	alertStyle           = lipgloss.NewStyle().Foreground(colorError)
 	messageStyle         = lipgloss.NewStyle().Padding(1, 2)
 )
 

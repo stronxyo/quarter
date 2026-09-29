@@ -21,6 +21,7 @@ import (
 	"github.com/stronxyo/quarter/internal/config"
 	"github.com/stronxyo/quarter/internal/intro"
 	"github.com/stronxyo/quarter/internal/library"
+	"github.com/stronxyo/quarter/internal/steam"
 	"github.com/stronxyo/quarter/internal/webapi"
 )
 
@@ -40,30 +41,37 @@ type scanDoneMsg struct {
 
 // Model is the root of the UI.
 type Model struct {
-	steamPath string // --steam-path override; empty means detect
-	state     state
-	err       error
-	warnings  int
-	scanning  bool                       // a background scan is running
-	scanErr   error                      // a rescan failed while a cached library is shown
-	save      func(library.Result) error // stores a fresh scan for the next launch; may be nil
-	open      func(uri string) error     // hands a steam:// link to the OS
-	status    string                     // short-lived footer message after an action
-	statusID  int                        // tells a stale clear timer from the current message
-	fullHelp  bool                       // ? pressed: every key is listed
+	steamPath   string // --steam-path override; empty means detect
+	state       state
+	err         error
+	warnings    []error                      // Steam files the last scan couldn't read
+	missing     []steam.LibraryFolder        // libraries whose drive isn't connected
+	noAccount   bool                         // no one has signed in to Steam here: no playtime
+	scanning    bool                         // a background scan is running
+	scanErr     error                        // a rescan failed while a cached library is shown
+	save        func(library.Result) error   // stores a fresh scan for the next launch; may be nil
+	record      func(steamPath string) error // saves the game sessions in Steam's log; may be nil
+	open        func(uri string) error       // hands a steam:// link to the OS
+	status      string                       // short-lived footer message after an action
+	statusID    int                          // tells a stale clear timer from the current message
+	statusWrong bool                         // the status says an action failed
+	fullHelp    bool                         // ? pressed: every key is listed
 
 	detailOpen    bool // d pressed on a narrow window: the pane covers the list
 	paneHidden    bool // d pressed on a wide window: the list takes the whole width
 	playtimeKnown bool // false when Steam's playtime file couldn't be read
 
-	fetchStore func(context.Context, uint32) (webapi.StoreInfo, error) // may be nil: no store details
-	saveStore  func(map[uint32]webapi.StoreEntry) error
-	storeInfo  map[uint32]webapi.StoreEntry
-	offline    map[uint32]bool // store requests that failed this run
-	fetching   uint32          // the game whose store request is out, 0 for none
-	wanted     uint32          // the selected game, waiting for its turn
-	storeDown  bool            // the last request failed on the network: stop the background fill
-	debounce   time.Duration   // how long the selection must settle before fetching
+	fetchStore   func(context.Context, uint32) (webapi.StoreInfo, error) // may be nil: no store details
+	saveStore    func(map[uint32]webapi.StoreEntry) error
+	storeInfo    map[uint32]webapi.StoreEntry
+	fetching     uint32          // the game whose store request is out, 0 for none
+	wanted       uint32          // the selected game, waiting for its turn
+	storePause   pause           // store requests wait after a network failure
+	serverFailed map[uint32]bool // the store failed on these this run: the background fill skips them
+	debounce     time.Duration   // how long the selection must settle before fetching
+
+	netDown bool                              // the last request got no answer: "offline" shows
+	jitter  func(time.Duration) time.Duration // spreads the waits after failures
 
 	runningApp func() (uint32, bool) // asks Steam which game is running; may be nil
 	running    uint32                // the game Steam is running, 0 for none
@@ -76,6 +84,7 @@ type Model struct {
 	logoCache    map[logoKey]drawnLogo // drawn logos, by game and size
 	logoPending  map[logoKey]bool      // being drawn, or waiting for a download
 	logoNone     map[uint32]bool       // no logo anywhere, this run
+	logoPause    pause                 // downloads wait after a network failure
 	logoFetching uint32                // the game whose logo is downloading, 0 for none
 
 	sixel        bool      // the terminal draws Sixel: logos are pictures
@@ -123,6 +132,8 @@ type Options struct {
 	Save      func(library.Result) error // stores each fresh scan for the next launch
 	Open      func(uri string) error     // hands steam:// links to the OS
 
+	RecordSessions func(steamPath string) error // saves the game sessions in Steam's log, after each scan
+
 	Settings     config.Settings             // favourites, sort and filter from the last run
 	SaveSettings func(config.Settings) error // remembers them for the next run
 
@@ -142,6 +153,7 @@ func New(opts Options) Model {
 	m := Model{
 		steamPath: opts.SteamPath,
 		save:      opts.Save,
+		record:    opts.RecordSessions,
 		open:      opts.Open,
 		list:      newList(),
 		now:       time.Now,
@@ -150,12 +162,13 @@ func New(opts Options) Model {
 		favs:         make(map[uint32]bool),
 		saveSettings: opts.SaveSettings,
 
-		fetchStore: opts.FetchStore,
-		saveStore:  opts.SaveStore,
-		storeInfo:  make(map[uint32]webapi.StoreEntry),
-		offline:    make(map[uint32]bool),
-		debounce:   storeDebounce,
-		runningApp: opts.RunningApp,
+		fetchStore:   opts.FetchStore,
+		saveStore:    opts.SaveStore,
+		storeInfo:    make(map[uint32]webapi.StoreEntry),
+		serverFailed: make(map[uint32]bool),
+		jitter:       halfJitter,
+		debounce:     storeDebounce,
+		runningApp:   opts.RunningApp,
 
 		newLogos:    opts.Logos,
 		logoCache:   make(map[logoKey]drawnLogo),
@@ -254,6 +267,7 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 		if msg.err != nil {
 			slog.Warn("open", "err", msg.err)
 			m.status = "Could not open Steam: " + msg.err.Error()
+			m.statusWrong = true
 		}
 		return m, clearStatusAfter(msg.id)
 
@@ -266,6 +280,9 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case storeDoneMsg:
 		return m.applyStore(msg)
+
+	case resumeMsg:
+		return m.resume(msg)
 
 	case logoDoneMsg:
 		return m.applyLogo(msg)
@@ -390,7 +407,7 @@ func (m Model) applyScanResult(msg scanDoneMsg) (Model, tea.Cmd) {
 		slog.Warn("scan", "err", w)
 	}
 	m.state = stateReady
-	m.warnings = len(msg.res.Warnings)
+	m.warnings, m.missing, m.noAccount = msg.res.Warnings, msg.res.Missing, msg.res.NoAccount
 	m.installed, m.uninstalled = msg.res.Games, msg.res.Uninstalled
 	m.setSteamPath(msg.res.SteamPath)
 	m.rebuild()
@@ -400,7 +417,21 @@ func (m Model) applyScanResult(msg scanDoneMsg) (Model, tea.Cmd) {
 	if m.save != nil {
 		cmd = tea.Batch(cmd, saveScan(m.save, msg.res))
 	}
+	if m.record != nil {
+		cmd = tea.Batch(cmd, recordSessions(m.record, msg.res.SteamPath))
+	}
 	return m, cmd
+}
+
+// recordSessions saves the sessions in Steam's log off the UI goroutine. A
+// failure only delays the history until the next scan, so it is logged.
+func recordSessions(record func(string) error, steamPath string) tea.Cmd {
+	return func() tea.Msg {
+		if err := record(steamPath); err != nil {
+			slog.Warn("sessions", "err", err)
+		}
+		return nil
+	}
 }
 
 // setSteamPath points the logo sources at the Steam folder the scan found.
@@ -510,6 +541,10 @@ func (m Model) sectionLine(lead string) string {
 	if m.scanning {
 		count += " · updating…"
 	}
+	counted := dimStyle.Render(count + " ")
+	if m.netDown {
+		counted = dimStyle.Render(count+" · ") + alertStyle.Render("offline") + " "
+	}
 	// Beside the pane, the line runs on to it across any gap.
 	end := m.tableWidth()
 	if m.sideBySide() {
@@ -517,7 +552,7 @@ func (m Model) sectionLine(lead string) string {
 	}
 	// On a narrow window the count goes first, then the line is cut, so it
 	// never pushes the pane past the window's edge. At least one ─ ends it.
-	if full := line + dimStyle.Render(count+" "); ansi.StringWidth(full) < end {
+	if full := line + counted; ansi.StringWidth(full) < end {
 		line = full
 	} else if ansi.StringWidth(line) >= end {
 		line = ansi.Truncate(line, max(end-1, 0), "")
@@ -542,30 +577,111 @@ func (m Model) columnHeader() string {
 	return rowStyle.Render(dimStyle.Render(line))
 }
 
-// footer shows, most important first: an action's message, a failed rescan,
-// or files that could not be read.
+// footer is the message line under the key help, when the pane isn't beside
+// the list to carry it (see paneNotice). One line, cut to the window.
 func (m Model) footer() string {
-	if m.status != "" {
-		return "  " + activeTabStyle.Render(m.status)
-	}
-	if m.scanErr != nil {
-		return dimStyle.Render("  Could not rescan Steam, showing the last saved library. Press r to retry.")
-	}
-	if m.warnings == 0 {
+	text, style := m.notice()
+	if text == "" || m.sideBySide() {
 		return ""
 	}
-	return dimStyle.Render(fmt.Sprintf("  %d file(s) could not be read, see %s", m.warnings, config.LogFile))
+	return m.fitLine("  " + style.Render(text))
+}
+
+// notice is the message to show, most important first: an action's message,
+// a failed rescan, libraries not connected, Steam files that could not be
+// read, or why there's no playtime; with its style: light red when it says
+// something is wrong.
+func (m Model) notice() (string, lipgloss.Style) {
+	text, wrong := m.noticeText()
+	switch {
+	case wrong:
+		return text, alertStyle
+	case m.status != "":
+		return text, activeTabStyle
+	}
+	return text, dimStyle
+}
+
+func (m Model) noticeText() (text string, wrong bool) {
+	switch {
+	case m.status != "":
+		return m.status, m.statusWrong
+	case m.scanErr != nil:
+		return "Could not rescan Steam, showing the last saved library. Press r to retry.", true
+	case len(m.missing) > 0:
+		return missingText(m.missing), true
+	case len(m.warnings) > 0:
+		return warningText(m.warnings), true
+	case m.noAccount:
+		return "Sign in to Steam once to see playtime.", false
+	}
+	return "", false
+}
+
+// paneNotice is the message under the pane, wrapped to its width, at most
+// three lines.
+func (m Model) paneNotice(width int) string {
+	text, style := m.notice()
+	if text == "" {
+		return ""
+	}
+	lines := strings.Split(lipgloss.NewStyle().Width(max(width-1, 1)).Render(text), "\n")
+	if len(lines) > 3 {
+		lines = lines[:3]
+		lines[2] = ansi.Truncate(lines[2], max(width-2, 1), "…")
+	}
+	for i, l := range lines {
+		lines[i] = " " + style.Render(strings.TrimRight(l, " "))
+	}
+	return strings.Join(lines, "\n")
+}
+
+// fitLine cuts a line to the window's width, once the width is known.
+func (m Model) fitLine(s string) string {
+	if m.width <= 0 {
+		return s
+	}
+	return ansi.Truncate(s, m.width, "…")
+}
+
+// listView is the list, or when it shows nothing, why, in the rows it takes.
+func (m Model) listView() string {
+	view := m.list.View()
+	if len(m.list.VisibleItems()) > 0 {
+		return view
+	}
+	msg := rowStyle.Render(dimStyle.Render(ansi.Truncate(m.emptyMessage(), max(m.tableWidth()-rowStyle.GetHorizontalFrameSize(), 1), "…")))
+	return msg + strings.Repeat("\n", max(lipgloss.Height(view)-1, 0))
+}
+
+// emptyMessage says why the list is empty and what to do about it.
+func (m Model) emptyMessage() string {
+	switch {
+	case m.list.SettingFilter() || m.list.IsFiltered():
+		return "No games match."
+	case len(m.games) == 0 || m.filterBy == library.FilterInstalled:
+		return "No games installed yet. Install one in Steam, then press r."
+	case m.filterBy == library.FilterRecent:
+		return fmt.Sprintf("Nothing played in the last %d days.", int(config.RecentWindow.Hours()/24))
+	case m.filterBy == library.FilterFavourites:
+		return "No favourites yet. Press f on a game to star it."
+	}
+	return "No games to show."
 }
 
 // body is the list with its section line and column header, with the detail
 // pane beside it, or over it when d opened it on a narrow window.
 func (m Model) body() string {
-	list := strings.Join([]string{m.header(), m.columnHeader(), m.list.View()}, "\n")
+	list := strings.Join([]string{m.header(), m.columnHeader(), m.listView()}, "\n")
 	height := lipgloss.Height(list)
 	switch {
 	case m.sideBySide():
 		gap := strings.Repeat(" ", max(m.paneX()-lipgloss.Width(list), 0))
-		return lipgloss.JoinHorizontal(lipgloss.Top, list, gap, m.detailView(m.paneWidth(), height))
+		pane := m.detailView(m.paneWidth(), height)
+		if n := m.paneNotice(m.paneWidth()); n != "" {
+			pane = m.detailView(m.paneWidth(), height-lipgloss.Height(n)) + "\n" + n
+		}
+		return lipgloss.JoinHorizontal(lipgloss.Top, list, gap, pane)
 	case m.detailOpen:
 		return m.header() + "\n" + m.detailView(m.paneWidth(), height-1)
 	}
@@ -580,9 +696,7 @@ func (m Model) View() tea.View {
 	case m.state == stateScanning:
 		content = messageStyle.Render("Scanning Steam libraries...")
 	case m.state == stateFailed:
-		content = messageStyle.Render(errorStyle.Render("Steam not found.") +
-			"\n\nIf Steam is installed somewhere unusual, start Quarter with:\n  quarter --steam-path <steam folder>\n\n" +
-			dimStyle.Render("q quit"))
+		content = m.failedView()
 	default:
 		content = m.body()
 		if m.showLogo() {

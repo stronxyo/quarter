@@ -12,6 +12,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/stronxyo/quarter/internal/webapi"
 )
 
 // pngBytes is a small valid PNG, made in the test: no real logos in the repo.
@@ -138,16 +140,31 @@ func TestDownloadMisses(t *testing.T) {
 func TestDownloadNetworkErrorNotRemembered(t *testing.T) {
 	url, _ := cdn(t, pngBytes(t))
 	s := NewSources("", t.TempDir(), url, time.Second, 1<<20, time.Hour)
-	if _, err := s.Download(context.Background(), 5); err == nil || errors.Is(err, ErrNoLogo) {
-		t.Errorf("a server error should be a plain error, got %v", err)
+	if _, err := s.Download(context.Background(), 5); !errors.Is(err, webapi.ErrServer) {
+		t.Errorf("a server error should say so, got %v", err)
 	}
 	if s.Missing(5) {
 		t.Error("a server error must not be remembered as missing")
 	}
 
 	down := NewSources("", t.TempDir(), "http://127.0.0.1:1/%d/logo.png", time.Second, 1<<20, time.Hour)
-	if _, err := down.Download(context.Background(), 1); err == nil || down.Missing(1) {
-		t.Errorf("no network should fail and not be remembered, got %v", err)
+	if _, err := down.Download(context.Background(), 1); !errors.Is(err, webapi.ErrUnreachable) || down.Missing(1) {
+		t.Errorf("no network should fail as unreachable and not be remembered, got %v", err)
+	}
+}
+
+// The CDN asking for fewer requests is a rate limit, not a missing logo.
+func TestDownloadRateLimited(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Retry-After", "30")
+		w.WriteHeader(http.StatusTooManyRequests)
+	}))
+	defer srv.Close()
+	s := NewSources("", t.TempDir(), srv.URL+"/%d/logo.png", time.Second, 1<<20, time.Hour)
+	_, err := s.Download(context.Background(), 1)
+	var limited *webapi.RateLimitError
+	if !errors.As(err, &limited) || limited.RetryAfter != 30*time.Second || s.Missing(1) {
+		t.Errorf("got %v, want a 30 s rate limit, not remembered", err)
 	}
 }
 

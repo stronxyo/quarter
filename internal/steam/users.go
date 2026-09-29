@@ -8,6 +8,9 @@ import (
 	"github.com/stronxyo/quarter/internal/vdf"
 )
 
+// ErrNoAccount means no account has signed in to Steam on this PC.
+var ErrNoAccount = errors.New("loginusers.vdf: no accounts")
+
 // Account identifies a Steam account that has logged in on this machine.
 type Account struct {
 	SteamID64 uint64
@@ -41,7 +44,7 @@ func pickAccount(root *vdf.Node) (Account, error) {
 		}
 	}
 	if best == nil {
-		return Account{}, errors.New("loginusers.vdf: no accounts")
+		return Account{}, ErrNoAccount
 	}
 
 	id64, _ := strconv.ParseUint(best.Key, 10, 64)

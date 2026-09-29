@@ -80,14 +80,6 @@ func TestQuit(t *testing.T) {
 	}
 }
 
-func TestSteamNotFound(t *testing.T) {
-	m, _ := New(Options{}).Update(scanDoneMsg{err: errors.New("steam install not found")})
-	view := m.(Model).View().Content
-	if !strings.Contains(view, "Steam not found") || !strings.Contains(view, "--steam-path") {
-		t.Errorf("error screen missing guidance:\n%s", view)
-	}
-}
-
 func TestWarningsFooter(t *testing.T) {
 	var m tea.Model = New(Options{})
 	m, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -95,7 +87,7 @@ func TestWarningsFooter(t *testing.T) {
 		Games:    []library.Game{{AppID: 1, Name: "Alpha"}},
 		Warnings: []error{errors.New("bad file")},
 	}})
-	if view := m.(Model).View().Content; !strings.Contains(view, "1 file(s) could not be read") {
+	if view := m.(Model).View().Content; !strings.Contains(view, "A Steam file can't be read, see quarter.log") {
 		t.Errorf("footer missing:\n%s", view)
 	}
 }

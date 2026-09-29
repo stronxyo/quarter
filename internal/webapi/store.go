@@ -107,18 +107,21 @@ func (c *StoreClient) AppDetails(ctx context.Context, appID uint32) (StoreInfo, 
 	if err != nil {
 		return StoreInfo{}, err
 	}
+	what := fmt.Sprintf("store %d", appID)
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return StoreInfo{}, fmt.Errorf("store %d: %w", appID, err)
+		return StoreInfo{}, Unreachable(what, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return StoreInfo{}, fmt.Errorf("store %d: HTTP %d", appID, resp.StatusCode)
+		return StoreInfo{}, Refused(what, resp, time.Now(), http.StatusTooManyRequests, http.StatusForbidden)
 	}
 
 	var body map[string]json.RawMessage
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return StoreInfo{}, fmt.Errorf("store %d: %w", appID, err)
+		// A cut-off download, or a page that isn't the store's (a hotel
+		// network's sign-in page): says nothing about the game.
+		return StoreInfo{}, fmt.Errorf("%s: %w: %w", what, ErrServer, err)
 	}
 	return parseAppDetails(body, appID)
 }

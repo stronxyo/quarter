@@ -202,7 +202,7 @@ PLAN.md's Phase A, with Pablo's decisions of 2026-09-28.
 - **Built 2026-09-28 (Pablo: "agree in everything, so go"):** `internal/intro` holds the start screen and all 32 intros (ported from the lab unchanged but for one dot character not every font has). On every start a random intro, never last start's (`last_intro` in config.json), leads into the start screen; any key skips it, the next key starts (q counts as any key there, Pablo: it mustn't quit by habit; only ctrl+c quits from the start screen); `"intro": "off"` or an intro's key (`"crt-power-on"`) in config.json. Beside the double-size logo (windows about 144 x 38 and up), "insert quarter" in the logo's own lowercase letters at half size; on smaller windows the normal logo and a line of text; below the box's size, a compact screen with the badge. Tests: every intro at three sizes stays in the window, uses only common characters and ends with at least 80% of the logo in place; picking never repeats; skip, off, named, resize, quit.
 - **Renamed and redesigned 2026-09-28** (no trademarks or characters from known games; their gameplay ideas are free to use): Rally (paddles rally a coin), Coin roll (a spinning quarter, no mouth or ghost), Block drop (plain column bands, no tetromino shapes), March (the logo marches in step, no ship or shots).
 - **Intros (lab, 2026-09-28):** Pablo loved the intro lab ("love them all"): 32 intro animations in `Documents\Quarter\Intro lab\` (run `quarter-intro`), researched and sourced in its `research\RESEARCH.md`. Planned for the app after his review: a random intro on every start, any key skips it; the logo at double size on big windows (built from the art, shadow lines kept thin); INSERT QUARTER as one smaller spaced line ("the title needs to be the principal"). Not in the app yet.
-- **For now it shows on every start** (Pablo, 2026-09-28, to review and fix it). `splash_seen` is still saved; switching back to once is one line in `main.go`. Options left open: once ever, once a day, every start.
+- **It shows on every start** (Pablo, 2026-09-29, final: "lets leave it always, i like it"). `splash_seen` is still saved, unused for now.
 - The boot lines show the real scan as it happens, so the splash never adds waiting of its own.
 
 ### End: the goodbye (built 2026-09-28)
@@ -250,3 +250,101 @@ Pablo: when a running game stops, its played time on Steam changes, so Quarter m
 - Experiments were started inside the app code. Experiments go in the lab (a copy); only the chosen result is ported.
 - Pablo was told to run a build from the repo folder; he launches Quarter by typing `quarter` (`go install ./cmd/quarter`).
 - Agents' self-reports claimed wins their sheets didn't show. Judge every sheet by eye.
+
+## Play sessions, recorded (Pablo, 2026-09-29: "lets start saving and recording the play sessions")
+
+The session history screen comes after v0.1 (`PLAN.md`); recording starts now so there is data when it comes. No screen yet.
+
+### The source: Steam's own log
+
+Steam writes every game start and stop to `<Steam>\logs\gameprocess_log.txt`, whether or not Quarter is open. Read on Pablo's PC (read-only, 2026-09-29):
+
+- It goes back to 2026-03-21 and survived 21 Steam client updates: 294 sessions across 11 games, about 540 KB, CRLF lines like `[2026-03-21 23:02:25] AppID 252950 adding PID 23208 as a tracked process "..."` and `[2026-03-21 23:15:32] Remove 252950 from running list`.
+- Times are local, with no offset. Each game's last `Remove` lands 0 to 2 s before `LastPlayed` in `localconfig.vdf` (all 11 games checked).
+- For games whose whole history is inside the log, its minutes match Steam's totals (16/16, 8/8, 6/5; one 6-second session shows 6 minutes on Steam).
+- Other projects read the same file for sessions ([SteamPlaytimeTracker](https://github.com/12Acorns/SteamPlaytimeTracker)).
+- Unverified: when Steam rotates it (other logs there roll to `.previous.txt` at 512 KB to 8 MB; this one hasn't at 540 KB), and whether Steam writes it on Linux and the Steam Deck.
+
+### How a session is read
+
+- A session opens at a game's first `adding PID` line and closes at its `Remove <appid> from running list` line. Sessions are per game, not per process: a game can run up to 7 processes (launchers, overlays), and two games can overlap.
+- A `Client version` line is Steam starting: any session still open there had no clean stop (Steam crashed or the PC shut down; 3 on Pablo's PC). It is kept with its end unknown and counts no time, never the hours until Steam started again.
+- A `Remove` with no start is ignored (2 on Pablo's PC). A session still open at the end of the log is a game running now: it is recorded on a later read, once it has stopped.
+- `gameprocess_log.previous.txt` is read first when it exists, in case the log has rotated.
+
+### How it is kept
+
+- `sessions.json` in Quarter's data folder (with `library.json`), so history survives if Steam clears or rotates its log. Written like the other files: a temporary file, then a rename.
+- Each session: the game, its start, its end (UTC), and whether the end is known. A session is known by game and start, so reading the log again adds nothing twice.
+- Read after every library scan (at start, `r`, and the checks after a game stops), off the UI thread. Failing to read the log or save the file is logged, never shown.
+- Sessions under 60 s are kept in the file; stats can leave them out later.
+
+### Tests
+
+- The reader on made-up logs: clean sessions, several processes, overlapping games, a crash before a restart, a stray `Remove`, a game still running, CRLF, a rotated `.previous` file.
+- Merging: nothing added twice, new sessions added, order by start.
+- By hand, read-only: Pablo's real log gives 294 sessions.
+
+## Phase B: Error states (approved 2026-09-29, "go")
+
+Every case below was researched (sources at the end) and is tested on fake Steam folders in `testdata/`, never Pablo's real Steam.
+
+### B1. Steam not found
+
+- **More places:** Windows adds `HKLM\SOFTWARE\WOW6432Node\Valve\Steam` `InstallPath` after `HKCU` `SteamPath` (both exist on Pablo's PC). Linux adds Flatpak (`~/.var/app/com.valvesoftware.Steam/.local/share/Steam`), Snap (`~/snap/steam/common/.local/share/Steam`, `~/.snap/data/steam/common/.local/share/Steam`) and `~/.steam/root`, as protontricks does.
+- **The screen:** "Steam not found", every place Quarter looked, and what to do: install Steam, or start with `--steam-path` or `QUARTER_STEAM_PATH`. `r` looks again (Steam installed while Quarter is open).
+- A `--steam-path` (or `QUARTER_STEAM_PATH`) that isn't Steam says so: that folder has no `steamapps` folder.
+
+### B2. No games, no libraries
+
+- **Empty lists** say why, instead of bubbles' `No items.`: nothing installed ("No games installed yet. Install one in Steam, then press r."), Favourites ("No favourites yet. Press f on a game to star it."), Recent ("Nothing played in the last 14 days."), a search ("No games match.").
+- **A library on a drive that isn't connected:** `libraryfolders.vdf` keeps listing it with its apps, so the footer says "Library D:\SteamLibrary not connected, 5 games hidden". They come back with `r` once the drive is back.
+- **Steam never signed in** (no `loginusers.vdf`, or no account in it): not a damaged file; the footer says "Sign in to Steam once to see playtime."
+- Games in the middle of an update stay hidden, as today (open question to Pablo).
+
+### B3. Offline
+
+Network failures fall into four kinds; only the last is remembered:
+
+| Kind | Seen as | What Quarter does |
+|---|---|---|
+| No network | name lookup, connection or timeout failure | Store and logo downloads pause; "offline" shows dimly beside the game count. One request is tried after about 15 s, then 30 s, 60 s and so on, at most 5 min apart, with random spread ([AWS](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/)). Any answer from the server means the network is back: the marker goes and downloads resume, the selected game first. |
+| Rate limited | HTTP 429 or 403 from the store | Store requests pause (logos come from another server and go on), for Retry-After if the store sends it, otherwise from 60 s, doubling, at most 10 min. The pane says "store busy, retrying". |
+| Server error | other HTTP failures (5xx) | Paused and tried again like no network, without the offline marker. Never remembered as a failure. |
+| Not there | store `success:false`, CDN 404 | Remembered, as today. |
+
+- No failure blocks a game for the whole run any more (today one failed request did, for its store info and its logo).
+- Calm wording, dim, no red, no pop-up, no raw error on screen; raw errors go to `quarter.log`.
+
+### B4. Damaged files
+
+- **`libraryfolders.vdf` unreadable:** Steam keeps a second copy in `config\`; it is tried before falling back to the install folder only.
+- **An empty or unreadable Steam file:** read once more after 100 ms, since Steam may be writing it. An empty file counts as unreadable. If it still fails, only that file is skipped.
+- **The footer names it** when one file failed ("Steam's file for app 620 (appmanifest_620.acf) can't be read, so that game is hidden"; the playtime and library files the same way), and counts them when several did. Details in `quarter.log`.
+- **Quarter's own files on Windows:** saving retries the rename for about a second when antivirus or the file indexer holds the file ([golang/go#29106](https://github.com/golang/go/issues/29106)). Already handled: damaged caches are ignored, a damaged `config.json` is moved aside.
+
+### How messages look (Pablo, 2026-09-29, after seeing them in the error lab)
+
+- **Light red (`#FF7B72`) for what is wrong**, so it stands out from the amber: the "Steam not found" screen's title and the reason, `offline` beside the game count, "store info unavailable, retrying" and "store busy, retrying" in the pane, a library not connected, damaged Steam files, a failed rescan, "Could not open Steam". Guidance stays dim (empty lists, "Sign in to Steam once to see playtime"); action messages stay amber.
+- **Under the details pane**, not under the key help: when the pane is beside the list, it gives up as many rows as the message needs (wrapped to the pane's width, at most 3 lines) and the message sits under its border. Without the pane beside the list (narrow windows), it stays the line under the key help.
+- Seen first in the error lab (`Documents\Quarter\Error lab`, run `quarter-errors`): ten error screens on fake Steam folders.
+
+### Tests
+
+- Steam not found: every candidate missing, a bad override, `r` finding Steam afterwards.
+- Empty lists: each message, in each filter and a search.
+- Missing drive: a fixture library entry pointing at a folder that doesn't exist, with its app count.
+- Never signed in: no `loginusers.vdf`.
+- Offline: each kind from a local test server (`httptest`) and an address that can't be reached; pause, marker, probe and recovery through the model's `Update`.
+- Damaged: an empty manifest, a broken `libraryfolders.vdf` with a good `config\` copy, a file fixed between the two reads.
+- The screens once more through the real program loop in a lab copy before installing.
+
+### Sources
+
+- [protontricks steam.py](https://raw.githubusercontent.com/Matoking/protontricks/master/src/protontricks/steam.py) (Linux install places)
+- [AWS: Exponential Backoff And Jitter](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/)
+- [Go net package](https://pkg.go.dev/net) (DNS and connection errors, timeouts)
+- [Steam forum: 429 Too Many Requests](https://steamcommunity.com/discussions/forum/1/3492005739881311668/), [apis.io: Steam rate limits](https://apis.io/rate-limits/steam/steam-rate-limits/) (community sources: about 200 requests per 5 min, 429 when over, Retry-After not always sent)
+- [clig.dev](https://clig.dev/), [NN/g: error message guidelines](https://www.nngroup.com/articles/error-message-guidelines/) (say what happened and what to do, no blame, keep the user's data on screen)
+- [golang/go#29106](https://github.com/golang/go/issues/29106) (rename failures on Windows)
+- [steam-for-linux#9672](https://github.com/ValveSoftware/steam-for-linux/issues/9672) (no running game on Linux)

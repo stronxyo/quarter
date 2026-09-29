@@ -1,9 +1,30 @@
 package library
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
+
+// Steam that no one has signed in to yet: no playtime, and no warning,
+// since nothing is damaged.
+func TestScanNeverSignedIn(t *testing.T) {
+	steam := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(steam, "steamapps"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(steam, "steamapps", "libraryfolders.vdf"), []byte(`"libraryfolders" { }`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res, err := Scan(steam)
+	if err != nil {
+		t.Fatalf("Scan: %v", err)
+	}
+	if !res.NoAccount || res.PlaytimeKnown || len(res.Warnings) != 0 || len(res.Games) != 0 {
+		t.Errorf("got NoAccount %v, PlaytimeKnown %v, warnings %v, games %d", res.NoAccount, res.PlaytimeKnown, res.Warnings, len(res.Games))
+	}
+}
 
 func TestScanFixture(t *testing.T) {
 	res, err := Scan("../../testdata/steam")

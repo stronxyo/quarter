@@ -29,6 +29,20 @@ func Load[T any](dir, name string, version int) (data T, ok bool) {
 	return env.Data, true
 }
 
+// SetAside renames dir/name to name.corrupt, if it exists, so a file Load
+// couldn't read is kept for the user instead of being overwritten. moved
+// reports whether there was a file.
+func SetAside(dir, name string) (moved bool, err error) {
+	path := filepath.Join(dir, name)
+	if _, err := os.Stat(path); err != nil {
+		return false, nil
+	}
+	if err := os.Rename(path, path+".corrupt"); err != nil {
+		return true, fmt.Errorf("store %s: %w", name, err)
+	}
+	return true, nil
+}
+
 // Save writes data to dir/name as JSON, through WriteFile.
 func Save[T any](dir, name string, version int, data T) error {
 	b, err := json.Marshal(envelope[T]{Version: version, Data: data})
@@ -54,7 +68,7 @@ func WriteFile(dir, name string, b []byte) error {
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("store %s: %w", name, err)
 	}
-	if err := os.Rename(tmp.Name(), filepath.Join(dir, name)); err != nil {
+	if err := rename(tmp.Name(), filepath.Join(dir, name)); err != nil {
 		return fmt.Errorf("store %s: %w", name, err)
 	}
 	return nil

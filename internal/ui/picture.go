@@ -113,7 +113,7 @@ func (m Model) pictureSig() sixelSig {
 	}
 	x, cols, rows, _ := m.logoBand()
 	logo, state := m.logoFor(logoKey{g.AppID, cols, rows})
-	ready := state == logoReady && logo.picture != "" || state == logoName && m.logoNone[g.AppID]
+	ready := state == logoReady && logo.picture != "" || state == logoName && (m.logoNone[g.AppID] || m.logoPause.active(m.now()))
 	return sixelSig{g.AppID, x, cols, rows, m.width, m.height, ready}
 }
 

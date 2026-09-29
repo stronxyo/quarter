@@ -3,6 +3,8 @@ package ui
 import (
 	"context"
 	"errors"
+	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -46,7 +48,7 @@ func drive(m tea.Model, cmd tea.Cmd) tea.Model {
 		switch msg := c().(type) {
 		case tea.BatchMsg:
 			queue = append(queue, msg...)
-		case storeWantMsg, storeDoneMsg:
+		case storeWantMsg, storeDoneMsg, resumeMsg:
 			var next tea.Cmd
 			m, next = m.Update(msg)
 			queue = append(queue, next)
@@ -72,10 +74,23 @@ func withStore(t *testing.T, src *fakeStoreSource, cache map[uint32]webapi.Store
 		},
 	})
 	m.debounce = 0
+	// A still clock, and waits of a millisecond: a pause after a failure
+	// lasts until the test moves the clock on.
+	clock := time.Now()
+	m.now = func() time.Time { return clock }
+	m.jitter = func(time.Duration) time.Duration { return time.Millisecond }
 	var tm tea.Model = m
 	tm, _ = tm.Update(tea.WindowSizeMsg{Width: 150, Height: 30})
 	tm, cmd := tm.Update(scanDoneMsg{res: threeGames})
 	return drive(tm, cmd)
+}
+
+// later moves the model's clock on by d.
+func later(m tea.Model, d time.Duration) tea.Model {
+	mm := m.(Model)
+	at := mm.now().Add(d)
+	mm.now = func() time.Time { return at }
+	return mm
 }
 
 func TestStoreDetailsFetchedAndShown(t *testing.T) {
@@ -122,7 +137,7 @@ func TestFreshCacheIsNotFetchedAgain(t *testing.T) {
 func TestStoreFailures(t *testing.T) {
 	src := &fakeStoreSource{
 		info: map[uint32]webapi.StoreInfo{3: {Type: "game"}},
-		errs: map[uint32]error{1: webapi.ErrNotOnStore, 2: errors.New("no network")},
+		errs: map[uint32]error{1: webapi.ErrNotOnStore, 2: webapi.Unreachable("store 2", errors.New("dial tcp: no route"))},
 	}
 	var saved []map[uint32]webapi.StoreEntry
 	m := withStore(t, src, nil, &saved)
@@ -139,13 +154,87 @@ func TestStoreFailures(t *testing.T) {
 	}
 
 	m, _ = m.Update(press("j")) // Bravo, whose request failed on the network
-	if view := ansi.Strip(m.(Model).View().Content); !strings.Contains(view, "store info unavailable") {
+	view := ansi.Strip(m.(Model).View().Content)
+	if !strings.Contains(view, "store info unavailable, retrying") {
 		t.Errorf("app 2 failed on the network:\n%s", view)
 	}
-	// After the network failure on app 2 the background fill stops, so app 3
-	// isn't asked this run.
+	if !strings.Contains(view, "3 games · offline") {
+		t.Errorf("offline should show beside the game count:\n%s", view)
+	}
+	// The store pauses after the failure, so app 3 isn't asked yet.
 	if n := len(src.asked); n != 2 {
-		t.Errorf("want 2 requests (the fill stops after a network failure), got %d: %v", n, src.asked)
+		t.Errorf("want 2 requests (paused after a network failure), got %d: %v", n, src.asked)
+	}
+
+	// The network is back when the pause ends: the selected game is asked
+	// first, then the rest, and offline goes.
+	delete(src.errs, 2)
+	src.info[2] = webapi.StoreInfo{Type: "game", Developers: []string{"Bravo Dev"}}
+	m = later(m, time.Hour)
+	m = drive(m, func() tea.Msg { return resumeMsg{} })
+	if got := src.asked[2:]; len(got) != 2 || got[0] != 2 || got[1] != 3 {
+		t.Errorf("after resuming: asked %v, want [2 3]", got)
+	}
+	view = ansi.Strip(m.(Model).View().Content)
+	if strings.Contains(view, "offline") || !strings.Contains(view, "Bravo Dev") {
+		t.Errorf("recovered: want Bravo's details and no offline marker:\n%s", view)
+	}
+}
+
+func TestStoreRateLimited(t *testing.T) {
+	src := &fakeStoreSource{}
+	var saved []map[uint32]webapi.StoreEntry
+	m := withStore(t, src, map[uint32]webapi.StoreEntry{}, &saved).(Model)
+	m.storeInfo = map[uint32]webapi.StoreEntry{} // nothing known yet
+	m.fetching = 1
+
+	// The store asks for two minutes: it is paused for exactly that, and
+	// the pane says it's busy, not offline.
+	limited := &webapi.RateLimitError{Status: 429, RetryAfter: 2 * time.Minute}
+	tm, _ := m.Update(storeDoneMsg{appID: 1, err: fmt.Errorf("store 1: %w", limited), at: m.now()})
+	m = tm.(Model)
+	if got := m.storePause.until.Sub(m.now()); got != 2*time.Minute {
+		t.Errorf("paused for %v, want the 2m the store asked", got)
+	}
+	view := ansi.Strip(m.View().Content)
+	if !strings.Contains(view, "store busy, retrying") || strings.Contains(view, "offline") {
+		t.Errorf("want the busy message and no offline marker:\n%s", view)
+	}
+
+	// Without Retry-After: 60 s, then doubling, at most 10 minutes.
+	m.jitter = func(d time.Duration) time.Duration { return d }
+	m.storePause = pause{}
+	var waits []time.Duration
+	for range 6 {
+		m.fetching = 1
+		tm, _ = m.Update(storeDoneMsg{appID: 1, err: &webapi.RateLimitError{Status: 429}, at: m.now()})
+		m = tm.(Model)
+		waits = append(waits, m.storePause.until.Sub(m.now()))
+	}
+	want := []time.Duration{time.Minute, 2 * time.Minute, 4 * time.Minute, 8 * time.Minute, 10 * time.Minute, 10 * time.Minute}
+	if !slices.Equal(waits, want) {
+		t.Errorf("waits: got %v, want %v", waits, want)
+	}
+}
+
+// A game the server fails on doesn't hold up the rest of the fill.
+func TestStoreServerErrorSkipsGame(t *testing.T) {
+	src := &fakeStoreSource{
+		info: map[uint32]webapi.StoreInfo{1: {Type: "game"}, 3: {Type: "game"}},
+		errs: map[uint32]error{2: fmt.Errorf("store 2: HTTP 500: %w", webapi.ErrServer)},
+	}
+	var saved []map[uint32]webapi.StoreEntry
+	m := withStore(t, src, nil, &saved)
+	m = later(m, time.Hour)
+	m = drive(m, func() tea.Msg { return resumeMsg{} })
+	if got := src.asked; len(got) != 3 || got[2] != 3 {
+		t.Errorf("asked %v, want 1, 2, then 3 after the pause", got)
+	}
+	if view := ansi.Strip(m.(Model).View().Content); strings.Contains(view, "offline") {
+		t.Errorf("a server error isn't offline:\n%s", view)
+	}
+	if _, ok := saved[len(saved)-1][2]; ok {
+		t.Error("a server error must not be cached")
 	}
 }
 

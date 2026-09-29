@@ -9,7 +9,10 @@ import (
 )
 
 func TestInstalledGamesFixture(t *testing.T) {
-	games, warnings := InstalledGames(fixture)
+	games, missing, warnings := InstalledGames(fixture)
+	if len(missing) != 0 {
+		t.Errorf("fixture libraries are all connected, got missing %v", missing)
+	}
 
 	// The fixture's broken appmanifest_999.acf must be reported, not fatal.
 	if len(warnings) != 1 || !strings.Contains(warnings[0].Error(), "appmanifest_999.acf") {

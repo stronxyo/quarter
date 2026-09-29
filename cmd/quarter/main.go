@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -67,16 +68,18 @@ func runUI(steamPath string) error {
 	}
 	settings := config.LoadSettings(dir)
 	final, err := tea.NewProgram(ui.New(ui.Options{
-		SteamPath:  steamPath,
-		Cached:     loadCachedLibrary(dir, steamPath),
-		Save:       save,
-		Open:       steam.OpenURI,
-		RunningApp: steam.RunningApp,
+		SteamPath: steamPath,
+		Cached:    loadCachedLibrary(dir, steamPath),
+		Save:      save,
+		Open:      steam.OpenURI,
+
+		RecordSessions: sessionRecorder(dir),
+		RunningApp:     steam.RunningApp,
 
 		Settings:     settings,
 		SaveSettings: func(s config.Settings) error { return config.SaveSettings(dir, s) },
-		// The start screen on every start, led by a random intro (Pablo,
-		// Batch 8); config.json's "intro" turns the intros off.
+		// The start screen on every start, led by a random intro (Pablo's
+		// choice); config.json's "intro" turns the intros off.
 		Splash: true,
 
 		FetchStore: webapi.NewStoreClient(config.StoreURL, config.StoreTimeout, config.StoreGap).AppDetails,
@@ -114,6 +117,32 @@ func sayGoodbye(final tea.Model, save func(config.Settings) error) {
 		}
 	}
 	fmt.Print(text)
+}
+
+// sessionRecorder adds the game sessions in Steam's log to sessions.json in
+// dir. One record runs at a time, so two scans never race on the file.
+func sessionRecorder(dir string) func(steamPath string) error {
+	var mu sync.Mutex
+	return func(steamPath string) error {
+		found, err := steam.ReadSessions(steamPath, time.Local)
+		if err != nil {
+			return err
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		saved, ok := store.Load[[]steam.Session](dir, config.SessionsFile, config.SessionsVersion)
+		if !ok {
+			// Unreadable history is kept aside, never overwritten.
+			if _, err := store.SetAside(dir, config.SessionsFile); err != nil {
+				return err
+			}
+		}
+		all, added := library.MergeSessions(saved, found)
+		if added == 0 {
+			return nil
+		}
+		return store.Save(dir, config.SessionsFile, config.SessionsVersion, all)
+	}
 }
 
 // loadStoreCache returns the store details saved by earlier runs; a missing or

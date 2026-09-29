@@ -2,8 +2,6 @@ package config
 
 import (
 	"log/slog"
-	"os"
-	"path/filepath"
 
 	"github.com/stronxyo/quarter/internal/store"
 )
@@ -38,13 +36,11 @@ func LoadSettings(dir string) Settings {
 	if ok {
 		return s
 	}
-	path := filepath.Join(dir, settingsFile)
-	if _, err := os.Stat(path); err == nil {
-		if err := os.Rename(path, path+".corrupt"); err != nil {
-			slog.Warn("settings unreadable and could not be moved aside", "err", err)
-		} else {
-			slog.Warn("settings unreadable, moved to " + settingsFile + ".corrupt")
-		}
+	switch moved, err := store.SetAside(dir, settingsFile); {
+	case err != nil:
+		slog.Warn("settings unreadable and could not be moved aside", "err", err)
+	case moved:
+		slog.Warn("settings unreadable, moved to " + settingsFile + ".corrupt")
 	}
 	return Settings{}
 }

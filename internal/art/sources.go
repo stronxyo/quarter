@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/stronxyo/quarter/internal/store"
+	"github.com/stronxyo/quarter/internal/webapi"
 )
 
 // ErrNoLogo means Steam's CDN has no usable logo for the game: none at all,
@@ -105,8 +106,8 @@ func (s *Sources) Missing(appID uint32) bool {
 
 // Download fetches the game's logo from Steam's CDN, keeps it in Quarter's
 // logo folder and returns its path. It returns ErrNoLogo (and remembers it)
-// when the CDN has none; network errors are returned as they are and not
-// remembered, so the next try goes to the network again.
+// when the CDN has none. Network failures (classified as in webapi) are
+// not remembered, so the next try goes to the network again.
 func (s *Sources) Download(ctx context.Context, appID uint32) (string, error) {
 	if s.cdn == "" {
 		return "", ErrNoLogo
@@ -115,9 +116,10 @@ func (s *Sources) Download(ctx context.Context, appID uint32) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	what := fmt.Sprintf("logo %d", appID)
 	resp, err := s.http.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("logo %d: %w", appID, err)
+		return "", webapi.Unreachable(what, err)
 	}
 	defer resp.Body.Close()
 
@@ -125,11 +127,11 @@ func (s *Sources) Download(ctx context.Context, appID uint32) (string, error) {
 	case resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusForbidden:
 		return "", s.noLogo(appID)
 	case resp.StatusCode != http.StatusOK:
-		return "", fmt.Errorf("logo %d: HTTP %d", appID, resp.StatusCode)
+		return "", webapi.Refused(what, resp, s.now(), http.StatusTooManyRequests)
 	}
 	b, err := io.ReadAll(io.LimitReader(resp.Body, s.maxBytes+1))
 	if err != nil {
-		return "", fmt.Errorf("logo %d: %w", appID, err)
+		return "", webapi.Unreachable(what, err) // the connection dropped mid-download
 	}
 	if int64(len(b)) > s.maxBytes || !bytes.HasPrefix(b, pngSignature) {
 		return "", s.noLogo(appID)
