@@ -351,6 +351,7 @@ Do not propose building these until the trigger fires.
 | Import Steam favourites | Users ask for it. |
 | Store screenshots in the detail pane | Pablo asks (rejected with images in Batch 4; logos have since become pictures). |
 | Profile-guided optimization (PGO) | `pprof` shows a CPU hot spot the code can't fix directly. |
+| Session history (played-time periods, calendar, year recap) | After v0.1, its own batch, per `PLAN.md` "After v0.1: session history" (Pablo's idea, 2026-09-29). |
 | Other launchers (Epic, GOG, Ubisoft Connect, Battle.net, Xbox, EA app and more) | After v0.1, one launcher per batch, per `PLAN.md` "After v0.1". |
 | Running game on Linux/macOS | Linux builds ship (Batch 8). Steam starts games through a `SteamLaunch AppId=<id>` process that could be read from the process list, since `RunningAppID` is no longer written there. |
 | CI pipeline (GitHub Actions) + the `golang-continuous-integration` skill | Batch 8 (release). Skill removed 2026-09-24: not needed before then, and it was flagged Medium risk. Re-check its security rating before reinstalling. |
