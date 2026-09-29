@@ -67,6 +67,7 @@ type Model struct {
 
 	runningApp func() (uint32, bool) // asks Steam which game is running; may be nil
 	running    uint32                // the game Steam is running, 0 for none
+	afterPlay  afterPlay             // a game that stopped, waiting for Steam to save its playtime
 
 	newLogos     func(steamPath string) LogoSource // may be nil: no game logos
 	logos        LogoSource                        // set once the Steam folder is known
@@ -93,6 +94,11 @@ type Model struct {
 	introRun     *intro.Run // it playing, once the window's size is known
 	introStart   time.Time  // when it started
 	introDone    bool       // it has ended, or a key skipped it
+
+	goodbyeSetting string        // config.json's "goodbye": "" random, "off", or a goodbye's name
+	lastGoodbye    string        // the goodbye shown last, never shown twice in a row (saved)
+	played         time.Duration // time in games this session, finished runs
+	playingSince   time.Time     // when the game running now started, zero for none
 
 	favs         map[uint32]bool             // starred games, by appid
 	saveSettings func(config.Settings) error // remembers favourites, sort and filter; may be nil
@@ -268,11 +274,19 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 		return m.wantLogo(msg)
 
 	case runningMsg:
+		var reread tea.Cmd
 		if msg.appID != m.running {
+			m.countPlayed(msg.appID)
+			if m.running != 0 {
+				reread = m.gameStopped(m.running)
+			}
 			m.running = msg.appID
 			m.list.SetDelegate(m.delegate())
 		}
-		return m, checkRunning(m.runningApp, runningPoll)
+		return m, tea.Batch(checkRunning(m.runningApp, runningPoll), reread)
+
+	case afterPlayMsg:
+		return m.afterPlayTick(msg)
 
 	case introTickMsg:
 		return m.stepIntro()
@@ -354,6 +368,12 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 func (m Model) applyScan(msg scanDoneMsg) (Model, tea.Cmd) {
+	m, cmd := m.applyScanResult(msg)
+	next := m.afterPlayScanned()
+	return m, tea.Batch(cmd, next)
+}
+
+func (m Model) applyScanResult(msg scanDoneMsg) (Model, tea.Cmd) {
 	m.scanning = false
 	if msg.err != nil {
 		slog.Warn("scan", "err", msg.err)

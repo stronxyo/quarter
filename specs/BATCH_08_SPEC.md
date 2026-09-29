@@ -205,7 +205,26 @@ PLAN.md's Phase A, with Pablo's decisions of 2026-09-28.
 - **For now it shows on every start** (Pablo, 2026-09-28, to review and fix it). `splash_seen` is still saved; switching back to once is one line in `main.go`. Options left open: once ever, once a day, every start.
 - The boot lines show the real scan as it happens, so the splash never adds waiting of its own.
 
-### End: GAME OVER (style open)
+### End: the goodbye (built 2026-09-28)
+
+Pablo's pick after a brainstorm (he liked none of "game over", "terminal over", "game finished"): 11 lines, one at random each quit, never last quit's (`last_goodbye` in config.json): keep the change, quarter returned, out of quarters already?, thanks for the quarter, shutting down..., session saved, it's now safe to close your terminal, thanks for playing, high score saved, powering down..., see you next round. No fixed pairs.
+
+- Printed into the shell once Quarter has closed, instantly: the line in the logo's lowercase letters at the size of "insert quarter" (16 new letters and ? . ' drawn the logo's way), at the left edge like the prompt under it; plain text when too wide.
+- 2026-09-29: a centred goodbye inside Quarter before it closes was discussed and dropped; Pablo liked the line staying in the shell. Moved from centred to the left (his pick A); a smaller 3-row cut of the letters (B) was tried in the lab and not taken.
+- Under it, only when a game ran while Quarter was open: `played this session: 2h 10m` (Steam's running game, polled every 2 s; a game still running at quit counts).
+- `"goodbye": "off"` or a goodbye's key (`"keep-the-change"`) in config.json.
+- Code: `internal/intro/goodbye.go`, `internal/ui/goodbye.go`, `sayGoodbye` in `cmd/quarter/main.go`. Checked on the real program loop in a lab copy: quitting from the list returns the final state, the goodbye prints and is saved.
+
+### Playtime after a game stops (built 2026-09-29)
+
+Pablo: when a running game stops, its played time on Steam changes, so Quarter must check it every time.
+
+- Checked on his machine first: Rocket League closed at 02:48:29 and Steam wrote the new `Playtime` and `LastPlayed` to `localconfig.vdf` at 02:48:43, with Steam still running. So the numbers land about 15 s after the game stops, not only when Steam closes.
+- When the running game (polled every 2 s) stops or changes, Quarter re-reads the library 10, 20, 40, 70 and 130 s later, stopping as soon as that game's numbers move. After the last check it gives up; r still rescans.
+- A rescan already running (r) is waited for, not doubled, and doesn't count as a check. A second game stopping takes over the wait: any re-read picks up both.
+- Code: `internal/ui/afterplay.go`. Checked on the real program loop in a lab copy with the real Steam folder: the stop is seen and every check runs and ends.
+
+### End: GAME OVER (superseded by the goodbye above)
 
 - Quitting stays instant: no delay or animation before the terminal is back. The goodbye is printed into the shell after Quarter closes.
 - Options to mock up for Pablo when he's ready, all in the PC-plus-arcade mix:
