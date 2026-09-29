@@ -39,16 +39,7 @@ func Length(i int) time.Duration {
 
 // Pick chooses an intro at random, never last (the previous start's), so
 // the same one never plays twice in a row. last may be -1.
-func Pick(last int, r *rand.Rand) int {
-	if len(intros) < 2 {
-		return 0
-	}
-	i := r.IntN(len(intros) - 1)
-	if last >= 0 && i >= last {
-		i++ // skip last: every other intro stays equally likely
-	}
-	return i
-}
+func Pick(last int, r *rand.Rand) int { return pick(len(intros), last, r) }
 
 // Run is one playing of an intro: which one, and the randomness it drew,
 // fixed for the run so its frames are consistent.

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"strings"
@@ -51,7 +52,10 @@ func runUI(steamPath string) error {
 	if err != nil {
 		// Without a data folder Quarter still runs, just without cache or log.
 		slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
-		_, err := tea.NewProgram(ui.New(ui.Options{SteamPath: steamPath, Open: steam.OpenURI})).Run()
+		final, err := tea.NewProgram(ui.New(ui.Options{SteamPath: steamPath, Open: steam.OpenURI})).Run()
+		if err == nil {
+			sayGoodbye(final, nil)
+		}
 		return err
 	}
 
@@ -62,7 +66,7 @@ func runUI(steamPath string) error {
 		return store.Save(dir, config.LibraryCache, config.LibraryCacheVersion, r)
 	}
 	settings := config.LoadSettings(dir)
-	_, err = tea.NewProgram(ui.New(ui.Options{
+	final, err := tea.NewProgram(ui.New(ui.Options{
 		SteamPath:  steamPath,
 		Cached:     loadCachedLibrary(dir, steamPath),
 		Save:       save,
@@ -86,7 +90,30 @@ func runUI(steamPath string) error {
 				config.LogoURL, config.StoreTimeout, config.LogoMaxBytes, config.LogoRetry)
 		},
 	})).Run()
-	return err
+	if err != nil {
+		return err
+	}
+	sayGoodbye(final, func(s config.Settings) error { return config.SaveSettings(dir, s) })
+	return nil
+}
+
+// sayGoodbye prints the goodbye as Quarter closes, once the terminal is
+// back, and saves which one it was so the next is another.
+func sayGoodbye(final tea.Model, save func(config.Settings) error) {
+	m, ok := final.(ui.Model)
+	if !ok {
+		return
+	}
+	text, s := m.Farewell(rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), 2)))
+	if text == "" {
+		return
+	}
+	if save != nil {
+		if err := save(s); err != nil {
+			slog.Warn("settings", "err", err)
+		}
+	}
+	fmt.Print(text)
 }
 
 // loadStoreCache returns the store details saved by earlier runs; a missing or

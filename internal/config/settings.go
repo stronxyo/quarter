@@ -20,6 +20,9 @@ type Settings struct {
 	SplashSeen bool     `json:"splash_seen"` // the start screen has been shown
 	Intro      string   `json:"intro"`       // "" a random intro each start, "off", or one intro's name
 	LastIntro  string   `json:"last_intro"`  // the intro played last, so the next start picks another
+
+	Goodbye     string `json:"goodbye"`      // "" a random goodbye on quitting, "off", or one goodbye's name
+	LastGoodbye string `json:"last_goodbye"` // the goodbye shown last, so the next quit picks another
 }
 
 const (

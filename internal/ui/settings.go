@@ -30,6 +30,7 @@ func (m *Model) applySettings(s config.Settings) {
 	}
 	m.splashSeen = s.SplashSeen
 	m.introSetting, m.lastIntro = s.Intro, s.LastIntro
+	m.goodbyeSetting, m.lastGoodbye = s.Goodbye, s.LastGoodbye
 }
 
 // settings snapshots what should be remembered for the next run.
@@ -50,6 +51,9 @@ func (m Model) settings() config.Settings {
 		SplashSeen: m.splashSeen,
 		Intro:      m.introSetting,
 		LastIntro:  m.lastIntro,
+
+		Goodbye:     m.goodbyeSetting,
+		LastGoodbye: m.lastGoodbye,
 	}
 }
 
