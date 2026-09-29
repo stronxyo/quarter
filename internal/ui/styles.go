@@ -11,6 +11,7 @@ var (
 	colorKeycap  = lipgloss.Color("#2E2A26") // the dark key behind each key letter
 	colorError   = lipgloss.Color("#FF7B72") // light red: something is wrong
 	colorRunning = lipgloss.Color("#A6E3A1")
+	colorUpdate  = lipgloss.Color("#89B4FA") // blue, the running green's neighbour in the same palette
 
 	// The logo gradient runs from colorLogoTop to colorLogoBottom.
 	colorLogoTop    = lipgloss.Color("#FFE08A")
@@ -29,10 +30,17 @@ var (
 	runningStyle         = rowStyle.Foreground(colorRunning)
 	selectedRunningStyle = selectedStyle.Foreground(colorRunning).BorderForeground(colorRunning)
 	runningLabelStyle    = lipgloss.NewStyle().Bold(true).Foreground(colorRunning)
+	updatingStyle        = rowStyle.Foreground(colorUpdate)
+	selectedUpdateStyle  = selectedStyle.Foreground(colorUpdate).BorderForeground(colorUpdate)
+	updatingLabelStyle   = lipgloss.NewStyle().Bold(true).Foreground(colorUpdate)
 	errorStyle           = lipgloss.NewStyle().Bold(true).Foreground(colorError)
 	alertStyle           = lipgloss.NewStyle().Foreground(colorError)
 	messageStyle         = lipgloss.NewStyle().Padding(1, 2)
 )
+
+// markerUpdating marks a game Steam is updating: U+2193, which Cascadia Mono
+// and JetBrains Mono both have (U+2B07, ⬇, is in neither).
+const markerUpdating = "↓"
 
 const (
 	markerInstalled            = "▸"

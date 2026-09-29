@@ -77,6 +77,8 @@ type Model struct {
 	running    uint32                // the game Steam is running, 0 for none
 	afterPlay  afterPlay             // a game that stopped, waiting for Steam to save its playtime
 
+	updateWatch bool // a read of the library is scheduled while Steam updates a game
+
 	newLogos     func(steamPath string) LogoSource // may be nil: no game logos
 	logos        LogoSource                        // set once the Steam folder is known
 	logosHidden  bool                              // o pressed: the pane shows names only
@@ -305,6 +307,9 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 	case afterPlayMsg:
 		return m.afterPlayTick(msg)
 
+	case updatePollMsg:
+		return m.updateTick()
+
 	case introTickMsg:
 		return m.stepIntro()
 
@@ -413,7 +418,7 @@ func (m Model) applyScanResult(msg scanDoneMsg) (Model, tea.Cmd) {
 	m.rebuild()
 	m.playtimeKnown = msg.res.PlaytimeKnown
 	m.list.SetDelegate(m.delegate())
-	cmd := tea.Batch(m.refreshList(), m.nextStoreFetch())
+	cmd := tea.Batch(m.refreshList(), m.nextStoreFetch(), m.watchUpdates())
 	if m.save != nil {
 		cmd = tea.Batch(cmd, saveScan(m.save, msg.res))
 	}

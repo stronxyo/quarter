@@ -83,8 +83,11 @@ func (m Model) detailView(width, height int) string {
 		// the quarter_ box.
 		b.WriteString(paneTitleStyle.Width(inner).Render(strings.ToUpper(g.Label())) + "\n")
 
-		if g.AppID == m.running {
+		switch {
+		case g.AppID == m.running:
 			b.WriteString(runningLabelStyle.Render(markerRunning+" RUNNING NOW") + "\n")
+		case g.Updating:
+			b.WriteString(updatingLabelStyle.Render(markerUpdating+" UPDATING IN STEAM") + "\n")
 		}
 
 		info, state := m.storeStatus(g.AppID)

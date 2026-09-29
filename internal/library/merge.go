@@ -15,7 +15,8 @@ func FromSteam(installed []steam.Manifest, stats map[uint32]steam.PlayStats, ach
 		games = append(games, Game{
 			AppID:       m.AppID,
 			Name:        m.Name,
-			Installed:   m.Installed(),
+			Installed:   true, // on disk in a library, or being put there
+			Updating:    m.Updating(),
 			LibraryPath: m.LibraryPath,
 			SizeOnDisk:  m.SizeOnDisk,
 			Playtime:    s.Playtime,

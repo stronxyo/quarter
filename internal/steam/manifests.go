@@ -31,10 +31,24 @@ func (m Manifest) Installed() bool {
 	return m.StateFlags&stateFullyInstalled != 0
 }
 
-// InstalledGames scans every library for fully installed games, dropping
-// Steam tools. Libraries that aren't connected (an unplugged drive) are
-// returned in missing; files that can't be read are skipped and returned as
-// warnings.
+// stateUpdating are the StateFlags bits Steam sets while it brings a game up
+// to date: update required (2), running (256), paused (512), started (1024),
+// validating (131072), adding files (262144), preallocating (524288),
+// downloading (1048576), staging (2097152) and committing (4194304).
+// Source: github.com/lutris/lutris/blob/master/docs/steam.rst (2026-09-29).
+const stateUpdating = 2 | 256 | 512 | 1024 | 131072 | 262144 | 524288 | 1048576 | 2097152 | 4194304
+
+// Updating reports whether Steam is downloading the game (an update, or a
+// first install) so it can't be played yet. A playable game with an update
+// waiting (StateFlags 6) is Installed, not Updating.
+func (m Manifest) Updating() bool {
+	return !m.Installed() && m.StateFlags&stateUpdating != 0
+}
+
+// InstalledGames scans every library for installed games, and games Steam
+// is updating, dropping Steam tools. Libraries that aren't connected (an
+// unplugged drive) are returned in missing; files that can't be read are
+// skipped and returned as warnings.
 func InstalledGames(steamPath string) (games []Manifest, missing []LibraryFolder, warnings []error) {
 	libs, err := LibraryFolders(steamPath)
 	if err != nil {
@@ -48,7 +62,7 @@ func InstalledGames(steamPath string) (games []Manifest, missing []LibraryFolder
 		manifests, errs := Manifests(lib.Path)
 		warnings = append(warnings, errs...)
 		for _, m := range manifests {
-			if m.Installed() && IsGame(m.AppID) {
+			if (m.Installed() || m.Updating()) && IsGame(m.AppID) {
 				games = append(games, m)
 			}
 		}

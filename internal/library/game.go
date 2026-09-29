@@ -14,6 +14,7 @@ type Game struct {
 	AppID       uint32
 	Name        string
 	Installed   bool
+	Updating    bool // Steam is downloading it (an update or a first install): it can't be played yet
 	LibraryPath string
 	SizeOnDisk  int64
 	Playtime    time.Duration

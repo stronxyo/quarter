@@ -32,14 +32,13 @@ func (m Model) action(msg tea.KeyPressMsg) (_ Model, _ tea.Cmd, handled bool) {
 	var uri, status string
 	switch {
 	case key.Matches(msg, keys.Play) && it.AppID == m.running:
-		m.statusID++
-		m.status = it.Name + " is already running"
-		m.statusWrong = false
-		return m, clearStatusAfter(m.statusID), true
+		return m, m.note(it.Name + " is already running"), true
+	case key.Matches(msg, keys.Play) && it.Updating:
+		return m, m.note(it.Name + " is updating in Steam"), true
 	case key.Matches(msg, keys.Play) && it.Installed:
 		uri, status = steam.PlayURI(it.AppID), "▶ Launching "+it.Name
 	case key.Matches(msg, keys.Play), key.Matches(msg, keys.Install):
-		uri, status = steam.InstallURI(it.AppID), "⬇ Opening install for "+it.Name
+		uri, status = steam.InstallURI(it.AppID), markerUpdating+" Opening install for "+it.Name
 	case key.Matches(msg, keys.Store):
 		uri, status = steam.StoreURI(it.AppID), "Opening the store page for "+it.Name
 	default:
@@ -49,6 +48,13 @@ func (m Model) action(msg tea.KeyPressMsg) (_ Model, _ tea.Cmd, handled bool) {
 	m.status = status
 	m.statusWrong = false
 	return m, openURI(m.open, uri, m.statusID), true
+}
+
+// note shows a short message that needs no action, and clears it later.
+func (m *Model) note(text string) tea.Cmd {
+	m.statusID++
+	m.status, m.statusWrong = text, false
+	return clearStatusAfter(m.statusID)
 }
 
 // openURI hands a link to the OS off the UI goroutine.
