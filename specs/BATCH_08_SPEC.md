@@ -209,7 +209,7 @@ PLAN.md's Phase A, with Pablo's decisions of 2026-09-28.
 
 Pablo's pick after a brainstorm (he liked none of "game over", "terminal over", "game finished"): 11 lines, one at random each quit, never last quit's (`last_goodbye` in config.json): keep the change, quarter returned, out of quarters already?, thanks for the quarter, shutting down..., session saved, it's now safe to close your terminal, thanks for playing, high score saved, powering down..., see you next round. No fixed pairs.
 
-- Printed into the shell once Quarter has closed, instantly: the line in the logo's lowercase letters at the size of "insert quarter" (16 new letters and ? . ' drawn the logo's way), at the left edge like the prompt under it; plain text when too wide.
+- Printed into the shell once Quarter has closed, instantly: the line in the logo's lowercase letters at the size of "insert quarter" (16 new letters and ? . ' drawn the logo's way), one column in from the left edge (Pablo, after seeing it flush left); plain text when too wide.
 - 2026-09-29: a centred goodbye inside Quarter before it closes was discussed and dropped; Pablo liked the line staying in the shell. Moved from centred to the left (his pick A); a smaller 3-row cut of the letters (B) was tried in the lab and not taken.
 - Under it, only when a game ran while Quarter was open: `played this session: 2h 10m` (Steam's running game, polled every 2 s; a game still running at quit counts).
 - `"goodbye": "off"` or a goodbye's key (`"keep-the-change"`) in config.json.
