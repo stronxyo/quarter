@@ -33,7 +33,7 @@ func TestUpdatingGameMarked(t *testing.T) {
 	}
 
 	tm, _ = tm.Update(press("j")) // select Bravo
-	if !strings.Contains(runningView(tm), "↓ UPDATING IN STEAM") {
+	if v := runningView(tm); !strings.Contains(v, "↓ UPDATING") || strings.Contains(v, "IN STEAM") {
 		t.Errorf("the pane should say Bravo is updating:\n%s", runningView(tm))
 	}
 }
