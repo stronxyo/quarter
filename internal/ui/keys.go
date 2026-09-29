@@ -13,6 +13,7 @@ import (
 type appKeys struct {
 	Play       key.Binding
 	Install    key.Binding
+	Uninstall  key.Binding
 	Store      key.Binding
 	Favourite  key.Binding
 	SortName   key.Binding
@@ -29,6 +30,7 @@ type appKeys struct {
 var keys = appKeys{
 	Play:       key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "play")),
 	Install:    key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "install")),
+	Uninstall:  key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "uninstall")),
 	Store:      key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "store page")),
 	Favourite:  key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "favourite")),
 	SortName:   key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "sort name")),
@@ -57,19 +59,69 @@ var (
 	helpHistNext   = key.NewBinding(key.WithKeys("h"), key.WithHelp("h", "next view"))
 	helpHistPeriod = key.NewBinding(key.WithKeys("left", "right"), key.WithHelp("←→", "period"))
 	helpHistBack   = key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "games"))
+
+	// The selected game's keys, by its state (see gameKeys).
+	helpInstallBoth  = key.NewBinding(key.WithKeys("enter", "i"), key.WithHelp("enter/i", "install"))
+	helpEnterInstall = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "install"))
+	helpUninstall    = key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "uninstall"))
+	helpRunning      = key.NewBinding(key.WithKeys("enter"), key.WithHelp(markerRunning, "running"))
+	helpUpdating     = key.NewBinding(key.WithKeys("enter"), key.WithHelp(markerUpdating, "updating"))
+
+	// While typing a search, and with the pop-up pane open.
+	helpClear = key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "clear"))
+	helpClose = key.NewBinding(key.WithKeys("d", "esc"), key.WithHelp("d/esc", "close"))
+
+	// In the ? view only.
+	helpPlayFull  = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "play/install"))
+	helpPgKeys    = key.NewBinding(key.WithKeys("pgup", "pgdown"), key.WithHelp("pgup/dn", "page"))
+	helpHomeEnd   = key.NewBinding(key.WithKeys("home", "end"), key.WithHelp("home/end", "top/end"))
+	helpInstFull  = key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "install"))
+	helpUninsFull = key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "uninstall x2"))
 )
+
+// gameKeys are the key line's keys for the selected game: only what its
+// state allows.
+func gameKeys(state gameState) []key.Binding {
+	switch state {
+	case gameRunning:
+		return []key.Binding{helpRunning}
+	case gameUpdating:
+		return []key.Binding{helpUpdating}
+	case gameInstalled:
+		return []key.Binding{keys.Play, helpUninstall}
+	case gameNotInstalled:
+		return []key.Binding{helpInstallBoth}
+	}
+	return nil
+}
+
+// searchKeys are the key line while typing a search: what Enter does to the
+// game under the cursor, and esc.
+func searchKeys(state gameState) []key.Binding {
+	enter := map[gameState]key.Binding{gameRunning: helpRunning, gameUpdating: helpUpdating, gameInstalled: keys.Play, gameNotInstalled: helpEnterInstall}
+	if b, ok := enter[state]; ok {
+		return []key.Binding{b, helpClear}
+	}
+	return []key.Binding{helpClear}
+}
 
 // shortHelp is the one line of keycaps under the list, as versions from widest
 // to narrowest: the first that fits is shown. The arrow keys, the easiest to
-// guess, give way first on narrow windows.
-func shortHelp() [][]key.Binding {
-	core := []key.Binding{keys.Play, keys.Install, helpSearch, helpSort, keys.Filter, keys.History, keys.Help, helpQuit}
-	narrow := slices.DeleteFunc(slices.Clone(core), func(b key.Binding) bool { return b.Help() == keys.History.Help() }) // h stays in ? on narrow windows
+// guess, give way first on narrow windows, then h history and the sort keys
+// (all still listed under ?).
+func shortHelp(game []key.Binding) [][]key.Binding {
+	core := slices.Concat(game, []key.Binding{helpSearch, helpSort, keys.Filter, keys.History, keys.Help, helpQuit})
+	without := func(drop ...key.Binding) []key.Binding {
+		return slices.DeleteFunc(slices.Clone(core), func(b key.Binding) bool {
+			return slices.ContainsFunc(drop, func(d key.Binding) bool { return d.Help() == b.Help() })
+		})
+	}
 	return [][]key.Binding{
 		append([]key.Binding{helpMove, helpPage}, core...),
 		append([]key.Binding{helpPage}, core...),
 		core,
-		narrow,
+		without(keys.History),
+		without(keys.History, helpSort),
 	}
 }
 
@@ -86,8 +138,8 @@ func historyHelp() [][]key.Binding {
 // fullHelp is the ? view, every key grouped by what it does.
 func fullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{helpMove, helpEnds, helpPage},
-		{keys.Play, keys.Install, keys.Store, keys.Favourite},
+		{helpMove, helpEnds, helpPage, helpPgKeys, helpHomeEnd},
+		{helpPlayFull, helpInstFull, helpUninsFull, keys.Store, keys.Favourite},
 		{helpSearch, keys.SortName, keys.SortPlayed, keys.SortLast},
 		{keys.Filter, keys.History, keys.Details, keys.Logos, keys.Refresh, helpLess, helpQuit},
 	}

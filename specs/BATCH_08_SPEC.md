@@ -318,6 +318,36 @@ Steam writes every game start and stop to `<Steam>\logs\gameprocess_log.txt`, wh
 - UI: the `h` cycle and `esc`; the periods wrap round and leave out "since"; moving like the game list (wrap, pages, `g` `G`) on 40 games; the pane and the logo follow the ranked game; other keys wait; narrow windows; no sessions at all; new sessions arriving; every view fits the window.
 - The real program loop in a lab copy, with Pablo's real data read-only, before installing.
 
+## Keys that follow the game (Pablo, 2026-09-29: "if a game is installed, the i must disappear and do nothing"; "go with a")
+
+Until now the key line was the same for every game: `enter play` even on a game that wasn't installed (where Enter installed it), and `i install` even on an installed one (where it sent Steam's install link anyway).
+
+### What each key does, by the selected game
+
+| Game | Key line | Keys |
+|---|---|---|
+| Installed | `enter play  u uninstall` | `i` does nothing |
+| Not installed | `enter/i install` | both install; `u` does nothing |
+| Running | `▶ running` | no game key works on it (play, install, uninstall, store page): Pablo, "an exit one will stop the process". Enter says it's running. Favourite still works (it changes nothing in Steam). |
+| Updating | `↓ updating` | Enter says it's updating; `i` and `u` do nothing; the store page works |
+| None (empty list) | no enter, i, u, s, f | nothing to act on |
+
+- **Uninstall** (`u`) sends Steam's uninstall link, `steam://uninstall/<appid>` (community documented: [Steam forum](https://steamcommunity.com/discussions/forum/1/540744935066349428/), [ReVuln](https://revuln.com/files/ReVuln_Steam_Browser_Protocol_Insecurity.pdf)). Whether Steam asks before uninstalling is unverified, so Quarter asks first: the first `u` shows `Press u again to uninstall <game>` in light red in the message line (under the details pane, or at the bottom on narrow windows); a second `u` within 3 seconds sends it. The message going (3 seconds) or moving to another game cancels it. A separate key, not `i`, so a habit press of `i` can never uninstall.
+- **Search (option A):** while typing a search, Enter plays or installs the game under the cursor at once (before, it only confirmed the search). The key line shows the game's Enter and `esc clear`. `i` can't install while typing: the letter goes into the search.
+- **Store page** (`s`) on a game the store has no page for says so instead of opening a broken page.
+- **Logos** (`o`) on a window too narrow for the logo band says "Logos show on wider windows" instead of changing a setting nothing shows.
+- **The pop-up pane** on narrow windows shows `d/esc close` in the key line.
+- **`?`** lists every key (`enter play/install`, `i install`, `u uninstall x2`, the rest), and adds the page and end keys the list already had (PgUp/PgDn, Home/End), short enough to fit 80 columns. The key line shows only what the selected game allows.
+- **The key line always fits:** as the window narrows, the arrows give way first, then `h history`, then the sort keys, then keys from the middle; the game's keys and `q quit` stay. (bubbles v2.2.1's help doesn't cut reliably: an item that overshoots with no room for "…" is added anyway, so Quarter cuts the line itself.)
+
+### Tests
+
+- Each game state: the key line, and every game key doing only what the table says.
+- Uninstall: one `u` only warns (red, nothing sent); two within the window send the link; the timer or moving away cancels; nothing on a running, updating or not installed game.
+- Search: Enter while typing plays an installed game and installs one that isn't; `esc` clears.
+- The store page on a game not on the store, `o` on a narrow window, the pop-up's key line, the `?` list.
+- A case in `quarter-errors` to try each state by hand.
+
 ## Phase B: Error states (approved 2026-09-29, "go")
 
 Every case below was researched (sources at the end) and is tested on fake Steam folders in `testdata/`, never Pablo's real Steam.

@@ -55,7 +55,9 @@ type Model struct {
 	status      string                     // short-lived footer message after an action
 	statusID    int                        // tells a stale clear timer from the current message
 	statusWrong bool                       // the status says an action failed
-	fullHelp    bool                       // ? pressed: every key is listed
+
+	uninstallArmed uint32 // the game a first u warned about; a second u uninstalls it
+	fullHelp       bool   // ? pressed: every key is listed
 
 	// record saves the game sessions in Steam's log and returns them all; may be nil.
 	record func(steamPath string) ([]steam.Session, error)
@@ -242,7 +244,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	before, _ := m.selected()
 	m, cmd := m.update(msg)
 	m.layout()
-	if after, ok := m.selected(); ok && after.AppID != before.AppID && m.needsStore(after.AppID) {
+	after, _ := m.selected()
+	if after.AppID != before.AppID && m.uninstallArmed != 0 {
+		// Moving away cancels a pending uninstall, so the second u never
+		// lands on a game it wasn't meant for.
+		m.uninstallArmed, m.status = 0, ""
+		m.statusID++
+	}
+	if after.AppID != 0 && after.AppID != before.AppID && m.needsStore(after.AppID) {
 		cmd = tea.Batch(cmd, wantStore(after.AppID, m.debounce))
 	}
 	if logo := m.ensureLogo(); logo != nil {
@@ -334,6 +343,7 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 	case clearStatusMsg:
 		if msg.id == m.statusID {
 			m.status = ""
+			m.uninstallArmed = 0 // the warning went, and with it the second u
 		}
 		return m, nil
 
@@ -359,7 +369,15 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		// While typing a search, every key belongs to the search box.
+		// While typing a search, Enter takes the search and plays or installs
+		// the game under the cursor at once (Pablo's option A); every other
+		// key belongs to the search box.
+		if m.list.SettingFilter() && key.Matches(msg, keys.Play) {
+			var accept tea.Cmd
+			m.list, accept = m.list.Update(msg)
+			m, act, _ := m.action(msg)
+			return m, tea.Batch(accept, act)
+		}
 		if !m.list.SettingFilter() {
 			if m.detailOpen && (key.Matches(msg, keys.Details) || msg.String() == "esc") {
 				m.detailOpen = false
@@ -374,6 +392,11 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 				return m, nil
 			}
 			if key.Matches(msg, keys.Logos) {
+				withPane := m
+				withPane.paneHidden = false // d hid the pane: the window still has room
+				if _, _, _, room := withPane.logoBand(); !room {
+					return m, m.note("Logos show on wider windows")
+				}
 				m.logosHidden = !m.logosHidden
 				return m, m.persist()
 			}

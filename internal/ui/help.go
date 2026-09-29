@@ -1,10 +1,13 @@
 package ui
 
 import (
+	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // Keycaps: each key sits on a dark key with its letter in the accent color.
@@ -29,17 +32,34 @@ func (m Model) helpView() string {
 	h.FullSeparator = "   "
 	if !m.fullHelp {
 		// Measured untruncated: help cuts an overlong line down to "…".
-		lines := shortHelp()
-		if m.histView != histOff {
+		_, state := m.stateOf()
+		var lines [][]key.Binding
+		switch {
+		case m.histView != histOff:
 			lines = historyHelp()
+		case m.list.SettingFilter():
+			lines = [][]key.Binding{searchKeys(state)}
+		case m.detailOpen:
+			lines = shortHelp(append([]key.Binding{helpClose}, gameKeys(state)...))
+		default:
+			lines = shortHelp(gameKeys(state))
 		}
 		for _, b := range lines {
 			if line := h.ShortHelpView(b); lipgloss.Width(line) <= m.width-2 {
 				return "\n  " + line
 			}
 		}
-		h.SetWidth(max(m.width-2, 0))
-		return "\n  " + h.ShortHelpView(lines[len(lines)-1])
+		// Still too wide: drop keys from the middle until it fits, the game's
+		// keys first and q quit last kept. (bubbles v2.2.1 help doesn't cut
+		// reliably: an item that overshoots with no room for "…" is added
+		// anyway.)
+		b := slices.Clone(lines[len(lines)-1])
+		line := h.ShortHelpView(b)
+		for len(b) > 2 && lipgloss.Width(line) > m.width-2 {
+			b = slices.Delete(b, len(b)-2, len(b)-1)
+			line = h.ShortHelpView(b)
+		}
+		return "\n  " + ansi.Truncate(line, max(m.width-2, 0), "…")
 	}
 	h.SetWidth(max(m.width-2, 0))
 	return "\n  " + strings.ReplaceAll(h.FullHelpView(fullHelp()), "\n", "\n  ")

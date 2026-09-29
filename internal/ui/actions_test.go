@@ -50,7 +50,7 @@ func TestActionKeys(t *testing.T) {
 		status  string
 	}{
 		{"enter plays", portal2, tea.KeyPressMsg{Code: tea.KeyEnter}, "steam://rungameid/620", "Launching Portal 2"},
-		{"i installs", portal2, press("i"), "steam://install/620", "install for Portal 2"},
+		{"i installs a game that isn't installed", library.Game{AppID: 400, Name: "Portal"}, press("i"), "steam://install/400", "install for Portal"},
 		{"s opens the store", portal2, press("s"), "steam://store/620", "store page for Portal 2"},
 		{"enter on an uninstalled game installs", library.Game{AppID: 400, Name: "Portal"}, tea.KeyPressMsg{Code: tea.KeyEnter}, "steam://install/400", "install for Portal"},
 	}
@@ -91,7 +91,7 @@ func TestStatusClears(t *testing.T) {
 	m, _ := withOpener(t, nil, portal2)
 	var tm tea.Model = act(m, press("s"))
 	first := tm.(Model).statusID
-	tm = act(tm, press("i"))
+	tm = act(tm, press("s"))
 
 	tm, _ = tm.Update(clearStatusMsg{id: first}) // the older timer fires
 	if tm.(Model).status == "" {
@@ -106,8 +106,8 @@ func TestStatusClears(t *testing.T) {
 func TestHelpToggle(t *testing.T) {
 	m, _ := withOpener(t, nil, portal2)
 	short := ansi.Strip(m.View().Content)
-	if !strings.Contains(short, "enter play") || !strings.Contains(short, "i install") || strings.Contains(short, "store page") {
-		t.Errorf("short help should show enter and i, not s:\n%s", short)
+	if !strings.Contains(short, "enter play") || !strings.Contains(short, "u uninstall") || strings.Contains(short, "i install") || strings.Contains(short, "store page") {
+		t.Errorf("short help for an installed game should show enter and u, not i or s:\n%s", short)
 	}
 	var tm tea.Model = act(m, press("?"))
 	full := ansi.Strip(tm.(Model).View().Content)
@@ -124,14 +124,14 @@ func TestShortHelpFits(t *testing.T) {
 	for _, tc := range []struct {
 		w                int
 		move, page, hist bool
-	}{{80, false, false, false}, {84, false, false, true}, {95, false, true, true}, {120, true, true, true}} {
+	}{{60, false, false, false}, {80, false, false, false}, {86, false, false, true}, {95, false, true, true}, {120, true, true, true}} {
 		w := tc.w
 		m, _ := withOpener(t, nil, portal2)
 		var tm tea.Model = m
 		tm, _ = tm.Update(tea.WindowSizeMsg{Width: w, Height: 30})
-		line := lineWith(ansi.Strip(tm.(Model).View().Content), "i install")
-		if line == "" || !strings.Contains(line, "q quit") {
-			t.Fatalf("width %d: the key line should hold i install through q quit: %q", w, line)
+		line := lineWith(ansi.Strip(tm.(Model).View().Content), "q quit")
+		if !strings.Contains(line, "enter play") || !strings.Contains(line, "u uninstall") {
+			t.Fatalf("width %d: the key line should hold the game's keys through q quit: %q", w, line)
 		}
 		if got := ansi.StringWidth(line); got > w {
 			t.Errorf("width %d: key line is %d wide", w, got)
