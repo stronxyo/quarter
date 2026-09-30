@@ -103,14 +103,50 @@ func TestHistoryPeriods(t *testing.T) {
 	if view := screenText(hit(m, tab, tab, tab, tab)); !strings.Contains(view, "[1 year]") {
 		t.Errorf("tab four times should reach 1 year:\n%s", view)
 	}
-	if view := screenText(hit(m, tab, tab, tab, tab, tab)); !strings.Contains(view, "[7 days]") {
-		t.Errorf("tab from 1 year should wrap to 7 days:\n%s", view)
+	if view := screenText(hit(m, tab, tab, tab, tab, tab)); !strings.Contains(view, "[All time]") {
+		t.Errorf("tab from 1 year should reach All time:\n%s", view)
+	}
+	if view := screenText(hit(m, tab, tab, tab, tab, tab, tab)); !strings.Contains(view, "[7 days]") {
+		t.Errorf("tab from All time should wrap to 7 days:\n%s", view)
 	}
 	if view := screenText(hit(m, keyLeft, keyRight)); !strings.Contains(view, "[7 days]") {
 		t.Errorf("left and right turn pages, not periods:\n%s", view)
 	}
 	if view := screenText(m); strings.Contains(view, "since") {
 		t.Errorf("no period is 'since':\n%s", view)
+	}
+}
+
+// All time ranks by each game's lifetime total, games with no recorded
+// session included; the board's total is their sum; the pane doesn't
+// repeat it (its Total line is the same figure).
+func TestHistoryAllTime(t *testing.T) {
+	tab := tea.KeyPressMsg{Code: tea.KeyTab}
+	var m tea.Model = New(Options{Sessions: []steam.Session{{AppID: 2, Start: time.Now().Add(-time.Hour), End: time.Now(), EndKnown: true}}})
+	m, _ = m.Update(tea.WindowSizeMsg{Width: 150, Height: 45})
+	m, _ = m.Update(scanDoneMsg{res: library.Result{PlaytimeKnown: true, Games: []library.Game{
+		{AppID: 1, Name: "Veteran", Installed: true, Playtime: 2712 * time.Hour}, // years of play, no session recorded
+		{AppID: 2, Name: "Recent", Installed: true, Playtime: 10 * time.Hour},
+		{AppID: 3, Name: "Never", Installed: true},
+	}}})
+	m = hit(m, press("h"), tab, tab, tab, tab, tab)
+	view := screenText(m)
+	if !strings.Contains(view, "[All time]") {
+		t.Fatalf("want All time:\n%s", view)
+	}
+	first, second := strings.Index(view, "1.   Veteran"), strings.Index(view, "2.   Recent")
+	if first < 0 || second < first || strings.Contains(view, "Never") {
+		t.Errorf("All time should rank Veteran, then Recent, and leave out a game never played:\n%s", view)
+	}
+	if !strings.Contains(view, "2712.0h") {
+		t.Errorf("Veteran's lifetime hours should show:\n%s", view)
+	}
+	if strings.Count(view, "All time") != 1 {
+		t.Errorf("the pane shouldn't list All time as a row (Total is the same):\n%s", view)
+	}
+	board := screenText(hit(m, press("h")))
+	if !strings.Contains(board, "2722.0h") || !strings.Contains(board, "1ST   VETERAN") {
+		t.Errorf("the board's total should be the lifetime sum, Veteran first:\n%s", board)
 	}
 }
 

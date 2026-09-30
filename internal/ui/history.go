@@ -1,8 +1,10 @@
 package ui
 
 import (
+	"cmp"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"time"
 
@@ -33,11 +35,17 @@ const (
 // sessionsMsg carries every recorded session, after new ones were saved.
 type sessionsMsg struct{ all []steam.Session }
 
-// histPeriods are the periods to rank by, in days ending today.
+// histPeriods are the periods to rank by, in days ending today. All time
+// (days 0) ranks by each game's lifetime playtime from its launcher, exact
+// back to the account's first day, where the recorded sessions only reach
+// back as far as Steam's log did.
 var histPeriods = []struct {
 	label string
 	days  int
-}{{"7 days", 7}, {"1 month", 30}, {"3 months", 91}, {"6 months", 182}, {"1 year", 365}}
+}{{"7 days", 7}, {"1 month", 30}, {"3 months", 91}, {"6 months", 182}, {"1 year", 365}, {"All time", 0}}
+
+// allTime reports whether the period chosen is All time.
+func (m Model) allTime() bool { return histPeriods[m.histPeriod].days == 0 }
 
 const (
 	histWeeks     = 16 // bars in the game's history, a week each
@@ -119,15 +127,42 @@ func (m Model) histKey(msg tea.KeyPressMsg) (_ Model, _ tea.Cmd, ok bool) {
 // a page of the game list, in the same rows.
 func (m Model) rankPerPage() int { return max(m.list.Paginator.PerPage, 1) }
 
-// ranking is the period's games by time played, Steam tools left out.
+// ranking is the period's games by time played, Steam tools left out: from
+// the recorded sessions, or for All time from each game's lifetime total.
 func (m Model) ranking() []history.Entry {
 	var out []history.Entry
+	if m.allTime() {
+		if !m.playtimeKnown {
+			return nil
+		}
+		for _, g := range m.games {
+			if g.Playtime > 0 {
+				out = append(out, history.Entry{App: g.AppID, Played: g.Playtime})
+			}
+		}
+		slices.SortFunc(out, func(a, b history.Entry) int {
+			return cmp.Or(cmp.Compare(b.Played, a.Played), cmp.Compare(a.App, b.App))
+		})
+		return out
+	}
 	for _, e := range m.hist.Top(m.periodStart()) {
 		if steam.IsGame(e.App) {
 			out = append(out, e)
 		}
 	}
 	return out
+}
+
+// periodTotal is the time played in the chosen period, all games.
+func (m Model) periodTotal() time.Duration {
+	if !m.allTime() {
+		return m.hist.Played(0, m.periodStart())
+	}
+	var d time.Duration
+	for _, e := range m.ranking() {
+		d += e.Played
+	}
+	return d
 }
 
 func (m Model) periodStart() time.Time {
@@ -228,10 +263,11 @@ func (m Model) periodTabs() string {
 	return strings.Join(tabs, " ")
 }
 
-// rankHeader is the section line over the ranking: MOST PLAYED and the
-// periods, running on to the pane like the games' section line.
+// rankHeader is the section line over the ranking, laid out like the
+// games' one: the periods where the filters are, running on to the pane.
+// (MOST PLAYED heads the column below: the six periods fill this line.)
 func (m Model) rankHeader() string {
-	line := "  " + dimStyle.Render("▸─ ") + activeTabStyle.Render("MOST PLAYED") + dimStyle.Render(" ── ") + m.periodTabs() + dimStyle.Render(" ──")
+	line := "  " + dimStyle.Render("▸─ ") + m.periodTabs() + dimStyle.Render(" ──")
 	end := m.tableWidth()
 	if m.sideBySide() {
 		end = m.paneX() - paneGap
@@ -248,7 +284,8 @@ func (m Model) rankRows(height int) string {
 	row := func(rank, name, played string) string {
 		return fmt.Sprintf("%-4s %-*s %8s  ", rank, nameWidth, ansi.Truncate(name, nameWidth, "…"), played)
 	}
-	rows := []string{rowStyle.Render(dimStyle.Render(row("#", "Game", "Played") + "Share"))}
+	head := dimStyle.Render(fmt.Sprintf("%-4s ", "#")) + activeTabStyle.Render(fmt.Sprintf("%-*s", nameWidth, "MOST PLAYED")) + dimStyle.Render(fmt.Sprintf(" %8s  Share", "Played"))
+	rows := []string{rowStyle.Render(head)}
 	r := m.ranking()
 	per := m.rankPerPage()
 	first := min(m.histSel, max(len(r)-1, 0)) / per * per
@@ -283,6 +320,9 @@ func (m Model) historyPane(g library.Game, width, height int) string {
 	row := func(k, v string) string { return dimStyle.Render(fmt.Sprintf("%-14s", k)) + textStyle.Render(v) }
 	lines := []string{paneTitleStyle.Width(inner).Render(strings.ToUpper(g.Label())), ""}
 	for _, p := range histPeriods {
+		if p.days == 0 {
+			continue // All time is the Total line below
+		}
 		lines = append(lines, row(p.label, playedText(m.hist.Played(g.AppID, m.hist.DaysBack(p.days, now)))))
 	}
 	lines = append(lines, row("Total", library.FormatHours(g.Playtime, m.playtimeKnown)), "")
@@ -384,7 +424,7 @@ func (m Model) scoreRows(nameWidth int) []string {
 // boardRecords are the board's facts: the period's total, and all time's
 // longest session, streak, and the weekday played most.
 func (m Model) boardRecords(now time.Time) [][2]string {
-	out := [][2]string{{"TOTAL", playedText(m.hist.Played(0, m.periodStart()))}}
+	out := [][2]string{{"TOTAL", playedText(m.periodTotal())}}
 	if s, ok := m.hist.Longest(0); ok {
 		out = append(out, [2]string{"LONGEST", lengthText(s.Length()) + " " + strings.ToUpper(m.gameName(s.AppID))})
 	}
