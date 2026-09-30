@@ -183,7 +183,7 @@ Pablo: "looks really good, but I don't like so much how that empty center is see
 - **The right block's widest: 80 columns, not 84.** Text inside the pane is then 76 characters a line. Readable line length is 45 to 75 characters, 66 the most cited ideal (Bringhurst, via [Baymard](https://baymard.com/blog/line-length-readability) and [Wikipedia](https://en.wikipedia.org/wiki/Line_length)); WCAG 1.4.8 sets 80 as the upper limit ([W3C](https://www.w3.org/WAI/WCAG22/Understanding/visual-presentation.html)). 80 also mirrors the list's 80, so the two blocks are the same width at their widest. The logo picture loses nothing: at 13 rows tall a typical logo is limited by its height well before 80 columns.
 - **The list stays at 80 on wide windows; the gap takes the rest.** In a table, text is left-aligned and numbers right-aligned so the eye can compare them, and spreading columns apart makes rows hard to follow ([A List Apart](https://alistapart.com/article/web-typography-tables/), [Pencil & Paper](https://www.pencilandpaper.io/articles/ux-pattern-analysis-enterprise-data-tables)). Material Design's list-detail layout keeps the list a fixed width and lets the detail grow ([Android Developers](https://developer.android.com/develop/adaptive-apps/guides/canonical-layouts)); here the detail is capped too, by line length, so what's left is a gap. lazygit instead splits by fractions (`sidePanelWidth: 0.3333`, [docs](https://github.com/jesseduffield/lazygit/blob/master/docs/Config.md)), which suits its wide diffs; Quarter's rows are a name and two short numbers, so wider rows only add empty space inside them.
 
-## Phase A3: UX (paging and INSERT QUARTER built 2026-09-28; GAME OVER open)
+## Phase A3: UX (built 2026-09-28: paging, the start screen, the goodbye)
 
 PLAN.md's Phase A, with Pablo's decisions of 2026-09-28.
 
@@ -224,20 +224,11 @@ Pablo: when a running game stops, its played time on Steam changes, so Quarter m
 - A rescan already running (r) is waited for, not doubled, and doesn't count as a check. A second game stopping takes over the wait: any re-read picks up both.
 - Code: `internal/ui/afterplay.go`. Checked on the real program loop in a lab copy with the real Steam folder: the stop is seen and every check runs and ends.
 
-### End: GAME OVER (superseded by the goodbye above)
-
-- Quitting stays instant: no delay or animation before the terminal is back. The goodbye is printed into the shell after Quarter closes.
-- Options to mock up for Pablo when he's ready, all in the PC-plus-arcade mix:
-  1. `GAME OVER · CREDITS 0` and then the prompt, like a DOS machine after the game ends.
-  2. `Saving high scores... done. It's now safe to close your terminal.` (a nod to the Windows 95 shutdown screen).
-  3. A one-line session log: `PLAYER 1 · 2712.3h on record · last: ROCKET LEAGUE · see you soon.`
-- Possibly a setting for no goodbye at all, for people who want a clean shell.
-
 ### Tests
 
 - Paging: wraps both ways; a list of one page; after a search; `g`/`G` unchanged.
 - Moving: wraps within the page at both ends; on the last, shorter page; with a single game.
-- Splash: shows on first run only, any key leaves it, never delays the list when the scan is quick.
+- Start screen: shows on every start, any key leaves it, never delays the list when the scan is quick.
 - Goodbye: printed after the screen is restored, one short block, nothing when turned off.
 
 ### Phase A mistakes, so they aren't repeated

@@ -119,7 +119,7 @@ Workflow per batch (see `RULES/QUARTER_RULES_V1.md` section 6): spec in `specs/B
 
 ### Batch 8: Polish and release (`batch/08-release`)
 - **Done first, logos:** real pictures (Sixel) in amber tones where the terminal draws them, one-colour text blocks elsewhere. Spec: `specs/BATCH_08_SPEC.md`.
-- **Phase A, UX:** `?` help overlay, "INSERT COIN" first-run splash, "GAME OVER" on quit; a setting to turn logo pictures off.
+- **Phase A, UX:** `?` help overlay, "INSERT QUARTER" start screen, a random goodbye line on quit; a setting to turn logo pictures off.
 - **Phase B, error states:** Steam not found, no libraries, offline.
 - **Phase C, performance:** re-check the brief's targets; `pprof` any misses; logo pictures with very fast scrolling on a large library, and inside tmux.
 - **Phase D, release:** GoReleaser (Windows/macOS/Linux, amd64 + arm64, stripped binaries); smoke test on a clean terminal and, if available, a Steam Deck.
