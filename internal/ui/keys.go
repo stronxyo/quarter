@@ -24,6 +24,7 @@ type appKeys struct {
 	Details    key.Binding
 	Logos      key.Binding
 	History    key.Binding
+	PastYears  key.Binding
 	Help       key.Binding
 }
 
@@ -41,6 +42,7 @@ var keys = appKeys{
 	Details:    key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "details")),
 	Logos:      key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "logos")),
 	History:    key.NewBinding(key.WithKeys("h"), key.WithHelp("h", "history")),
+	PastYears:  key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "past years")), // only in history
 	Help:       key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "more")),
 }
 
@@ -56,9 +58,11 @@ var (
 	helpLess   = key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "less"))
 
 	// While history is open.
-	helpHistNext   = key.NewBinding(key.WithKeys("h"), key.WithHelp("h", "next view"))
-	helpHistPeriod = key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "period"))
-	helpHistBack   = key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "games"))
+	helpHistNext     = key.NewBinding(key.WithKeys("h"), key.WithHelp("h", "next view"))
+	helpHistPeriod   = key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "period"))
+	helpHistBack     = key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "games"))
+	helpReplayNarrow = key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "years"))
+	helpReplayWide   = key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "past years (in history)"))
 
 	// The selected game's keys, by its state (see gameKeys).
 	helpInstallBoth  = key.NewBinding(key.WithKeys("enter", "i"), key.WithHelp("enter/i", "install"))
@@ -66,6 +70,10 @@ var (
 	helpUninstall    = key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "uninstall"))
 	helpRunning      = key.NewBinding(key.WithKeys("enter"), key.WithHelp(markerRunning, "running"))
 	helpUpdating     = key.NewBinding(key.WithKeys("enter"), key.WithHelp(markerUpdating, "updating"))
+
+	// A question in the pane (the past years).
+	keyYes = key.NewBinding(key.WithKeys("y"))
+	keyNo  = key.NewBinding(key.WithKeys("esc"))
 
 	// While typing a search, and with the pop-up pane open.
 	helpClear = key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "clear"))
@@ -127,7 +135,7 @@ func shortHelp(game []key.Binding) [][]key.Binding {
 
 // historyHelp is the key line while history is open, widest first.
 func historyHelp() [][]key.Binding {
-	core := []key.Binding{helpHistPeriod, helpHistNext, helpHistBack, helpQuit}
+	core := []key.Binding{helpHistPeriod, helpHistNext, keys.PastYears, helpHistBack, helpQuit}
 	return [][]key.Binding{
 		append([]key.Binding{helpMove, helpPage, helpEnds}, core...),
 		append([]key.Binding{helpMove, helpPage}, core...),
@@ -137,14 +145,24 @@ func historyHelp() [][]key.Binding {
 }
 
 // fullHelp is the ? view, every key grouped by what it does.
-func fullHelp() [][]key.Binding {
+// On windows under wideHelp columns, a is "a replay", right under "h
+// history" (the ? view fills 80 columns exactly); wider, it says it all.
+func fullHelp(width int) [][]key.Binding {
+	replay := helpReplayNarrow
+	if width >= wideHelp {
+		replay = helpReplayWide
+	}
 	return [][]key.Binding{
 		{helpMove, helpEnds, helpPage, helpPgKeys, helpHomeEnd},
 		{helpPlayFull, helpInstFull, helpUninsFull, keys.Store, keys.Favourite},
 		{helpSearch, keys.SortName, keys.SortPlayed, keys.SortLast},
-		{keys.Filter, keys.History, keys.Details, keys.Logos, keys.Refresh, helpLess, helpQuit},
+		{keys.Filter, keys.History, replay, keys.Details, keys.Logos, keys.Refresh, helpLess, helpQuit},
 	}
 }
+
+// wideHelp is the window width from which the ? view has room for
+// "Steam Replay (in history)".
+const wideHelp = 100
 
 // sortKeys maps each sort key to the column it sorts by.
 var sortKeys = []struct {

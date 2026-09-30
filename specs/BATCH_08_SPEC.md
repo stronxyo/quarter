@@ -318,6 +318,45 @@ Steam writes every game start and stop to `<Steam>\logs\gameprocess_log.txt`, wh
 - UI: the `h` cycle and `esc`; the periods wrap round and leave out "since"; moving like the game list (wrap, pages, `g` `G`) on 40 games; the pane and the logo follow the ranked game; other keys wait; narrow windows; no sessions at all; new sessions arriving; every view fits the window.
 - The real program loop in a lab copy, with Pablo's real data read-only, before installing.
 
+## Past years from Steam (Pablo, 2026-09-29: "past years it is go")
+
+Pablo has played since 2010, but Steam's log on this PC starts on 2026-03-21 (Windows reinstalled 2026-03-10). Steam Replay, Valve's yearly recap, holds each year's playtime per month since 2022. Researched and tested (read only) on his account, then tried in the Replay lab (`Documents\Quarter\Replay lab`, `quarter-replay`). Named "past years" in Quarter (Pablo: "replay feels like re watching something"); the question names Steam Replay once, since that's where each year is set to Public.
+
+### The source
+
+- Steam's Web API method `ISaleFeatureService/GetUserYearInReview/v1/?steamid=<id>&year=<year>`, the one Steam Replay's page reads. Defined in Steam's protobufs ([SteamDatabase: service_salefeature.proto](https://raw.githubusercontent.com/SteamDatabase/Protobufs/master/webui/service_salefeature.proto)), not in Valve's documentation: Quarter treats it as optional and fails quietly.
+- Only the user's public SteamID (read from `loginusers.vdf`, as for playtime); no login, no key, no token. Answers for a year set to Public; a private year comes back empty (`{"response":{}}`).
+- Per year: `playtime_stats.months[]`, each with the month's start (`rtime_month`, UTC midnight on the 1st), total seconds and sessions, and per game (`appid[]`). Tested on Pablo's account: 2022 240.5 h, 2023 211.2 h, 2024 163.2 h, 2025 134.0 h. 2023 has monthly totals but no per-game months (per game only for the year). The current year isn't there until Valve publishes it in December; a year ends around December 14 (published reports).
+
+### Opt-in (Steam Web API Terms: data only "as requested by the end user", users told what's stored)
+
+- Asked for only from the history views, never at start (Pablo: "i dont want to be intrusive"). The game's history pane ends with `Older years? a add your past years from Steam` until they're in. The history key line shows `a past years`; `?` lists `a past years (in history)` (`a years` on windows under 100 columns, where the `?` view is full).
+- `a` shows the question in the pane: what is fetched (the yearly recap, 2022 to last year, per game per month), nothing else and no login, saved only on this PC (`replay.json`), each year must be Public in Steam Replay, `a` later removes them. `y` brings them in, `esc` declines.
+- The answer in the message line: `Past years added: 2022, 2023, 2024, 2025`, naming years Steam didn't give (not public). None at all says how to make them public. `a` again asks to remove them; `y` deletes `replay.json`.
+- The privacy note for release (Phase D) says what's fetched and stored.
+
+### In history
+
+- A Replay month counts only if it began before the month of the first recorded session, so no time counts twice.
+- The calendar shades those months: the month's time spread over its days, as a smaller square (`▪`), with `▪ month average, past years` in the legend.
+- Periods include Replay months that begin inside them (1 year now reaches back into last year's months).
+- The board gets a YEARS line: each year's time, Replay and recorded together (`2022 241h · 2023 211h · ...`).
+- 2023's months have no per-game split, so they count in totals, the calendar and YEARS, not in the ranking.
+
+### Code
+
+- `internal/replay`: the client (`Fetch`) and the answer's parsing; `ErrNotPublic` for an empty year.
+- `internal/history`: `WithReplay`, `Months`, `Years`; `Played` and `Top` include Replay months.
+- `internal/ui/replay.go`: the opt-in, the question, the calendar's month shading, the YEARS line.
+- `cmd/quarter/main.go`: loads `replay.json`, saves it after the fetch, deletes it on removal; the fetch asks each year from 2022 to last year for the account signed in on this PC.
+
+### Tests
+
+- The parsing on recorded answers (a full year, 2023's shape, a private year): no live calls in tests.
+- History: Replay months before the first recorded month only, periods, top, months, years.
+- UI: the hint only in history and only until added; `a` in the games does nothing; the question, `esc`, `y` with the fetch's result saved; years not public named; removal deletes; the calendar's `▪`; 1 year including Replay months; the YEARS line; the key line and `?` at 80 and 100 columns.
+- The real program loop in a lab copy with Pablo's real account, the file saved to a temporary folder.
+
 ## Keys that follow the game (Pablo, 2026-09-29: "if a game is installed, the i must disappear and do nothing"; "go with a")
 
 Until now the key line was the same for every game: `enter play` even on a game that wasn't installed (where Enter installed it), and `i install` even on an installed one (where it sent Steam's install link anyway).

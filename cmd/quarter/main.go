@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -18,6 +20,7 @@ import (
 	"github.com/stronxyo/quarter/internal/art"
 	"github.com/stronxyo/quarter/internal/config"
 	"github.com/stronxyo/quarter/internal/library"
+	"github.com/stronxyo/quarter/internal/replay"
 	"github.com/stronxyo/quarter/internal/steam"
 	"github.com/stronxyo/quarter/internal/store"
 	"github.com/stronxyo/quarter/internal/ui"
@@ -75,7 +78,12 @@ func runUI(steamPath string) error {
 
 		RecordSessions: sessionRecorder(dir),
 		Sessions:       loadSessions(dir),
-		RunningApp:     steam.RunningApp,
+
+		Replay:       loadReplay(dir),
+		FetchReplay:  replayFetcher(steamPath),
+		SaveReplay:   func(y []replay.Year) error { return store.Save(dir, config.ReplayFile, config.ReplayVersion, y) },
+		DeleteReplay: func() error { return removeIfThere(filepath.Join(dir, config.ReplayFile)) },
+		RunningApp:   steam.RunningApp,
 
 		Settings:     settings,
 		SaveSettings: func(s config.Settings) error { return config.SaveSettings(dir, s) },
@@ -145,6 +153,53 @@ func sessionRecorder(dir string) func(steamPath string) ([]steam.Session, error)
 		}
 		return all, store.Save(dir, config.SessionsFile, config.SessionsVersion, all)
 	}
+}
+
+// loadReplay returns the past years brought in on an earlier run; a
+// missing or unreadable file means none, so the user can ask again.
+func loadReplay(dir string) []replay.Year {
+	y, _ := store.Load[[]replay.Year](dir, config.ReplayFile, config.ReplayVersion)
+	return y
+}
+
+// replayFetcher asks Steam for each past year, from the first Steam Replay
+// to last year, for the account signed in on this PC (only its public
+// SteamID is sent). Years Steam gives nothing for (not public) are listed
+// apart; a network failure stops it.
+func replayFetcher(steamPath string) func(context.Context) ([]replay.Year, []int, error) {
+	return func(ctx context.Context) ([]replay.Year, []int, error) {
+		path, err := steam.Locate(steamPath)
+		if err != nil {
+			return nil, nil, err
+		}
+		acct, err := steam.ActiveAccount(path)
+		if err != nil {
+			return nil, nil, err
+		}
+		client := replay.NewClient(config.ReplayURL, config.ReplayTimeout)
+		var years []replay.Year
+		var missing []int
+		for y := replay.FirstYear; y < time.Now().Year(); y++ {
+			year, err := client.Fetch(ctx, acct.SteamID64, y)
+			switch {
+			case errors.Is(err, replay.ErrNotPublic):
+				missing = append(missing, y)
+			case err != nil:
+				return nil, nil, err
+			default:
+				years = append(years, year)
+			}
+		}
+		return years, missing, nil
+	}
+}
+
+// removeIfThere deletes path; a file already gone is fine.
+func removeIfThere(path string) error {
+	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return nil
 }
 
 // loadSessions returns the sessions recorded by earlier runs, so history

@@ -81,6 +81,16 @@ const (
 	SessionsVersion = 1
 )
 
+// The past years from Steam: Steam Replay's data, from the Web API method
+// its page reads (defined in Steam's protobufs, not in Valve's docs), kept
+// in ReplayFile once the user asks for it.
+const (
+	ReplayURL     = "https://api.steampowered.com/ISaleFeatureService/GetUserYearInReview/v1/"
+	ReplayTimeout = 15 * time.Second
+	ReplayFile    = "replay.json"
+	ReplayVersion = 1
+)
+
 // LibraryCache is the scanned library saved in DataDir, shown instantly on the
 // next launch. Bump LibraryCacheVersion whenever the cached fields change.
 const (

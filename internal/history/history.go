@@ -8,6 +8,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/stronxyo/quarter/internal/replay"
 	"github.com/stronxyo/quarter/internal/steam"
 )
 
@@ -15,11 +16,86 @@ import (
 // opened and closed, not play.
 const MinSession = time.Minute
 
-// History is a set of sessions, read in one time zone.
+// History is a set of sessions, read in one time zone, and optionally the
+// months of Steam Replay before them.
 type History struct {
 	sessions []steam.Session // counted ones, by start
 	loc      *time.Location
+	months   []replay.Month // Replay months before the first recorded session's month
 }
+
+// WithReplay adds the Replay months that come before the recorded
+// sessions: a month counts from Replay only when it ended before the first
+// recorded session's month began, so no time is counted twice.
+func (h History) WithReplay(years []replay.Year) History {
+	cut := h.firstMonth()
+	h.months = nil
+	for _, y := range years {
+		for _, m := range y.Months {
+			if cut.IsZero() || m.Start.Before(cut) {
+				h.months = append(h.months, m)
+			}
+		}
+	}
+	return h
+}
+
+// firstMonth is the month of the first recorded session, as a UTC date
+// like Replay's months; zero without sessions.
+func (h History) firstMonth() time.Time {
+	if len(h.sessions) == 0 {
+		return time.Time{}
+	}
+	t := h.sessions[0].Start.In(h.loc)
+	return time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC)
+}
+
+// replayPlayed is the Replay time of app (0: all games) in the months that
+// begin on or after from.
+func (h History) replayPlayed(app uint32, from time.Time) time.Duration {
+	f := time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, time.UTC)
+	var d time.Duration
+	for _, m := range h.months {
+		switch {
+		case m.Start.Before(f):
+		case app == 0:
+			d += m.Played
+		default:
+			d += m.Games[app]
+		}
+	}
+	return d
+}
+
+// Months is the Replay time of each month before the recorded sessions,
+// keyed by the month's first day (UTC), for app or all games (0).
+func (h History) Months(app uint32) map[time.Time]time.Duration {
+	out := map[time.Time]time.Duration{}
+	for _, m := range h.months {
+		if app == 0 {
+			out[m.Start] += m.Played
+		} else if d := m.Games[app]; d > 0 {
+			out[m.Start] += d
+		}
+	}
+	return out
+}
+
+// Years is the time played in each year, Replay months and recorded
+// sessions together.
+func (h History) Years() map[int]time.Duration {
+	out := map[int]time.Duration{}
+	for _, m := range h.months {
+		out[m.Start.Year()] += m.Played
+	}
+	for _, s := range h.sessions {
+		out[s.Start.In(h.loc).Year()] += s.Length()
+	}
+	return out
+}
+
+// HasReplay reports whether Replay months were added.
+func (h History) HasReplay() bool { return len(h.months) > 0 }
 
 // New keeps the sessions that count, in loc's days.
 func New(sessions []steam.Session, loc *time.Location) History {
@@ -49,7 +125,7 @@ func (h History) Since() time.Time {
 
 // Played is the time played since from, in one game (app 0: all games).
 func (h History) Played(app uint32, from time.Time) time.Duration {
-	var d time.Duration
+	d := h.replayPlayed(app, from)
 	for _, s := range h.of(app) {
 		if !s.Start.Before(from) {
 			d += s.Length()
@@ -70,6 +146,14 @@ func (h History) Top(from time.Time) []Entry {
 	for _, s := range h.sessions {
 		if !s.Start.Before(from) {
 			by[s.AppID] += s.Length()
+		}
+	}
+	f := time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, time.UTC)
+	for _, m := range h.months {
+		if !m.Start.Before(f) {
+			for app, d := range m.Games {
+				by[app] += d
+			}
 		}
 	}
 	out := make([]Entry, 0, len(by))

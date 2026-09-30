@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stronxyo/quarter/internal/replay"
 	"github.com/stronxyo/quarter/internal/steam"
 )
 
@@ -115,6 +116,54 @@ func TestStreak(t *testing.T) {
 	// Played yesterday but not yet today: still going.
 	if cur, _ := sample.Streak(0, now.AddDate(0, 0, 1)); cur != 5 {
 		t.Errorf("the day after: got %d, want 5", cur)
+	}
+}
+
+// Past years (Steam Replay) fill the months before the first recorded
+// session's month, and only those, so no time counts twice.
+func TestWithReplay(t *testing.T) {
+	month := func(y int, m time.Month, played time.Duration, games map[uint32]time.Duration) replay.Month {
+		return replay.Month{Start: time.Date(y, m, 1, 0, 0, 0, 0, time.UTC), Played: played, Games: games}
+	}
+	years := []replay.Year{
+		{Year: 2025, Months: []replay.Month{
+			month(2025, time.July, 10*time.Hour, map[uint32]time.Duration{10: 6 * time.Hour, 50: 4 * time.Hour}),
+			month(2025, time.August, 5*time.Hour, map[uint32]time.Duration{10: 5 * time.Hour}),
+		}},
+		{Year: 2026, Months: []replay.Month{
+			month(2026, time.August, 99*time.Hour, nil),                                             // before the sample's first session (Sep 1, 2026): kept
+			month(2026, time.September, 50*time.Hour, map[uint32]time.Duration{10: 50 * time.Hour}), // the first recorded month: left out
+		}},
+	}
+	h := sample.WithReplay(years)
+	if !h.HasReplay() || sample.HasReplay() {
+		t.Error("WithReplay returns a history with the months, leaving the first as it was")
+	}
+	if got := h.Months(0); len(got) != 3 || got[time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)] != 0 {
+		t.Errorf("months kept: %v (September 2026 has sessions, so it isn't from Replay)", got)
+	}
+	// All of it: the Replay months plus the sessions (11h 50m).
+	if got, want := h.Played(0, time.Time{}), 114*time.Hour+11*time.Hour+50*time.Minute; got != want {
+		t.Errorf("all time: got %v, want %v", got, want)
+	}
+	// A game over a period starting in August 2025: August's Replay and its sessions.
+	if got, want := h.Played(10, time.Date(2025, 8, 1, 0, 0, 0, 0, loc)), 5*time.Hour+3*time.Hour+50*time.Minute; got != want {
+		t.Errorf("app 10 since August 2025: got %v, want %v", got, want)
+	}
+	// A month that begins before the period isn't counted in part.
+	if got := h.Played(50, time.Date(2025, 7, 15, 0, 0, 0, 0, loc)); got != 0 {
+		t.Errorf("July began before July 15: got %v", got)
+	}
+	top := h.Top(time.Time{})
+	if top[0].App != 10 || top[0].Played != 11*time.Hour+3*time.Hour+50*time.Minute {
+		t.Errorf("top: %v", top)
+	}
+	years2 := h.Years()
+	if years2[2025] != 15*time.Hour || years2[2026] != 99*time.Hour+11*time.Hour+50*time.Minute {
+		t.Errorf("years: %v", years2)
+	}
+	if h.WithReplay(nil).HasReplay() {
+		t.Error("WithReplay(nil) removes them")
 	}
 }
 

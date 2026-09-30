@@ -75,6 +75,9 @@ func (m Model) histKey(msg tea.KeyPressMsg) (_ Model, _ tea.Cmd, ok bool) {
 	if m.histView == histOff {
 		return m, nil, false
 	}
+	if m, cmd, ok := m.replayKey(msg); ok {
+		return m, cmd, true
+	}
 	n := len(m.ranking())
 	switch s := msg.String(); s {
 	case "esc":
@@ -331,6 +334,9 @@ func (m Model) historyPane(g library.Game, width, height int) string {
 	}
 	cur, best := m.hist.Streak(g.AppID, now)
 	lines = append(lines, row("Streak", fmt.Sprintf("%d days · best %d", cur, best)))
+	if hint := m.replayHint(); hint != "" {
+		lines = append(lines, "", hint)
+	}
 	lines = append(lines, "", dimStyle.Render(fmt.Sprintf("Last %d weeks", histWeeks)), sparkRow(m.hist.Weeks(g.AppID, histWeeks, now), 2, ""))
 	wd := m.hist.Weekdays(g.AppID)
 	lines = append(lines, "", dimStyle.Render("Mo Tu We Th Fr Sa Su"), sparkRow(wd[:], 2, " "))
@@ -355,6 +361,9 @@ func (m Model) boardPane(width, height int) string {
 	var records []string
 	for _, kv := range m.boardRecords(now) {
 		records = append(records, dimStyle.Render(fmt.Sprintf("%-9s", kv[0]))+activeTabStyle.Render(kv[1]))
+	}
+	if years := m.yearsLine(); years != "" {
+		records = append(records, years)
 	}
 	// The calendar and the records always show; the places give way, down
 	// to a podium of 3, when the pane is short.
@@ -479,15 +488,21 @@ func (m Model) calendar(now time.Time) []string {
 			free = w + 4
 		}
 	}
+	pastMonths := m.hist.Months(0)
 	out := []string{dimStyle.Render("    " + string(months))}
 	for r, name := range []string{"Mon", "", "Wed", "", "Fri", "", "Sun"} {
 		var b strings.Builder
 		b.WriteString(dimStyle.Render(fmt.Sprintf("%-4s", name)))
 		for w := range calendarWeeks {
 			d := first.AddDate(0, 0, 7*w+r)
+			past := monthDay(pastMonths, d)
 			switch played := days[d]; {
 			case d.After(today):
 				b.WriteString(" ")
+			case played <= 0 && past > 0:
+				// Before the recorded sessions: the month's past-years time,
+				// spread over its days, as a smaller square.
+				b.WriteString(lipgloss.NewStyle().Foreground(colorHeat[shade(past)]).Render("▪"))
 			case played <= 0:
 				b.WriteString(emptyMark(1))
 			default:
@@ -500,5 +515,9 @@ func (m Model) calendar(now time.Time) []string {
 	for _, c := range colorHeat {
 		legend += lipgloss.NewStyle().Foreground(c).Render("■")
 	}
-	return append(out, legend+dimStyle.Render(" more"))
+	legend += dimStyle.Render(" more")
+	if m.hist.HasReplay() {
+		legend += dimStyle.Render("   ▪ month average, past years")
+	}
+	return append(out, legend)
 }

@@ -62,5 +62,5 @@ func (m Model) helpView() string {
 		return "\n  " + ansi.Truncate(line, max(m.width-2, 0), "…")
 	}
 	h.SetWidth(max(m.width-2, 0))
-	return "\n  " + strings.ReplaceAll(h.FullHelpView(fullHelp()), "\n", "\n  ")
+	return "\n  " + strings.ReplaceAll(h.FullHelpView(fullHelp(m.width)), "\n", "\n  ")
 }

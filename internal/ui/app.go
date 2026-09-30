@@ -22,6 +22,7 @@ import (
 	"github.com/stronxyo/quarter/internal/history"
 	"github.com/stronxyo/quarter/internal/intro"
 	"github.com/stronxyo/quarter/internal/library"
+	"github.com/stronxyo/quarter/internal/replay"
 	"github.com/stronxyo/quarter/internal/steam"
 	"github.com/stronxyo/quarter/internal/webapi"
 )
@@ -121,6 +122,12 @@ type Model struct {
 	histPeriod int             // the period ranked, in histPeriods
 	histSel    int             // the game selected in the ranking
 
+	fetchReplay  func(context.Context) ([]replay.Year, []int, error) // asks Steam for the past years; may be nil
+	saveReplay   func([]replay.Year) error                           // keeps them (replay.json); may be nil
+	deleteReplay func() error                                        // removes them; may be nil
+	replay       replayState
+	replayYears  []replay.Year
+
 	favs         map[uint32]bool             // starred games, by appid
 	saveSettings func(config.Settings) error // remembers favourites, sort and filter; may be nil
 
@@ -146,6 +153,12 @@ type Options struct {
 
 	RecordSessions func(steamPath string) ([]steam.Session, error) // saves the game sessions in Steam's log after each scan, returns them all
 	Sessions       []steam.Session                                 // the sessions recorded before, for the history views
+
+	// The past years from Steam (Steam Replay), brought in on request.
+	Replay       []replay.Year                                       // the past years kept from before (replay.json)
+	FetchReplay  func(context.Context) ([]replay.Year, []int, error) // asks Steam for them: the years given, and those not public
+	SaveReplay   func([]replay.Year) error                           // keeps them
+	DeleteReplay func() error                                        // removes them
 
 	Settings     config.Settings             // favourites, sort and filter from the last run
 	SaveSettings func(config.Settings) error // remembers them for the next run
@@ -189,7 +202,15 @@ func New(opts Options) Model {
 		logoNone:    make(map[uint32]bool),
 
 		splash: opts.Splash,
-		hist:   history.New(opts.Sessions, time.Local),
+		hist:   history.New(opts.Sessions, time.Local).WithReplay(opts.Replay),
+
+		fetchReplay:  opts.FetchReplay,
+		saveReplay:   opts.SaveReplay,
+		deleteReplay: opts.DeleteReplay,
+		replayYears:  opts.Replay,
+	}
+	if len(opts.Replay) > 0 {
+		m.replay = replayOn // brought in on an earlier run
 	}
 	maps.Copy(m.storeInfo, opts.StoreCache)
 	m.applySettings(opts.Settings)
@@ -326,8 +347,11 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 	case afterPlayMsg:
 		return m.afterPlayTick(msg)
 
+	case replayDoneMsg:
+		return m.applyReplay(msg)
+
 	case sessionsMsg:
-		m.hist = history.New(msg.all, time.Local)
+		m.hist = history.New(msg.all, time.Local).WithReplay(m.replayYears)
 		return m, nil
 
 	case updatePollMsg:
@@ -729,6 +753,9 @@ func (m Model) body() string {
 	if m.histView != histOff {
 		list = m.rankHeader() + "\n" + m.rankRows(height-1)
 		pane = func(width, height int) string {
+			if m.replay == replayAsking || m.replay == replayRemoving || m.replay == replayFetching {
+				return m.replayPane(width, height) // the question about the past years
+			}
 			if m.histView == histBoard {
 				return m.boardPane(width, height)
 			}

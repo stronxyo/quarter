@@ -133,7 +133,7 @@ Workflow per batch (see `RULES/QUARTER_RULES_V1.md` section 6): spec in `specs/B
 
 ## Session history (moved into Batch 8)
 
-Pablo's idea (2026-09-29): a history of the games actually played (runs only, never what was scrolled past), arranged by most played and split into periods. This is the "stats" feature in the brief. Planned for after v0.1; moved into Batch 8 the same day, before Phase C, once Steam's own log gave six months of real sessions to design against. Built: the ranking and the HIGH SCORES board on `h` (`specs/BATCH_08_SPEC.md`, "Session history"). The ideas below that aren't built stay for later.
+Pablo's idea (2026-09-29): a history of the games actually played (runs only, never what was scrolled past), arranged by most played and split into periods. This is the "stats" feature in the brief. Planned for after v0.1; moved into Batch 8 the same day, before Phase C, once Steam's own log gave six months of real sessions to design against. Built: the ranking and the HIGH SCORES board on `h` (`specs/BATCH_08_SPEC.md`, "Session history"). Then the past years from Steam (Steam Replay, 2022 on, opt-in from history). The ideas below that aren't built stay for later.
 
 - **Why it needs its own record:** Steam keeps only each game's total hours and last played date (`localconfig.vdf`), no history. Quarter has to build it and cannot recover the past, so recording could start earlier than the screen (open question: start recording in Batch 8).
 - **Source 1, sessions Quarter sees:** it already polls the running game every 2 s. Each run saved with game, start and length: exact sessions.
