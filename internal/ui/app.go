@@ -101,6 +101,12 @@ type Model struct {
 	logoNone     map[uint32]bool       // no logo anywhere, this run
 	logoPause    pause                 // downloads wait after a network failure
 	logoFetching uint32                // the game whose logo is downloading, 0 for none
+	logoOrder    []logoKey             // drawn logos, oldest first, to keep at most keptLogos
+	logoNoDisk   map[uint32]bool       // prepared as a neighbour, nothing drawable on disk
+
+	settle             time.Duration // a pause this long on a game is a landing (scroll.go)
+	lastMove, prevMove time.Time     // the selection's last two changes
+	dotsOn             bool          // the band's dots are stepping
 
 	sixel        bool      // the terminal draws Sixel: logos are pictures
 	cellW, cellH int       // a cell in pixels, as the terminal reports it
@@ -207,6 +213,8 @@ func New(opts Options) Model {
 		logoCache:   make(map[logoKey]drawnLogo),
 		logoPending: make(map[logoKey]bool),
 		logoNone:    make(map[uint32]bool),
+		logoNoDisk:  make(map[uint32]bool),
+		settle:      logoSettle,
 
 		splash: opts.Splash,
 		hist:   history.New(opts.Sessions, time.Local).WithReplay(opts.Replay),
@@ -282,11 +290,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if after.AppID != 0 && after.AppID != before.AppID && m.needsStore(after.AppID) {
 		cmd = tea.Batch(cmd, wantStore(after.AppID, m.debounce))
 	}
+	if after.AppID != before.AppID {
+		cmd = tea.Batch(cmd, m.moved())
+	}
 	if logo := m.ensureLogo(); logo != nil {
 		cmd = tea.Batch(cmd, logo)
 	}
 	if pic := m.wantPicture(); pic != nil {
 		cmd = tea.Batch(cmd, pic)
+	}
+	if more := tea.Batch(m.prepareNeighbours(), m.startDots()); more != nil {
+		cmd = tea.Batch(cmd, more)
 	}
 	return m, cmd
 }
@@ -366,6 +380,12 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case downloadCheckMsg:
 		return m, m.checkDownloads()
+
+	case settleMsg:
+		return m, nil // Update reads the landed game's logo
+
+	case dotsMsg:
+		return m.dotsTick()
 
 	case dlBlinkMsg:
 		return m.dlBlinkStep()

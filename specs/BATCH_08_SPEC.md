@@ -389,6 +389,30 @@ Games Steam is installing or updating were all `↓ updating`, with no progress.
 - UI: each phase's row and pane text, the row within 13 columns, the blink, a paused download from its install file, an ended download reading the library, a new one reading it too, one seen before not, the log read only when it changed.
 - Real loop (lab, a Steam folder made in a temp folder): an update started while Quarter is open, going on, paused, resumed and ended; the library read only at those changes; nothing printed to the terminal.
 
+## Moving fast through the list (Pablo, 2026-09-30: "lets go with c the moving dots"; the new loading "if the performance under the hood is better, lets do it")
+
+From Pablo's video: holding down kept the last logo on screen (a picture is erased only when the next is drawn) while the pane showed other games, and every game passed was read and converted to a picture, then thrown away.
+
+### What shows
+
+- While a key is held (the selection moved twice within 150 ms), the band drops the last logo at once and shows three dots filling fixed places one by one (`██`, `██  ██`, `██  ██  ██`, none), 180 ms a step, in the accent colour.
+- A single press never shows the dots or empties the band: the logo changes straight to the next.
+- After landing, the dots show only when the logo is still on its way after 200 ms (a first download).
+- Picked in the Scroll lab over A (the last logo stays), B (empty) and D (the game's name while moving).
+
+### Loading
+
+- A logo is read only once the selection has stayed on the game 120 ms.
+- Then the two games above and below are prepared from disk, so one step to a neighbour shows its logo at once. A neighbour with nothing drawable on disk is left until landed on (it is read, and downloaded if need be, then).
+- At most 24 drawn logos are kept; the selected game's never goes.
+- Measured on 255 of Pablo's logos: a conversion takes 15.5 ms and 16 MB of short-lived memory and keeps 13 KB. Holding past 100 games: about 100 conversions before (1.5 s of CPU, 1.6 GB churned), 6 now (the first press's game, the landed game, its 4 neighbours).
+
+### Code and tests
+
+- `internal/ui/scroll.go`: landing, holding, the dots, the neighbours, the 24 kept. Hooks in `Update` (`app.go`), `ensureLogo` and `logoView` (`logoart.go`), `wantPicture` (`picture.go`).
+- Tests: no read while holding and the picture erased at the first quick step; a single step keeps the picture and shows no dots; landing reads the game and its neighbours once, a neighbour missing on disk is not read again; the dots for a late logo only after 200 ms, and they stop; the dots don't shift; at most 24 kept. Logo tests switch the landing wait off, as they do the store's.
+- Real loop (lab, the real library, pictures on): holding past 100 games read 1 logo, landing 6; the dots in the band; nothing printed; Quarter's data untouched.
+
 ## Keys that follow the game (Pablo, 2026-09-29: "if a game is installed, the i must disappear and do nothing"; "go with a")
 
 Until now the key line was the same for every game: `enter play` even on a game that wasn't installed (where Enter installed it), and `i install` even on an installed one (where it sent Steam's install link anyway).

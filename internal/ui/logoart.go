@@ -44,13 +44,14 @@ type drawnLogo struct {
 
 // logoDoneMsg carries a drawn logo, or why there is none.
 type logoDoneMsg struct {
-	key      logoKey
-	lines    []string
-	picture  string
-	px       image.Point // the picture's size in pixels, zero for text
-	err      error
-	download bool // none on disk: the CDN may have one
-	fetched  bool // this answer came from a download
+	key       logoKey
+	lines     []string
+	picture   string
+	px        image.Point // the picture's size in pixels, zero for text
+	err       error
+	download  bool // none on disk: the CDN may have one
+	fetched   bool // this answer came from a download
+	neighbour bool // prepared beside the selection (scroll.go)
 }
 
 // logoWantMsg asks for a download once the selection has settled.
@@ -96,16 +97,24 @@ func (m Model) logoFor(key logoKey) (drawnLogo, logoState) {
 	return drawnLogo{}, logoName // none, or downloads are paused: the name meanwhile
 }
 
-// ensureLogo starts drawing the selected game's logo when the pane needs it
-// and nothing is on the way yet.
+// hasLogo reports whether key's logo is drawn the way the band shows it now:
+// one drawn as text before pictures were known doesn't count.
+func (m Model) hasLogo(key logoKey) bool {
+	logo, ok := m.logoCache[key]
+	return ok && (!m.sixel || logo.picture != "")
+}
+
+// ensureLogo starts drawing the selected game's logo when the pane needs it,
+// once the selection has landed on it (scroll.go), and nothing is on the way
+// yet.
 func (m *Model) ensureLogo() tea.Cmd {
 	g, ok := m.selected()
-	if !ok || !m.showsLogos() || m.logoNone[g.AppID] {
+	if !ok || !m.showsLogos() || m.logoNone[g.AppID] || !m.landed() {
 		return nil
 	}
 	_, cols, rows, _ := m.logoBand()
 	key := logoKey{g.AppID, cols, rows}
-	if logo, ok := m.logoCache[key]; ok && (!m.sixel || logo.picture != "") || m.logoPending[key] {
+	if m.hasLogo(key) || m.logoPending[key] {
 		return nil
 	}
 	if m.sixel {
@@ -165,12 +174,20 @@ func (m Model) applyLogo(msg logoDoneMsg) (Model, tea.Cmd) {
 	if msg.fetched {
 		m.logoFetching = 0
 	}
+	if msg.neighbour && msg.err != nil {
+		// Nothing drawable on disk: left until the selection lands on it,
+		// which reads it again and downloads it if need be.
+		m.logoNoDisk[msg.key.appID] = true
+		return m, nil
+	}
 	switch {
 	case msg.err == nil && msg.px != m.pictureSize(msg.key.cols, msg.key.rows):
 		// Drawn for a cell size or a mode that has changed since: drop it,
 		// and the next update draws it again.
 	case msg.err == nil:
 		m.logoCache[msg.key] = drawnLogo{msg.lines, msg.picture}
+		m.keepLogo(msg.key)
+		delete(m.logoNoDisk, msg.key.appID) // downloaded since: on disk now
 	case msg.download:
 		m.logoPending[msg.key] = true // waiting for its turn on the CDN
 		return m, m.logoWantAfter(msg.key)
@@ -229,8 +246,12 @@ func (m Model) wantLogo(msg logoWantMsg) (Model, tea.Cmd) {
 // gradient, centered. Without one (none anywhere, or still on its way), the
 // game's name in Quarter's pixel font, in the same style; nothing when even
 // that doesn't fit, since the pane below names the game anyway. On a Sixel
-// terminal the band stays blank for the picture.
+// terminal the band stays blank for the picture. While a key is held, or a
+// logo is late, the dots (scroll.go).
 func (m Model) logoView(g library.Game, cols, rows int) string {
+	if m.showsDots() {
+		return m.dotsView(cols, rows)
+	}
 	if m.sixel { // blank: the picture is drawn into it (picture.go)
 		return lipgloss.Place(cols, rows, lipgloss.Left, lipgloss.Top, "")
 	}

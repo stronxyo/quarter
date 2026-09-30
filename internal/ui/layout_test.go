@@ -23,7 +23,7 @@ func laidOut(t *testing.T, w, h, n int, keys ...string) Model {
 		logos.missing[uint32(i+2)] = true
 	}
 	m := New(Options{Settings: config.Settings{}, Logos: func(string) LogoSource { return logos }, SaveSettings: func(config.Settings) error { return nil }})
-	m.debounce = 0
+	m.debounce, m.settle = 0, 0
 	var tm tea.Model = m
 	tm, _ = tm.Update(tea.WindowSizeMsg{Width: w, Height: h})
 	tm, cmd := tm.Update(scanDoneMsg{res: library.Result{PlaytimeKnown: true, Games: games}})

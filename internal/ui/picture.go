@@ -118,16 +118,25 @@ func (m Model) pictureSig() sixelSig {
 }
 
 // wantPicture schedules a redraw of the band's picture when what it should
-// show has changed.
+// show has changed. While a key is held the band shows the dots: the last
+// picture is erased at once.
 func (m *Model) wantPicture() tea.Cmd {
 	if !m.sixel {
 		return nil
 	}
 	sig := m.pictureSig()
+	if m.holding() {
+		sig = sixelSig{}
+	}
 	if sig == m.pictureWant {
 		return nil
 	}
 	m.pictureWant = sig
+	if sig == (sixelSig{}) && m.pictureShown.cols > 0 {
+		drawn, erase := m.drawPicture()
+		m.pictureShown = drawn.pictureShown
+		return erase
+	}
 	return tea.Tick(pictureDelay, func(time.Time) tea.Msg { return pictureMsg{sig} })
 }
 

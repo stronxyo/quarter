@@ -75,7 +75,7 @@ func logoPNG(t *testing.T) string {
 // back, a few rounds deep. Tests using it set no clocks that wait.
 func pump(m tea.Model, cmd tea.Cmd) tea.Model {
 	queue := []tea.Cmd{cmd}
-	for round := 0; round < 20 && len(queue) > 0; round++ {
+	for round := 0; round < 100 && len(queue) > 0; round++ {
 		c := queue[0]
 		queue = queue[1:]
 		if c == nil {
@@ -99,7 +99,7 @@ func withLogos(t *testing.T, logos *fakeLogos, s config.Settings) (tea.Model, *[
 	saved := &[]config.Settings{}
 	m := New(Options{Settings: s, Logos: func(string) LogoSource { return logos },
 		SaveSettings: func(s config.Settings) error { *saved = append(*saved, s); return nil }})
-	m.debounce = 0
+	m.debounce, m.settle = 0, 0
 	var tm tea.Model = m
 	tm, _ = tm.Update(tea.WindowSizeMsg{Width: 150, Height: 40})
 	tm, cmd := tm.Update(scanDoneMsg{res: library.Result{PlaytimeKnown: true, Games: []library.Game{
@@ -271,7 +271,7 @@ func TestLogoDownload(t *testing.T) {
 func TestLogoDownloadSkippedWhenScrolledPast(t *testing.T) {
 	logos := &fakeLogos{paths: map[uint32][]string{}, cdn: map[uint32]string{1: logoPNG(t)}, missing: map[uint32]bool{2: true}}
 	m := New(Options{Logos: func(string) LogoSource { return logos }})
-	m.debounce = 0
+	m.debounce, m.settle = 0, 0
 	var tm tea.Model = m
 	tm, _ = tm.Update(tea.WindowSizeMsg{Width: 150, Height: 40})
 	tm, cmd := tm.Update(scanDoneMsg{res: library.Result{Games: []library.Game{
