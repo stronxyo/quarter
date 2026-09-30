@@ -41,8 +41,8 @@ func TestScanFixture(t *testing.T) {
 	if len(res.Games) != 3 || res.Games[2].Name != "Portal 2" || res.Games[2].Playtime != 754*time.Minute {
 		t.Errorf("unexpected games: %+v", res.Games)
 	}
-	if hl := res.Games[0]; hl.AppID != 70 || !hl.Updating || !hl.Installed {
-		t.Errorf("Half-Life should be listed as updating: %+v", hl)
+	if hl := res.Games[0]; hl.AppID != 70 || !hl.Updating || !hl.Installed || hl.Installing || hl.Paused {
+		t.Errorf("Half-Life should be listed as updating, not installing or paused: %+v", hl)
 	}
 }
 

@@ -95,5 +95,5 @@ const (
 // next launch. Bump LibraryCacheVersion whenever the cached fields change.
 const (
 	LibraryCache        = "library.json"
-	LibraryCacheVersion = 4 // 2: games carry achievements; 3: not-installed candidates; 4: games Steam is updating
+	LibraryCacheVersion = 5 // 2: games carry achievements; 3: not-installed candidates; 4: games Steam is updating; 5: installing and paused
 )

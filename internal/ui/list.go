@@ -33,7 +33,8 @@ func columns(width int, marker, name, played, last string) string {
 type rowDelegate struct {
 	playtimeKnown bool
 	now           func() time.Time
-	running       uint32 // the game Steam is running, 0 for none
+	running       uint32                    // the game Steam is running, 0 for none
+	dlCell        func(library.Game) string // a downloading game's last column; nil: "updating"
 }
 
 func (d rowDelegate) Height() int                         { return 1 }
@@ -70,6 +71,9 @@ func (d rowDelegate) Render(w io.Writer, m list.Model, index int, item list.Item
 		last = markerRunning + " running"
 	case updating:
 		last = markerUpdating + " updating"
+		if d.dlCell != nil {
+			last = d.dlCell(g.Game)
+		}
 	}
 	// The marker takes one cell; it's drawn separately below.
 	line := columns(m.Width()-rowStyle.GetHorizontalFrameSize(), " ", g.Label(),

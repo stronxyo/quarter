@@ -85,6 +85,13 @@ type Model struct {
 
 	updateWatch bool // a read of the library is scheduled while Steam updates a game
 
+	downloads map[uint32]steam.Download // what Steam's download log says, by game
+	dlPaused  map[uint32]bool           // downloads paused in Steam, from their install files
+	steamRoot string                    // the Steam folder the scans found
+	logSize   int64                     // the download log's size when last read
+	dlWatch   bool                      // the download log is being looked at
+	dlBlink   bool                      // a downloading game's arrow is blinking
+
 	newLogos     func(steamPath string) LogoSource // may be nil: no game logos
 	logos        LogoSource                        // set once the Steam folder is known
 	logosHidden  bool                              // o pressed: the pane shows names only
@@ -237,7 +244,7 @@ func (m Model) Init() tea.Cmd {
 
 // delegate is the row renderer for the current state.
 func (m Model) delegate() rowDelegate {
-	return rowDelegate{playtimeKnown: m.playtimeKnown, now: m.now, running: m.running}
+	return rowDelegate{playtimeKnown: m.playtimeKnown, now: m.now, running: m.running, dlCell: m.dlView().cell}
 }
 
 // saveScan stores a scan off the UI goroutine; a failure only costs speed on
@@ -353,6 +360,15 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 	case sessionsMsg:
 		m.hist = history.New(msg.all, time.Local).WithReplay(m.replayYears)
 		return m, nil
+
+	case downloadsMsg:
+		return m.applyDownloads(msg)
+
+	case downloadCheckMsg:
+		return m, m.checkDownloads()
+
+	case dlBlinkMsg:
+		return m.dlBlinkStep()
 
 	case updatePollMsg:
 		return m.updateTick()
@@ -481,10 +497,11 @@ func (m Model) applyScanResult(msg scanDoneMsg) (Model, tea.Cmd) {
 	m.warnings, m.missing, m.noAccount = msg.res.Warnings, msg.res.Missing, msg.res.NoAccount
 	m.installed, m.uninstalled = msg.res.Games, msg.res.Uninstalled
 	m.setSteamPath(msg.res.SteamPath)
+	m.steamRoot = msg.res.SteamPath
 	m.rebuild()
 	m.playtimeKnown = msg.res.PlaytimeKnown
 	m.list.SetDelegate(m.delegate())
-	cmd := tea.Batch(m.refreshList(), m.nextStoreFetch(), m.watchUpdates())
+	cmd := tea.Batch(m.refreshList(), m.nextStoreFetch(), m.watchUpdates(), m.watchDownloads(), m.blinkDownloads())
 	if m.save != nil {
 		cmd = tea.Batch(cmd, saveScan(m.save, msg.res))
 	}

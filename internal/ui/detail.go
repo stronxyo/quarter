@@ -87,7 +87,7 @@ func (m Model) detailView(width, height int) string {
 		case g.AppID == m.running:
 			b.WriteString(runningLabelStyle.Render(markerRunning+" RUNNING NOW") + "\n")
 		case g.Updating:
-			b.WriteString(updatingLabelStyle.Render(markerUpdating+" UPDATING") + "\n")
+			b.WriteString(strings.Join(m.dlView().lines(g, inner), "\n") + "\n")
 		}
 
 		info, state := m.storeStatus(g.AppID)

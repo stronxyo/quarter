@@ -41,6 +41,7 @@ var (
 	updatingStyle        = rowStyle.Foreground(colorUpdate)
 	selectedUpdateStyle  = selectedStyle.Foreground(colorUpdate).BorderForeground(colorUpdate)
 	updatingLabelStyle   = lipgloss.NewStyle().Bold(true).Foreground(colorUpdate)
+	updatingFgStyle      = lipgloss.NewStyle().Foreground(colorUpdate) // a download's progress bar
 	errorStyle           = lipgloss.NewStyle().Bold(true).Foreground(colorError)
 	alertStyle           = lipgloss.NewStyle().Foreground(colorError)
 	messageStyle         = lipgloss.NewStyle().Padding(1, 2)

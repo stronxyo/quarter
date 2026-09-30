@@ -23,6 +23,7 @@ type Manifest struct {
 	LibraryPath string
 	SizeOnDisk  int64
 	StateFlags  uint32
+	BuildID     uint32 // the version installed; 0 until a first install finishes
 	LastUpdated time.Time
 }
 
@@ -44,6 +45,17 @@ const stateUpdating = 2 | 256 | 512 | 1024 | 131072 | 262144 | 524288 | 1048576 
 func (m Manifest) Updating() bool {
 	return !m.Installed() && m.StateFlags&stateUpdating != 0
 }
+
+// FirstInstall reports whether an update in progress is the game's first
+// install: Steam keeps buildid at 0 until one has finished (seen on DiRT
+// Rally 2.0, 2026-09-29).
+func (m Manifest) FirstInstall() bool { return m.Updating() && m.BuildID == 0 }
+
+// statePaused is the StateFlags bit for an update paused in Steam.
+const statePaused = 512
+
+// Paused reports whether Steam's update of the game is paused.
+func (m Manifest) Paused() bool { return m.Updating() && m.StateFlags&statePaused != 0 }
 
 // InstalledGames scans every library for installed games, and games Steam
 // is updating, dropping Steam tools. Libraries that aren't connected (an
@@ -68,6 +80,15 @@ func InstalledGames(steamPath string) (games []Manifest, missing []LibraryFolder
 		}
 	}
 	return games, missing, warnings
+}
+
+// ReadManifest reads one game's appmanifest in library.
+func ReadManifest(library string, appID uint32) (Manifest, error) {
+	root, err := readVDF(filepath.Join(library, "steamapps", fmt.Sprintf("appmanifest_%d.acf", appID)))
+	if err != nil {
+		return Manifest{}, err
+	}
+	return parseManifest(root, library)
 }
 
 // Manifests reads every appmanifest in one library, sorted by appid.
@@ -113,6 +134,7 @@ func parseManifest(root *vdf.Node, library string) (Manifest, error) {
 		LibraryPath: library,
 		SizeOnDisk:  parseInt(state.ValueOf("SizeOnDisk")),
 		StateFlags:  uint32(parseInt(state.ValueOf("StateFlags"))),
+		BuildID:     uint32(parseInt(state.ValueOf("buildid"))),
 	}
 	if ts := parseInt(state.ValueOf("LastUpdated")); ts > 0 {
 		m.LastUpdated = time.Unix(ts, 0)

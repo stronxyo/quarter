@@ -357,6 +357,47 @@ Pablo has played since 2010, but Steam's log on this PC starts on 2026-03-21 (Wi
 - UI: the hint only in history and only until added; `a` in the games does nothing; the question, `esc`, `y` with the fetch's result saved; years not public named; removal deletes; the calendar's `▪`; 1 year including Replay months; the YEARS line; the key line and `?` at 80 and 100 columns.
 - The real program loop in a lab copy with Pablo's real account, the file saved to a temporary folder.
 
+## Download progress (Pablo, 2026-09-30: "the blinking arrow is nice, and go implement")
+
+Games Steam is installing or updating were all `↓ updating`, with no progress. Now installing and updating are told apart, and both show their progress, in the same blue. Tried in the download lab (`Documents\Quarter\Download lab`, `quarter-downloads`) on a simulation and checked against a real install.
+
+### Where progress comes from (measured 2026-09-29 on DiRT Rally 2.0, 115.2 GB)
+
+- The game's install file (`appmanifest`) has the download's bytes, but Steam writes it only when a download starts, pauses or ends: it said 9% for the whole half hour. Its `buildid` is 0 until a first install finishes, which tells installing from updating; StateFlags 512 marks a pause.
+- The download folder is preallocated at full size, so its size never moves.
+- Steam's download log, `logs/content_log.txt`, writes `update started : download X/Y` at the start, the phase as it changes (`App update changed : Running Update,Downloading,Staging,`, then Staging and Committing), `Current download rate: N Mbps` about once a minute (the client's total), and `finished update` / `scheduler finished` at the end.
+- Adding up the minute rates from the starting bytes gave 104.1 GB against the real 104.7 GB (99%). Replayed through the reader up to mid-download: 90%, 103.4 of 115.2 GB, 65 MB/s, the same as by hand.
+- Researched: the exact live figures exist only inside the Steam client (its `SteamClient.Downloads` interface), reachable from outside only through its unauthenticated debugging port or undocumented native interfaces. Not used: the port lets anything on the PC run code in Steam's window while open, and both break with Steam updates ([decky-frontend-lib](https://github.com/SteamDeckHomebrew/decky-frontend-lib/blob/main/src/globals/steam-client/Downloads.ts), [steam-debug](https://github.com/kmturley/steam-debug), [open-steamworks](https://github.com/SteamRE/open-steamworks)). No launcher found shows live Steam progress.
+
+### What shows
+
+- **The row's last column** (13 wide): `↓ ~42%` while downloading, `↓ applying`, `↓ verifying`, `↓ paused`, `↓ queued` (another game is downloading), or `↓ installing` / `↓ updating` before the log says more.
+- **The pane:** `↓ INSTALLING ~42%` (or UPDATING), a blue bar (the rest the thin dim line), and `48.3 of 115.2 GB · 65 MB/s · about 17 min left`; for the other phases a line saying what Steam is doing (`Downloaded. Steam is putting the files in place.`, `Paused in Steam.`, `Waiting in Steam's download queue.`). A paused download keeps its percentage: `↓ UPDATING ~50% · PAUSED`.
+- **Motion:** the arrow blinks (every half second) while Steam is working on it: downloading, applying or verifying (Pablo's pick of four in the lab: dots, spinner, blinking arrow, moving bar). Paused and queued stay still.
+- `~` marks the estimate. Between log lines the percentage carries on at the last speed, every half second, for at most 90 s past the last line (Steam logs about once a minute), so a stalled download never counts itself up.
+- While two games are marked downloading, the rate can't be split and neither advances (Steam downloads one at a time).
+
+### Watching
+
+- Every 2 s Quarter checks whether the download log changed (its size), and reads it only then; while a game downloads it also reads those games' install files (a pause shows only there).
+- A download the log shows for a game the library doesn't know as downloading (started while Quarter is open, or a new install) reads the library at once. A download that ended does too, so the game turns playable within seconds.
+- Unverified: that Steam marks a pause in the install file the moment it's paused (DiRT's install never paused).
+
+### Code
+
+- `internal/steam/downloads.go`: `ReadDownloads` (the log's last 4 MB) and `Download.Estimate`. `internal/steam/manifests.go`: `BuildID`, `FirstInstall`, `Paused`, `ReadManifest`.
+- `internal/library`: `Game.Installing`, `Game.Paused`; the saved library's version goes up (5).
+- `internal/ui/downloads.go`: the watching, the row and pane text, the blink.
+- The list's delegate keeps a small `dlView` (the downloads, the pause marks, the clock), never the Model: a Model kept there keeps the list and its older delegate, one more copy at every blink.
+- Only a download seen for the first time counts as started: one for an app the library never lists (a redistributable, a DLC) would read the library at every change of the log.
+
+### Tests
+
+- The reader on recorded log lines: a download from start to finish, a Workshop update ending with `scheduler finished` only, a pause and resume, two downloading at once, rates before the start ignored. The estimate's carry-on and its limits.
+- The install file: `buildid`, first install, paused.
+- UI: each phase's row and pane text, the row within 13 columns, the blink, a paused download from its install file, an ended download reading the library, a new one reading it too, one seen before not, the log read only when it changed.
+- Real loop (lab, a Steam folder made in a temp folder): an update started while Quarter is open, going on, paused, resumed and ended; the library read only at those changes; nothing printed to the terminal.
+
 ## Keys that follow the game (Pablo, 2026-09-29: "if a game is installed, the i must disappear and do nothing"; "go with a")
 
 Until now the key line was the same for every game: `enter play` even on a game that wasn't installed (where Enter installed it), and `i install` even on an installed one (where it sent Steam's install link anyway).
