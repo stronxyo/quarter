@@ -71,12 +71,25 @@ func (m Model) histKey(msg tea.KeyPressMsg) (_ Model, _ tea.Cmd, ok bool) {
 	switch s := msg.String(); s {
 	case "esc":
 		m.histView = histOff
-	case "left":
-		m.histPeriod = (m.histPeriod + len(histPeriods) - 1) % len(histPeriods)
-		m.histSel = 0
-	case "right":
+	// As in the games: tab moves on to the next period, as it does to the
+	// next filter; left and right turn pages, wrapping round past either
+	// end and keeping the row where the page has one.
+	case "tab":
 		m.histPeriod = (m.histPeriod + 1) % len(histPeriods)
 		m.histSel = 0
+	case "left", "right":
+		if n == 0 {
+			break
+		}
+		per := m.rankPerPage()
+		pages := (n + per - 1) / per
+		page, row := m.histSel/per, m.histSel%per
+		if s == "left" {
+			page = (page - 1 + pages) % pages
+		} else {
+			page = (page + 1) % pages
+		}
+		m.histSel = pageRow(page, row, per, n)
 	// As in the game list: up and down run on across pages and wrap round
 	// past the ends; g and G jump to the first and the last.
 	case "up", "k", "down", "j", "g", "home", "G", "end":
@@ -101,6 +114,10 @@ func (m Model) histKey(msg tea.KeyPressMsg) (_ Model, _ tea.Cmd, ok bool) {
 	}
 	return m, nil, true
 }
+
+// rankPerPage is how many games a page of the ranking holds: as many as
+// a page of the game list, in the same rows.
+func (m Model) rankPerPage() int { return max(m.list.Paginator.PerPage, 1) }
 
 // ranking is the period's games by time played, Steam tools left out.
 func (m Model) ranking() []history.Entry {
@@ -233,7 +250,7 @@ func (m Model) rankRows(height int) string {
 	}
 	rows := []string{rowStyle.Render(dimStyle.Render(row("#", "Game", "Played") + "Share"))}
 	r := m.ranking()
-	per := max(min(m.list.Paginator.PerPage, height-2), 1)
+	per := m.rankPerPage()
 	first := min(m.histSel, max(len(r)-1, 0)) / per * per
 	for i := first; i < min(first+per, len(r)); i++ {
 		text := row(fmt.Sprintf("%d.", i+1), m.gameName(r[i].App), playedText(r[i].Played))

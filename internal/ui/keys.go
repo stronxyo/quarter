@@ -57,7 +57,7 @@ var (
 
 	// While history is open.
 	helpHistNext   = key.NewBinding(key.WithKeys("h"), key.WithHelp("h", "next view"))
-	helpHistPeriod = key.NewBinding(key.WithKeys("left", "right"), key.WithHelp("←→", "period"))
+	helpHistPeriod = key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "period"))
 	helpHistBack   = key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "games"))
 
 	// The selected game's keys, by its state (see gameKeys).
@@ -129,8 +129,9 @@ func shortHelp(game []key.Binding) [][]key.Binding {
 func historyHelp() [][]key.Binding {
 	core := []key.Binding{helpHistPeriod, helpHistNext, helpHistBack, helpQuit}
 	return [][]key.Binding{
-		append([]key.Binding{helpMove, helpEnds}, core...),
-		append([]key.Binding{helpMove}, core...),
+		append([]key.Binding{helpMove, helpPage, helpEnds}, core...),
+		append([]key.Binding{helpMove, helpPage}, core...),
+		append([]key.Binding{helpPage}, core...),
 		core,
 	}
 }

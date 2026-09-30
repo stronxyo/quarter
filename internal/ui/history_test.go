@@ -92,20 +92,51 @@ func TestHistoryCycle(t *testing.T) {
 	}
 }
 
-// Five periods, no "since"; left and right wrap round.
+// Five periods, no "since"; tab moves on and wraps round, as it does
+// through the games' filters.
 func TestHistoryPeriods(t *testing.T) {
+	tab := tea.KeyPressMsg{Code: tea.KeyTab}
 	m := hit(historyModel(t, 3, 150, 40), press("h"))
-	if view := screenText(hit(m, keyLeft)); !strings.Contains(view, "[1 year]") {
-		t.Errorf("left from 7 days should wrap to 1 year:\n%s", view)
+	if view := screenText(hit(m, tab, tab)); !strings.Contains(view, "[3 months]") {
+		t.Errorf("tab twice should reach 3 months:\n%s", view)
 	}
-	if view := screenText(hit(m, keyRight, keyRight)); !strings.Contains(view, "[3 months]") {
-		t.Errorf("right twice should reach 3 months:\n%s", view)
+	if view := screenText(hit(m, tab, tab, tab, tab)); !strings.Contains(view, "[1 year]") {
+		t.Errorf("tab four times should reach 1 year:\n%s", view)
+	}
+	if view := screenText(hit(m, tab, tab, tab, tab, tab)); !strings.Contains(view, "[7 days]") {
+		t.Errorf("tab from 1 year should wrap to 7 days:\n%s", view)
 	}
 	if view := screenText(hit(m, keyLeft, keyRight)); !strings.Contains(view, "[7 days]") {
-		t.Errorf("right from 1 year should wrap to 7 days:\n%s", view)
+		t.Errorf("left and right turn pages, not periods:\n%s", view)
 	}
 	if view := screenText(m); strings.Contains(view, "since") {
 		t.Errorf("no period is 'since':\n%s", view)
+	}
+}
+
+// Left and right turn the ranking's pages as in the games: round past
+// either end, keeping the row where the page has one.
+func TestHistoryPages(t *testing.T) {
+	m := hit(historyModel(t, 40, 140, 24), press("h"))
+	per := m.(Model).rankPerPage()
+	pages := (40 + per - 1) / per
+	if pages < 3 {
+		t.Fatalf("want at least 3 pages, have %d of %d", pages, per)
+	}
+	m = hit(m, keyDown) // row 2 of page 1
+	if got, want := selectedRank(t, hit(m, keyRight)), fmt.Sprintf("%d.", per+2); got != want {
+		t.Errorf("right: got %s, want %s (row 2 of page 2)", got, want)
+	}
+	if !strings.Contains(screenText(hit(m, keyRight)), fmt.Sprintf("2/%d", pages)) {
+		t.Errorf("the counter should say page 2")
+	}
+	last := hit(m, keyLeft) // round to the last page, row 2 if it has one
+	want := fmt.Sprintf("%d.", min((pages-1)*per+2, 40))
+	if got := selectedRank(t, last); got != want {
+		t.Errorf("left from page 1: got %s, want %s", got, want)
+	}
+	if got := selectedRank(t, hit(last, keyRight)); got != "2." {
+		t.Errorf("right from the last page: got %s, want 2.", got)
 	}
 }
 
@@ -241,7 +272,7 @@ func TestHistoryHelp(t *testing.T) {
 		t.Error("the key line should offer h history")
 	}
 	view := screenText(hit(m, press("h")))
-	for _, want := range []string{"←→ period", "h next view", "esc games"} {
+	for _, want := range []string{"tab period", "←→ page", "h next view", "esc games"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("history key line missing %q:\n%s", want, view)
 		}
