@@ -509,3 +509,51 @@ Network failures fall into four kinds; only the last is remembered:
 - [clig.dev](https://clig.dev/), [NN/g: error message guidelines](https://www.nngroup.com/articles/error-message-guidelines/) (say what happened and what to do, no blame, keep the user's data on screen)
 - [golang/go#29106](https://github.com/golang/go/issues/29106) (rename failures on Windows)
 - [steam-for-linux#9672](https://github.com/ValveSoftware/steam-for-linux/issues/9672) (no running game on Linux)
+
+## Phase C: Performance
+
+### C1. Measure (Pablo, 2026-09-30: "make the c1 careful professional plan first"; then "continue")
+
+Measure only: nothing in the app changes in C1. The work runs in a copy of the code (`Documents\Quarter\Performance lab`); Steam is only read; every measurement runs 20 times and reports the typical run (median) and the worst, the first launch after a build separately. Results and raw numbers go in the lab; misses become the C3 list for Pablo to approve.
+
+Machine: Intel Core Ultra 9 275HX, 31.4 GB, Windows 11 Home 26200, Windows Terminal 1.24.11911.0, Go 1.27.0, Balanced power plan.
+
+Libraries: Pablo's (342 games, 12 installed, 304 sessions, past years) and a made one (5,000 games, about 20,000 sessions over 5 years, past years).
+
+| # | What | Target |
+|---|---|---|
+| 1 | Launch to the intro's first frame, by step (start, saved files read in `main.go`, model, first frame) | under 100 ms (brief) |
+| 2 | A key on the intro to a usable list | under 100 ms |
+| 3 | First run: a full Steam scan | measured; runs behind the intro |
+| 4 | Search keystroke | under 16 ms (brief) |
+| 5 | The slowest frame of the 32 intros, at 80x24, 160x45, 240x67 | under 33 ms (goal 10 ms) |
+| 6 | History keys: h, tab through the periods, page turns, the board | under 16 ms |
+| 7 | Holding down with pictures on: time per key, output per second, pictures drawn, the landing's parts | under 16 ms per key |
+| 8 | Idle 10 min: CPU and output (no game, a game running, a download) | under 1% of a core; no picture redrawn unchanged |
+| 9 | Memory over a long run | flat |
+| 10 | Disk: saved files and logos, now and projected | measured; nothing unbounded |
+| 11 | No file, network or process work in the key and drawing code | none (brief) |
+| 12 | Release size, 6 builds (Windows, macOS, Linux; amd64, arm64) | 8 to 12 MB (brief) |
+
+Pablo's part: hold down 10 s in Windows Terminal and say whether a logo flickers, lags or is left behind (the Scroll lab video, 2026-09-30, covered this before the moving dots). Order: 11, 12, 4; 1, 2, 3; 5, 6, 7; 8, 9, 10. Out of C1: tmux and SSH.
+
+### C1 results (2026-09-30)
+
+| # | Result | Target | |
+|---|---|---|---|
+| 1 | Launch to first frame: 41 ms typical, 43 worst, 49 the first run after a build. Of that, 20 ms before `main` (14 ms package start-up, 12 of it `go-runewidth` v0.0.27 building its tables), under 5 ms Quarter's own work, 17 ms waiting for Bubble Tea's next frame | 100 ms | pass |
+| 2 | Start screen key to list: 17 ms | 100 ms | pass |
+| 3 | Full Steam scan: 7.3 ms (12 installed, 330 not) | measured | pass |
+| 4 | Search keystroke: 2.5 ms (Pablo's), 3.4 to 4.6 ms (5,000); worst 10.5 | 16 ms | pass |
+| 5 | Slowest intro frame: 3.9 ms (median 0.2 to 0.3); 80x24 shows the compact screen | 33 ms | pass |
+| 6 | History keys: 3 to 6 ms (Pablo's); HIGH SCORES board at 5,000 games 11.7 typical, 21 worst | 16 ms | pass, board borderline at 5,000 |
+| 7 | A held step with pictures on: 4.4 ms; the name picture 0.4 ms; Pablo: "holding is steady, nothing flickers" | 16 ms | pass |
+| 8 | Idle 10 min: 1.52% of a core (no game), 1.46% (a game running), 0 bytes written, no picture redrawn; a download, 30 min: 3.3%, about 740 bytes a minute | 1% | miss |
+| 9 | Memory: flat over 10,000 check rounds (0.87 to 0.91 MB) and over 30 min with a download (3 to 7 MB, no trend, 14 goroutines throughout) | flat | pass |
+| 10 | Saved files: 1 ms to read (Pablo's); projected 5,000 games and 20,000 sessions: 6 MB, about 18 ms. The logos folder has no limit (90 KB a logo) | measured | note |
+| 11 | No file, network or process work in the key and drawing code | none | pass |
+| 12 | Release builds: 9.4 to 10.4 MB | 8 to 12 MB | pass |
+
+Why idle misses: the running-game check and the download check (two messages each time), every 2 s, about 90 messages a minute, each rebuilding the whole screen with nothing new; during a download the arrow's blink adds 2 a second. And while a game updates, the library is still re-read every 30 s (60 scans in 30 min), though the download log now sees a download start and end.
+
+C3 candidates, for Pablo to approve: one timer for the 2 s checks and no rebuild when nothing changed; the 30 s re-read only when the download log can't be read; `go-runewidth` v0.0.30 (its start-up work measured at 0 ms, about 12 ms off each launch); a size limit for the logos folder; the board at 5,000 games profiled (optional).
