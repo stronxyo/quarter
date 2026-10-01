@@ -163,7 +163,7 @@ The v0.2 and v0.3 features in the brief (collections, backlog, stats) are planne
 - Unit tests for `vdf`, `steam/*` parsers, `filter`, `library/merge`, run against `testdata/`
 - `webapi` tested with `httptest` servers, never the real API in tests
 - UI: key flows tested by calling the model's `Update` and `View` directly (no `teatest`); the look checked by hand in Windows Terminal
-- Speed: `go test ./internal/ui -bench .` for numbers; `TestSpeedTargets` fails the build if startup (5,000 games) passes 100 ms or a search keystroke passes 16 ms
+- Speed: `go test ./internal/ui -bench .` for numbers; on 5,000 games and 20,000 sessions, `TestSpeedTargets` fails the build if startup (saved files to the first frame) passes 100 ms, or a search keystroke, a held step with pictures, a history key or a download's blink passes 16 ms; `TestIntroFrameSpeed` if an intro frame passes 33 ms (Phase C, `specs/BATCH_08_SPEC.md`)
 
 ## Open questions
 

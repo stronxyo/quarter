@@ -596,3 +596,20 @@ Tests: past the limit a download removes the least recently used, never the new 
 Download, 10 min, after item 5 (the blink as before, twice a second): 2.46% of a core before, 1.29% after; about 600 bytes a minute to the terminal. Still over the 1% target; A (once a second) in the Blink lab for Pablo to compare.
 
 The blink (Pablo, 2026-09-30, after the Blink lab: "the one second blink feels not wrong", and the pick left to the numbers): measured in the Blink lab, the same simulated download, 5 min each, after 30 s: twice a second 1.08% of a core, once a second 0.87%. Once a second it is: a download is now under the 1% target too.
+
+### C4. Keeping the numbers (Pablo, 2026-09-30: "c4 go")
+
+`TestSpeedTargets` (`internal/ui/bench_test.go`) now runs on 5,000 games, 20,000 sessions, store info for every game and four past years, and fails the build past its targets; each check is the quickest of five timings, each over a batch of runs for Windows' 0.5 ms clock. `TestIntroFrameSpeed` (`internal/intro`) times every frame of every intro at 240x67. Benchmarks for numbers: `go test ./internal/ui -bench .`.
+
+| Check | Target | On Pablo's PC |
+|---|---|---|
+| Startup: saved files read (library, store info, sessions, past years), the model, the start screen's first frame | 100 ms | 31 ms |
+| Search keystroke | 16 ms | 1.3 ms |
+| A held step, pictures on | 16 ms | 0.8 ms |
+| h, the ranking | 16 ms | 1.4 ms |
+| h, the HIGH SCORES board | 16 ms | 3.4 ms |
+| tab on the board | 16 ms | 3.8 ms |
+| A download's blink and its screen | 16 ms | 0.9 ms |
+| The slowest intro frame | 33 ms | 4.4 ms (Neon) |
+
+Not guarded by a test: idle CPU (needs minutes; the Performance lab's `TestPerfIdle`), launch before `main` (`GODEBUG=inittrace=1`), release size (six builds). Measure them again before each release.
