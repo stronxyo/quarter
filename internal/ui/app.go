@@ -88,6 +88,7 @@ type Model struct {
 	reuseView bool      // the screen drawn last can be shown again
 	viewGen   uint64    // which drawing this model's screen is
 	memo      *viewMemo // the screen drawn last
+	rank      *rankMemo // the ranking worked out last (history.go)
 
 	updateWatch bool // a read of the library is scheduled while Steam updates a game
 	logOK       bool // the download log is there: the reads while updating wait
@@ -226,6 +227,7 @@ func New(opts Options) Model {
 		polling: opts.RunningApp != nil, // Init starts the checks
 		viewGen: viewGens.Add(1),
 		memo:    &viewMemo{},
+		rank:    &rankMemo{},
 
 		splash: opts.Splash,
 		hist:   history.New(opts.Sessions, time.Local).WithReplay(opts.Replay),
@@ -288,8 +290,10 @@ func scan(steamPath string) tea.Cmd {
 // Update handles a message, then lays the screen out again: whether the logo
 // fits depends on how many games are showing, which searches and filters change.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m.rank = &rankMemo{}
 	before, _ := m.selected()
 	m, cmd := m.update(msg)
+	m.rank = &rankMemo{} // the message may have brought a new history
 	m.layout()
 	after, _ := m.selected()
 	if after.AppID != before.AppID && m.uninstallArmed != 0 {

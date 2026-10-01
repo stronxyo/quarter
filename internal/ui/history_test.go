@@ -314,3 +314,22 @@ func TestHistoryHelp(t *testing.T) {
 		}
 	}
 }
+
+// The ranking is worked out once per state (C3), so a new history arriving
+// must still show at once: the newly most played game heads it.
+func TestRankingFollowsNewHistory(t *testing.T) {
+	m := hit(historyModel(t, 5, 150, 40), press("h"))
+	g, _ := m.(Model).selected()
+	if g.AppID != 1005 {
+		t.Fatalf("Game 05 played longest should head the ranking, got %d", g.AppID)
+	}
+	start := time.Now().Add(-2 * time.Hour)
+	more := []steam.Session{
+		{AppID: 1005, Start: start, End: start.Add(15 * time.Minute), EndKnown: true},
+		{AppID: 1001, Start: start.Add(20 * time.Minute), End: start.Add(110 * time.Minute), EndKnown: true},
+	}
+	m, _ = m.Update(sessionsMsg{all: more})
+	if g, _ := m.(Model).selected(); g.AppID != 1001 {
+		t.Errorf("Game 01, now played most, should head the ranking, got %d", g.AppID)
+	}
+}

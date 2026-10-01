@@ -2,8 +2,16 @@ package ui
 
 import (
 	"strings"
+	"sync"
 
 	"charm.land/lipgloss/v2"
+)
+
+// The logo box and block never change: drawn once, not at every look at
+// whether they fit (C3: they were half of each screen's drawing).
+var (
+	logoBox    = sync.OnceValue(drawLogoBox)
+	renderLogo = sync.OnceValue(drawLogoBlock)
 )
 
 // logoArt is "quarter_", a prompt with its cursor, in lowercase letters drawn
@@ -47,9 +55,9 @@ func logoHeight() int {
 	return logoPadTop + lipgloss.Height(logoBox()) + logoPadBottom
 }
 
-// logoBox is the logo in its box: the letters in the top-to-bottom gradient,
+// drawLogoBox draws the logo in its box: the letters in the top-to-bottom gradient,
 // the shadow in the dim color so it sits behind them.
-func logoBox() string {
+func drawLogoBox() string {
 	colors := lipgloss.Blend1D(len(logoArt), colorLogoTop, colorLogoBottom)
 	rows := make([]string, len(logoArt))
 	for i, row := range logoArt {
@@ -92,9 +100,9 @@ func twoTone(row string, letter lipgloss.Style) string {
 	return b.String()
 }
 
-// renderLogo draws the logo block: empty rows above and below, and the boxed
+// drawLogoBlock draws the logo block: empty rows above and below, and the boxed
 // logo indented to line up with the section line.
-func renderLogo() string {
+func drawLogoBlock() string {
 	indent := strings.Repeat(" ", logoIndent)
 	lines := make([]string, 0, logoHeight())
 	for range logoPadTop {

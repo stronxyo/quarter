@@ -206,3 +206,35 @@ func TestNoCDN(t *testing.T) {
 		t.Errorf("without a CDN address, got %v", err)
 	}
 }
+
+// Past the limit, a download removes the least recently used logos, never
+// the new one; reading a saved logo marks it used.
+func TestKeepAtMost(t *testing.T) {
+	logo := pngBytes(t)
+	url, _ := cdn(t, logo)
+	dir := t.TempDir()
+	old := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	for i, id := range []string{"10", "11", "12", "13"} { // 10 oldest
+		p := filepath.Join(dir, id+".png")
+		writeFile(t, p, logo)
+		at := old.Add(time.Duration(i) * time.Hour)
+		if err := os.Chtimes(p, at, at); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFile(t, filepath.Join(dir, missingFile), []byte("{}"))
+	s := NewSources("", dir, url, time.Second, int64(len(logo)+100), time.Hour).KeepAtMost(3)
+
+	s.Paths(10) // used now: no longer the oldest
+	if _, err := s.Download(context.Background(), 1); err != nil {
+		t.Fatal(err)
+	}
+	for id, kept := range map[string]bool{"1": true, "10": true, "11": false, "12": false, "13": true} {
+		if _, err := os.Stat(filepath.Join(dir, id+".png")); (err == nil) != kept {
+			t.Errorf("logo %s kept: %v, want %v", id, err == nil, kept)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, missingFile)); err != nil {
+		t.Error("the list of games without a logo is not a logo: it stays")
+	}
+}

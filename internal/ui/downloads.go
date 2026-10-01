@@ -22,8 +22,8 @@ import (
 )
 
 const (
-	blinkStep  = 500 * time.Millisecond // the arrow's blink, and the estimate's steps
-	dlBarWidth = 40                     // the pane's progress bar, at most
+	blinkStep  = time.Second // the arrow's blink, and the estimate's steps: once a second keeps a download under 1% of a core (twice: 1.08%)
+	dlBarWidth = 40          // the pane's progress bar, at most
 )
 
 type (

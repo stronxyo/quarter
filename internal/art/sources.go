@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -42,8 +43,19 @@ type Sources struct {
 	retry     time.Duration // how long a missing logo is remembered
 	now       func() time.Time
 
+	keep int // downloaded logos kept at most, the least recently used going first; 0: no limit
+
 	mu      sync.Mutex
 	missing map[uint32]time.Time // loaded on first use
+}
+
+// KeepAtMost limits Quarter's logo folder to n downloaded logos: past that,
+// each download removes the least recently used. A saved logo read for
+// drawing counts as used (its file time is set to now). Steam's own cache
+// is never touched.
+func (s *Sources) KeepAtMost(n int) *Sources {
+	s.keep = n
+	return s
 }
 
 // NewSources returns Sources that read Steam's cache under steamPath and
@@ -84,6 +96,10 @@ func (s *Sources) Paths(appID uint32) []string {
 	}
 	if p := s.saved(appID); isFile(p) {
 		out = append(out, p)
+		if s.keep > 0 {
+			now := s.now()
+			_ = os.Chtimes(p, now, now) // used: kept over older ones; failing only makes it go sooner
+		}
 	}
 	return out
 }
@@ -144,7 +160,43 @@ func (s *Sources) Download(ctx context.Context, appID uint32) (string, error) {
 	if err := store.WriteFile(s.dir, filepath.Base(p), b); err != nil {
 		return "", fmt.Errorf("logo %d: %w", appID, err)
 	}
+	s.prune(filepath.Base(p))
 	return p, nil
+}
+
+// prune removes the least recently used downloaded logos past the limit,
+// never the one just saved.
+func (s *Sources) prune(just string) {
+	if s.keep <= 0 {
+		return
+	}
+	entries, err := os.ReadDir(s.dir)
+	if err != nil {
+		return
+	}
+	type logo struct {
+		name string
+		used time.Time
+	}
+	var logos []logo
+	for _, e := range entries {
+		if e.IsDir() || filepath.Ext(e.Name()) != ".png" || e.Name() == just {
+			continue
+		}
+		if info, err := e.Info(); err == nil {
+			logos = append(logos, logo{e.Name(), info.ModTime()})
+		}
+	}
+	extra := len(logos) + 1 - s.keep
+	if extra <= 0 {
+		return
+	}
+	slices.SortFunc(logos, func(a, b logo) int { return a.used.Compare(b.used) })
+	for _, l := range logos[:extra] {
+		if err := os.Remove(filepath.Join(s.dir, l.name)); err != nil {
+			slog.Warn("logo", "remove", l.name, "err", err)
+		}
+	}
 }
 
 // noLogo remembers that the CDN has no logo for appID and returns ErrNoLogo.

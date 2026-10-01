@@ -72,6 +72,7 @@ const (
 	LogoDir      = "logos"
 	LogoMaxBytes = 2 << 20 // logos are 10 to 200 KB; anything over 2 MB is refused
 	LogoRetry    = 7 * 24 * time.Hour
+	LogoKeep     = 3000 // downloads kept, least recently used go first: about 270 MB at 90 KB a logo (Pablo, 2026-09-30: "lets do 3k")
 )
 
 // SessionsFile keeps every game session read from Steam's game process log,

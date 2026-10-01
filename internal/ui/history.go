@@ -130,9 +130,38 @@ func (m Model) histKey(msg tea.KeyPressMsg) (_ Model, _ tea.Cmd, ok bool) {
 // a page of the game list, in the same rows.
 func (m Model) rankPerPage() int { return max(m.list.Paginator.PerPage, 1) }
 
+// rankMemo is the ranking worked out last, for what it was worked out for:
+// the selected game is looked up several times a frame, and each look was
+// sorting every game again (C3). Update gives each model a fresh one before
+// and after a message is handled, so a new history is never missed.
+type rankMemo struct {
+	ok  bool
+	key rankKey
+	r   []history.Entry
+}
+
+type rankKey struct {
+	period         int
+	start          time.Time
+	allTime, known bool
+	games          int
+}
+
 // ranking is the period's games by time played, Steam tools left out: from
 // the recorded sessions, or for All time from each game's lifetime total.
 func (m Model) ranking() []history.Entry {
+	key := rankKey{m.histPeriod, m.periodStart(), m.allTime(), m.playtimeKnown, len(m.games)}
+	if m.rank != nil && m.rank.ok && m.rank.key == key {
+		return m.rank.r
+	}
+	r := m.workOutRanking()
+	if m.rank != nil {
+		*m.rank = rankMemo{true, key, r}
+	}
+	return r
+}
+
+func (m Model) workOutRanking() []history.Entry {
 	var out []history.Entry
 	if m.allTime() {
 		if !m.playtimeKnown {

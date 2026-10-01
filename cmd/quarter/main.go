@@ -99,7 +99,7 @@ func runUI(steamPath string) error {
 
 		Logos: func(steamPath string) ui.LogoSource {
 			return art.NewSources(steamPath, filepath.Join(dir, config.LogoDir),
-				config.LogoURL, config.StoreTimeout, config.LogoMaxBytes, config.LogoRetry)
+				config.LogoURL, config.StoreTimeout, config.LogoMaxBytes, config.LogoRetry).KeepAtMost(config.LogoKeep)
 		},
 	})).Run()
 	if err != nil {

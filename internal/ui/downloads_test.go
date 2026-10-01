@@ -14,7 +14,7 @@ import (
 	"github.com/stronxyo/quarter/internal/steam"
 )
 
-// dlNow is on a whole second, when the arrow shows; half a second later it
+// dlNow is on an even second, when the arrow shows; a blink step later it
 // is off.
 var dlNow = time.Date(2026, 9, 30, 12, 0, 0, 0, time.Local)
 
@@ -102,7 +102,7 @@ func TestDownloadBlink(t *testing.T) {
 	half := dlNow.Add(blinkStep)
 	v := dlView{downloads: map[uint32]steam.Download{2: bravoDownload}, now: func() time.Time { return half }}
 	if got := v.cell(g); got != "  ~40%" {
-		t.Errorf("half a second on, the arrow is off: %q", got)
+		t.Errorf("a blink step on, the arrow is off: %q", got)
 	}
 	v.paused = map[uint32]bool{2: true}
 	if got := v.cell(g); got != "↓ paused" {

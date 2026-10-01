@@ -364,7 +364,7 @@ Games Steam is installing or updating were all `↓ updating`, with no progress.
 
 - **The row's last column** (13 wide): `↓ ~42%` while downloading, `↓ applying`, `↓ verifying`, `↓ paused`, `↓ queued` (another game is downloading), or `↓ installing` / `↓ updating` before the log says more.
 - **The pane:** `↓ INSTALLING ~42%` (or UPDATING), a blue bar (the rest the thin dim line), and `48.3 of 115.2 GB · 65 MB/s · about 17 min left`; for the other phases a line saying what Steam is doing (`Downloaded. Steam is putting the files in place.`, `Paused in Steam.`, `Waiting in Steam's download queue.`). A paused download keeps its percentage: `↓ UPDATING ~50% · PAUSED`.
-- **Motion:** the arrow blinks (every half second) while Steam is working on it: downloading, applying or verifying (Pablo's pick of four in the lab: dots, spinner, blinking arrow, moving bar). Paused and queued stay still.
+- **Motion:** the arrow blinks (once a second; twice until C3, see there) while Steam is working on it: downloading, applying or verifying (Pablo's pick of four in the lab: dots, spinner, blinking arrow, moving bar). Paused and queued stay still.
 - `~` marks the estimate. Between log lines the percentage carries on at the last speed, every half second, for at most 90 s past the last line (Steam logs about once a minute), so a stalled download never counts itself up.
 - While two games are marked downloading, the rate can't be split and neither advances (Steam downloads one at a time).
 
@@ -578,3 +578,21 @@ Measured again in the Performance lab, same tests:
 Still over 1%: a download, from the arrow's blink, two full redraws a second. Not changed; options for Pablo.
 
 Tests: a round asks the running game, and the log once watched; nothing to ask, no round; an unknown answer stops the asking; one round at a time; a quiet round keeps the screen, a game starting, a key or 30 s draw it again; two model copies never share a screen; with the log there the 30 s reads wait.
+
+### C3, items 4 and 5 (Pablo, 2026-09-30: "4 lets do 3k and 5 do 5k")
+
+4. **The logos folder keeps at most 3,000 downloads** (`config.LogoKeep`, about 270 MB at 90 KB a logo): past that, each download removes the least recently used. A saved logo read for drawing counts as used (its file time set to now). Only Quarter's folder; Steam's cache is never touched. `art.Sources.KeepAtMost`, set in `main.go`.
+5. **Each screen drawn about five times cheaper** (profiled in the Performance lab): the quarter_ box was drawn again at every look at whether it fits, several times a screen, half of each drawing; it is drawn once now (`logo.go`). And in history, every look at the selected game sorted the whole ranking again; it is worked out once per state now (`history.go`), fresh before and after each message, so a new history shows at once.
+
+| | Before | After |
+|---|---|---|
+| HIGH SCORES board at 5,000 games | 11.7 ms typical, 21 worst | 4.0 ms, 5.5 worst |
+| A download's blink and its screen | 4.51 ms | 0.94 ms |
+| A held step | 4.4 ms | 0.9 ms |
+| A search keystroke (Pablo's) | 2.5 ms | 0.75 ms |
+
+Tests: past the limit a download removes the least recently used, never the new one, and a read logo counts as used; the list of games without a logo stays. A new history heads the ranking at once.
+
+Download, 10 min, after item 5 (the blink as before, twice a second): 2.46% of a core before, 1.29% after; about 600 bytes a minute to the terminal. Still over the 1% target; A (once a second) in the Blink lab for Pablo to compare.
+
+The blink (Pablo, 2026-09-30, after the Blink lab: "the one second blink feels not wrong", and the pick left to the numbers): measured in the Blink lab, the same simulated download, 5 min each, after 30 s: twice a second 1.08% of a core, once a second 0.87%. Once a second it is: a download is now under the 1% target too.
