@@ -357,7 +357,7 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 		if msg.id != m.statusID {
 			return m, nil // a newer action replaced this one
 		}
-		return m, m.note(msg.name + " isn't in your Steam library (a demo, a playtest, or a game no longer sold)")
+		return m, m.warn(msg.name + " isn't in your Steam library (a demo, a playtest, or a game no longer sold)")
 
 	case openDoneMsg:
 		if msg.id != m.statusID {

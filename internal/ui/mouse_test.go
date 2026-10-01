@@ -164,9 +164,9 @@ func TestClickTabsSortAndLogos(t *testing.T) {
 	}
 }
 
-// The game's logo opens the game in the Steam library, the library's home
-// first so a game Steam can't find doesn't show another (s is its store
-// page); a game Steam keeps no library artwork for isn't opened, and says so.
+// The game's logo opens the game in the Steam library with one link (s is
+// its store page); a game Steam keeps no library artwork for isn't opened,
+// and the message line says so in red.
 func TestClickLogoOpensLibrary(t *testing.T) {
 	for _, inLibrary := range []bool{true, false} {
 		logos := &fakeLogos{paths: map[uint32][]string{1: {logoPNG(t)}}}
@@ -188,14 +188,14 @@ func TestClickLogoOpensLibrary(t *testing.T) {
 		tm, _ = m.Update(cmd()) // the check and the links, as the program runs them
 		m = tm.(Model)
 		switch {
-		case inLibrary && (len(opened) != 2 || opened[0] != steam.LibraryHomeURI || opened[1] != steam.LibraryURI(1)):
-			t.Errorf("in the library: want the home, then the game's page, got %v", opened)
+		case inLibrary && (len(opened) != 1 || opened[0] != steam.LibraryURI(1)):
+			t.Errorf("in the library: want the game's page, once, got %v", opened)
 		case inLibrary && m.status != "Opening Alpha in your Steam library":
 			t.Errorf("in the library: status %q", m.status)
 		case !inLibrary && len(opened) != 0:
 			t.Errorf("not in the library: Steam shouldn't be opened, got %v", opened)
-		case !inLibrary && m.status != "Alpha isn't in your Steam library (a demo, a playtest, or a game no longer sold)":
-			t.Errorf("not in the library: status %q", m.status)
+		case !inLibrary && (m.status != "Alpha isn't in your Steam library (a demo, a playtest, or a game no longer sold)" || !m.statusWrong):
+			t.Errorf("not in the library: want the red message, got %q (red %v)", m.status, m.statusWrong)
 		}
 	}
 }

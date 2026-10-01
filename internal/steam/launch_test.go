@@ -14,7 +14,6 @@ func TestURIs(t *testing.T) {
 		{InstallURI(620), "steam://install/620"},
 		{StoreURI(620), "steam://store/620"},
 		{LibraryURI(620), "steam://nav/games/details/620"},
-		{LibraryHomeURI, "steam://nav/games"},
 		{UninstallURI(620), "steam://uninstall/620"},
 	}
 	for _, tt := range tests {

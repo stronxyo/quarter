@@ -32,7 +32,6 @@ const (
 	doubleClick = 400 * time.Millisecond // two clicks this close on one target play it
 	mouseOff    = "off"                  // config.json's "mouse" for leaving it to the terminal
 	dayGames    = 3                      // games named for a calendar day, the rest counted
-	libraryStep = 300 * time.Millisecond // between the library's home and a game's page
 )
 
 type targetKind int
@@ -338,9 +337,9 @@ type notInLibraryMsg struct {
 // openInLibrary opens the game's page in the Steam library, off the UI
 // goroutine (Pablo, 2026-10-01: some games didn't open, and Steam showed the
 // last game instead). A game Steam keeps no library artwork for isn't opened
-// at all; for any other, the library's home opens first, then the game's page
-// a moment later: when Steam can't find the game, the home stays, not another
-// game.
+// at all, and the message line says so in red; any other gets the one link.
+// (Opening the library's home first was tried and dropped: Steam flashed the
+// home, then the last game, then the game.)
 func openInLibrary(open func(string) error, steamPath string, g library.Game, id int) tea.Cmd {
 	return func() tea.Msg {
 		if steamPath != "" && !steam.InLibraryCache(steamPath, g.AppID) {
@@ -349,12 +348,7 @@ func openInLibrary(open func(string) error, steamPath string, g library.Game, id
 		if open == nil {
 			return openDoneMsg{id: id, err: fmt.Errorf("opening links is not available")}
 		}
-		err := open(steam.LibraryHomeURI)
-		if err == nil {
-			time.Sleep(libraryStep) // Steam takes the two links in order
-			err = open(steam.LibraryURI(g.AppID))
-		}
-		return openDoneMsg{id: id, err: err}
+		return openDoneMsg{id: id, err: open(steam.LibraryURI(g.AppID))}
 	}
 }
 

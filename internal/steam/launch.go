@@ -23,13 +23,9 @@ func StoreURI(appID uint32) string { return fmt.Sprintf("steam://store/%d", appI
 // LibraryURI opens a game's page in the Steam library. Valve documents
 // steam://nav/games/details/<id> (and steam://open/games/details/<id> worked
 // as well on Pablo's PC, 2026-10-01): the documented one, for any OS. For a
-// game not in the library Steam does nothing, and shows the game it showed
-// last: open LibraryHomeURI first.
+// game not in the library Steam does nothing and shows the game it showed
+// last, so check InLibraryCache first.
 func LibraryURI(appID uint32) string { return fmt.Sprintf("steam://nav/games/details/%d", appID) }
-
-// LibraryHomeURI opens the Steam library's home (steam://nav/games; worked
-// on Pablo's PC, as steam://open/games did).
-const LibraryHomeURI = "steam://nav/games"
 
 // LibraryCacheDir is where Steam keeps a game's library artwork. Steam has
 // one for the games in the library; a game without one (most demos,
