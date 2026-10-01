@@ -621,3 +621,17 @@ Found: DiRT Rally 2.0 uninstalled at 00:28:19. Steam logged `state changed : Uni
 - Each 2 s round (`poll.go`) now also looks at the last-changed time of each library's `steamapps` folder (Steam's own and every library with an installed game); a change reads the library at once. The first round only notes the times. With a read already running, the old times are kept so the next round looks again.
 - It catches installs, uninstalls (Quarter's `u` or Steam's), games moved between drives, files deleted by hand and libraries added; it doesn't depend on the log's wording, and works the same on Linux and macOS. Only folder times are looked at: Steam stays read only.
 - No new tests, at Pablo's word; the existing ones pass.
+
+## Phase D: Release v0.1 (plan, 2026-10-01; not started)
+
+From `PLAN.md` (Batch 8, Phase D) and the brief's license and Valve rules (`PROJECT_BRIEF.md`, "License and monetization"). Checked 2026-10-01: the repo has no README, LICENSE, privacy note, GoReleaser config or CI workflow yet; `main.version` is set at build time (`-ldflags "-X main.version=<tag>"`).
+
+1. **D1. Pablo's decisions, first (hard to undo):** the license (MIT, or GPL-3.0 for the app with any Pro features in a separate private repo; the brief wants it decided before the first public commit), from a one-page comparison; whether `stronxyo/quarter` goes public with v0.1, and its final name; whether a Steam Deck is available for the smoke test.
+2. **D2. Documents:** README (what Quarter is, install, keys, terminals that draw pictures, "not affiliated with Valve", the Parzival story without book or film names); PRIVACY.md, which the Steam Web API terms need before a public release (what is saved only on the PC: library, store info, logos, sessions, past years; what is asked of the internet: store info, logos, past years only after `a`; nothing sent anywhere else; how to delete it all: `%APPDATA%\quarter`); LICENSE; CHANGELOG for v0.1.
+3. **D3. Checks before release:** measure again what the tests don't guard (idle CPU, launch before `main`, release size; see C4); a clean-terminal smoke test (a fresh data folder for the first run, Windows Terminal, the classic console, PowerShell, a narrow window), Pablo's real data untouched; Linux and macOS builds compile but can't be run here: shipped marked untested unless a machine turns up.
+4. **D4. GoReleaser:** a config for six builds (Windows, macOS, Linux; amd64, arm64), stripped, the version stamped, zip for Windows and tar.gz for the rest, checksums; a local `--snapshot` dry run before anything is published. Pin the version after checking its current release.
+5. **D5. CI (GitHub Actions), written by hand:** on every push and PR, the format check, vet on Windows and Linux, staticcheck, tests and the build; on a tag, GoReleaser. Actions pinned to exact versions. Check the speed tests on hosted runners, slower than Pablo's PC, without loosening their targets.
+6. **D6. Pull request** `batch/08-release` to `main`: compare link, title and description, the post-merge script (Pablo's PR handoff rule; never `gh`). Pablo opens and merges.
+7. **D7. Tag v0.1.0:** a git block for Pablo to push the tag; CI builds the release; check the six downloads on the release page.
+
+Done when: v0.1.0 is tagged and its six downloads are on the release page.
