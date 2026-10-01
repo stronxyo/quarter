@@ -135,8 +135,10 @@ type Model struct {
 	introStart   time.Time  // when it started
 	introDone    bool       // it has ended, or a key skipped it
 
-	mouseSetting string  // config.json's "mouse": "" Quarter takes the mouse, "off" not
-	pointer      pointer // the mouse pointer: what it is over, clicks (mouse.go)
+	mouseSetting string               // config.json's "mouse": "" Quarter takes the mouse, "off" not
+	pointer      pointer              // the mouse pointer: what it is over, clicks (mouse.go)
+	refused      map[uint32]time.Time // games Steam's log says it couldn't show in the library, and when
+	refusalsRead bool                 // that log has been read
 
 	goodbyeSetting string        // config.json's "goodbye": "" random, "off", or a goodbye's name
 	lastGoodbye    string        // the goodbye shown last, never shown twice in a row (saved)
@@ -234,6 +236,7 @@ func New(opts Options) Model {
 		memo:    &viewMemo{},
 		rank:    &rankMemo{},
 		pointer: pointer{cache: &targetCache{}},
+		refused: make(map[uint32]time.Time),
 
 		splash: opts.Splash,
 		hist:   history.New(opts.Sessions, time.Local).WithReplay(opts.Replay),
@@ -354,10 +357,21 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 		return m.applyScan(msg)
 
 	case notInLibraryMsg:
+		if msg.refused {
+			m.refused[msg.appID] = m.now() // not opened again (mouse.go)
+		}
 		if msg.id != m.statusID {
 			return m, nil // a newer action replaced this one
 		}
-		return m, m.warn(msg.name + " isn't in your Steam library (a demo, a playtest, or a game no longer sold)")
+		return m, m.warn(notInLibraryText(msg.name))
+
+	case refusalsMsg:
+		for id, at := range msg.refused {
+			if at.After(m.refused[id]) {
+				m.refused[id] = at
+			}
+		}
+		return m, nil
 
 	case openDoneMsg:
 		if msg.id != m.statusID {
@@ -551,7 +565,7 @@ func (m Model) applyScanResult(msg scanDoneMsg) (Model, tea.Cmd) {
 	m.rebuild()
 	m.playtimeKnown = msg.res.PlaytimeKnown
 	m.list.SetDelegate(m.delegate())
-	cmd := tea.Batch(m.refreshList(), m.nextStoreFetch(), m.watchUpdates(), m.watchDownloads(), m.blinkDownloads())
+	cmd := tea.Batch(m.refreshList(), m.nextStoreFetch(), m.watchUpdates(), m.watchDownloads(), m.blinkDownloads(), m.loadRefusals())
 	if m.save != nil {
 		cmd = tea.Batch(cmd, saveScan(m.save, msg.res))
 	}

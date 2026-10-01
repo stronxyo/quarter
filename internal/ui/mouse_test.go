@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -168,6 +169,8 @@ func TestClickTabsSortAndLogos(t *testing.T) {
 // its store page); a game Steam keeps no library artwork for isn't opened,
 // and the message line says so in red.
 func TestClickLogoOpensLibrary(t *testing.T) {
+	defer func(w time.Duration) { refusalWatch = w }(refusalWatch)
+	refusalWatch = 2 * refusalPoll
 	for _, inLibrary := range []bool{true, false} {
 		logos := &fakeLogos{paths: map[uint32][]string{1: {logoPNG(t)}}}
 		tm, _ := withLogos(t, logos, config.Settings{})
@@ -197,6 +200,71 @@ func TestClickLogoOpensLibrary(t *testing.T) {
 		case !inLibrary && (m.status != "Alpha isn't in your Steam library (a demo, a playtest, or a game no longer sold)" || !m.statusWrong):
 			t.Errorf("not in the library: want the red message, got %q (red %v)", m.status, m.statusWrong)
 		}
+	}
+}
+
+// Steam couldn't find a game it keeps artwork for (Astro Burn): its log says
+// so after the link, the message says so in red, and the next click doesn't
+// open Steam at all.
+func TestLogoClickLearnsRefusal(t *testing.T) {
+	logos := &fakeLogos{paths: map[uint32][]string{1: {logoPNG(t)}}}
+	tm, _ := withLogos(t, logos, config.Settings{})
+	tm, _ = tm.Update(scanDoneMsg{res: library.Result{PlaytimeKnown: true, Games: []library.Game{{AppID: 1, Name: "Alpha"}}}}) // not installed: installed games are always in the library
+	m := tm.(Model)
+	m.steamRoot = t.TempDir()
+	if err := os.MkdirAll(steam.LibraryCacheDir(m.steamRoot, 1), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	logPath := filepath.Join(m.steamRoot, "logs", "webhelper_js.txt")
+	writeFile(t, logPath, "")
+	var opened []string
+	m.open = func(uri string) error { // Steam, refusing: its log line
+		opened = append(opened, uri)
+		f, _ := os.OpenFile(logPath, os.O_APPEND|os.O_WRONLY, 0o644)
+		fmt.Fprintf(f, "[%s] SteamUI: ERROR: Unrecognized request details 1\n", time.Now().Format("2006-01-02 15:04:05"))
+		return f.Close()
+	}
+	band := findTarget(t, m, tBand, 0, "")
+	click := tea.MouseClickMsg{X: band.x0 + 1, Y: band.y, Button: tea.MouseLeft}
+	m, cmd := m.handleMouse(click)
+	tm, _ = m.Update(cmd())
+	m = tm.(Model)
+	if !m.statusWrong || m.status != notInLibraryText("Alpha") || len(opened) != 1 {
+		t.Fatalf("the refusal should show in red: %q (red %v), opened %v", m.status, m.statusWrong, opened)
+	}
+	m, _ = m.handleMouse(click)
+	if len(opened) != 1 || m.status != notInLibraryText("Alpha") {
+		t.Errorf("the second click shouldn't open Steam: opened %v, status %q", opened, m.status)
+	}
+}
+
+// The games Steam has refused before are read at start: not opened, unless
+// installed since, or refused long ago.
+func TestRefusalsReadAtStart(t *testing.T) {
+	m, clock := mouseModel(t, 150, 40)
+	m.steamRoot = t.TempDir()
+	stamp := func(d time.Time) string { return d.Format("2006-01-02 15:04:05") }
+	writeFile(t, filepath.Join(m.steamRoot, "logs", "webhelper_js.txt"),
+		"["+stamp(clock.Add(-time.Hour))+"] SteamUI: ERROR: Unrecognized request details 2\n"+
+			"["+stamp(clock.Add(-time.Hour))+"] SteamUI: ERROR: Unrecognized request details 1\n"+
+			"["+stamp(clock.Add(-refusalMemory-time.Hour))+"] SteamUI: ERROR: Unrecognized request details 3\n")
+	tm, _ := m.Update(m.loadRefusals()())
+	m = tm.(Model)
+	games := map[uint32]library.Game{}
+	for _, g := range mouseGames() {
+		games[g.AppID] = g
+	}
+	if !m.knownRefused(games[2]) {
+		t.Error("game 2, refused an hour ago, shouldn't be opened")
+	}
+	if m.knownRefused(games[1]) {
+		t.Error("game 1 is installed: in the library, whatever the log says")
+	}
+	if m.knownRefused(games[3]) {
+		t.Error("game 3 was refused long ago: tried again")
+	}
+	if m.loadRefusals() != nil {
+		t.Error("the log is read once")
 	}
 }
 

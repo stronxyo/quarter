@@ -32,7 +32,14 @@ const (
 	doubleClick = 400 * time.Millisecond // two clicks this close on one target play it
 	mouseOff    = "off"                  // config.json's "mouse" for leaving it to the terminal
 	dayGames    = 3                      // games named for a calendar day, the rest counted
+
+	refusalPoll   = 250 * time.Millisecond // how often Steam's log is looked at after a library link
+	refusalMemory = 30 * 24 * time.Hour    // a game Steam refused is tried again after this
 )
+
+// refusalWatch is how long Steam's log is watched after a library link
+// (tests shorten it).
+var refusalWatch = 3 * time.Second
 
 type targetKind int
 
@@ -330,25 +337,68 @@ func (m Model) replayIntro() (Model, tea.Cmd) {
 
 // notInLibraryMsg says a game's library page can't be shown.
 type notInLibraryMsg struct {
-	id   int // the status it answers
-	name string
+	id      int // the status it answers
+	appID   uint32
+	name    string
+	refused bool // Steam's log said so: remembered
+}
+
+// refusalsMsg is every game Steam's log says it couldn't show in the library.
+type refusalsMsg struct{ refused map[uint32]time.Time }
+
+// loadRefusals reads, once, the games Steam has refused to show in the
+// library, off the UI goroutine.
+func (m *Model) loadRefusals() tea.Cmd {
+	if m.refusalsRead || m.steamRoot == "" {
+		return nil
+	}
+	m.refusalsRead = true
+	root := m.steamRoot
+	return func() tea.Msg {
+		r, _ := steam.LibraryRefusals(root, time.Local) // no log: none known
+		return refusalsMsg{r}
+	}
+}
+
+// knownRefused reports whether Steam refused to show g in the library lately.
+// An installed game is in the library, whatever the log says; and after
+// refusalMemory the game is tried again (bought since, maybe).
+func (m Model) knownRefused(g library.Game) bool {
+	at, ok := m.refused[g.AppID]
+	return ok && !g.Installed && m.now().Sub(at) < refusalMemory
+}
+
+// notInLibraryText says why a game's library page isn't shown.
+func notInLibraryText(name string) string {
+	return name + " isn't in your Steam library (a demo, a playtest, or a game no longer sold)"
 }
 
 // openInLibrary opens the game's page in the Steam library, off the UI
 // goroutine (Pablo, 2026-10-01: some games didn't open, and Steam showed the
 // last game instead). A game Steam keeps no library artwork for isn't opened
-// at all, and the message line says so in red; any other gets the one link.
-// (Opening the library's home first was tried and dropped: Steam flashed the
-// home, then the last game, then the game.)
-func openInLibrary(open func(string) error, steamPath string, g library.Game, id int) tea.Cmd {
+// at all, and the message line says so in red; any other gets the one link,
+// then Steam's log is watched a moment: when Steam says it couldn't find the
+// game, the message says so and the game is remembered, so it isn't opened
+// again. (Opening the library's home first was tried and dropped: Steam
+// flashed the home, then the last game, then the game.)
+func openInLibrary(open func(string) error, steamPath string, g library.Game, id int, at time.Time) tea.Cmd {
 	return func() tea.Msg {
 		if steamPath != "" && !steam.InLibraryCache(steamPath, g.AppID) {
-			return notInLibraryMsg{id: id, name: g.Label()}
+			return notInLibraryMsg{id: id, appID: g.AppID, name: g.Label()}
 		}
 		if open == nil {
 			return openDoneMsg{id: id, err: fmt.Errorf("opening links is not available")}
 		}
-		return openDoneMsg{id: id, err: open(steam.LibraryURI(g.AppID))}
+		if err := open(steam.LibraryURI(g.AppID)); err != nil || steamPath == "" {
+			return openDoneMsg{id: id, err: err}
+		}
+		for waited := time.Duration(0); waited < refusalWatch; waited += refusalPoll {
+			time.Sleep(refusalPoll)
+			if steam.RefusedSince(steamPath, g.AppID, at, time.Local) {
+				return notInLibraryMsg{id: id, appID: g.AppID, name: g.Label(), refused: true}
+			}
+		}
+		return openDoneMsg{id: id}
 	}
 }
 
@@ -460,9 +510,12 @@ func (m Model) handleMouse(msg tea.Msg) (Model, tea.Cmd) {
 			}
 		case tBand: // the game in the Steam library (s is its store page)
 			if g, ok := m.selected(); ok {
+				if m.knownRefused(g) {
+					return m, m.warn(notInLibraryText(g.Label()))
+				}
 				m.statusID++
 				m.status, m.statusWrong = "Opening "+g.Label()+" in your Steam library", false
-				return m, openInLibrary(m.open, m.steamRoot, g, m.statusID)
+				return m, openInLibrary(m.open, m.steamRoot, g, m.statusID, m.now())
 			}
 		case tQuarter:
 			return m.replayIntro()
