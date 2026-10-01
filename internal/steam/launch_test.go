@@ -9,6 +9,7 @@ func TestURIs(t *testing.T) {
 		{PlayURI(620), "steam://rungameid/620"},
 		{InstallURI(620), "steam://install/620"},
 		{StoreURI(620), "steam://store/620"},
+		{LibraryURI(620), "steam://nav/games/details/620"},
 		{UninstallURI(620), "steam://uninstall/620"},
 	}
 	for _, tt := range tests {

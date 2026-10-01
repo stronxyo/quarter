@@ -14,3 +14,8 @@ func UninstallURI(appID uint32) string { return fmt.Sprintf("steam://uninstall/%
 
 // StoreURI opens a game's store page in the Steam client.
 func StoreURI(appID uint32) string { return fmt.Sprintf("steam://store/%d", appID) }
+
+// LibraryURI opens a game's page in the Steam library. Valve documents
+// steam://nav/games/details/<id> (and steam://open/games/details/<id> worked
+// as well on Pablo's PC, 2026-10-01): the documented one, for any OS.
+func LibraryURI(appID uint32) string { return fmt.Sprintf("steam://nav/games/details/%d", appID) }

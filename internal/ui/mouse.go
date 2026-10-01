@@ -4,8 +4,9 @@ package ui
 // for people who don't live in a terminal. The pointer lights up what it is
 // over: its text in amber with a small square before it. A click acts on it:
 // a game is selected, a double-click plays or installs it; tabs, keys on the
-// key line, column names (sort, again to flip), the game's logo (its store
-// page) and the quarter_ box (an intro) all work. A right-click stars a game.
+// key line, column names (sort, again to flip), the game's logo (the game in
+// the Steam library; s is its store page) and the quarter_ box (an intro)
+// all work. A right-click stars a game.
 // The wheel moves the selection, or over the tabs, turns them. On the HIGH
 // SCORES calendar, a day under the pointer says what was played then.
 // config.json's "mouse": "off" leaves the mouse to the terminal (plain text
@@ -24,6 +25,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/stronxyo/quarter/internal/library"
+	"github.com/stronxyo/quarter/internal/steam"
 )
 
 const (
@@ -432,8 +434,11 @@ func (m Model) handleMouse(msg tea.Msg) (Model, tea.Cmd) {
 					return m.pressFor(sk.binding.Keys()[0])
 				}
 			}
-		case tBand:
-			return m.pressFor(keys.Store.Keys()[0])
+		case tBand: // the game in the Steam library (s is its store page)
+			if g, ok := m.selected(); ok {
+				m, cmd, _ := m.openFor(steam.LibraryURI(g.AppID), "Opening "+g.Label()+" in your Steam library")
+				return m, cmd
+			}
 		case tQuarter:
 			return m.replayIntro()
 		case tKey:

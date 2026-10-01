@@ -163,14 +163,21 @@ func TestClickTabsSortAndLogos(t *testing.T) {
 	}
 }
 
-// The game's logo opens its store page.
-func TestClickLogoOpensStore(t *testing.T) {
+// The game's logo opens the game in the Steam library (s is its store page).
+func TestClickLogoOpensLibrary(t *testing.T) {
 	logos := &fakeLogos{paths: map[uint32][]string{1: {logoPNG(t)}}}
 	tm, _ := withLogos(t, logos, config.Settings{})
 	m := tm.(Model)
-	m, _ = clickOn(m, findTarget(t, m, tBand, 0, ""), tea.MouseLeft)
-	if !strings.Contains(m.status, "Opening the store page for Alpha") {
-		t.Errorf("the logo should open the store page: %q", m.status)
+	var opened []string
+	m.open = func(uri string) error { opened = append(opened, uri); return nil }
+	band := findTarget(t, m, tBand, 0, "")
+	m, cmd := m.handleMouse(tea.MouseClickMsg{X: band.x0 + 1, Y: band.y, Button: tea.MouseLeft})
+	if m.status != "Opening Alpha in your Steam library" || cmd == nil {
+		t.Fatalf("the logo should open the game in the Steam library: %q", m.status)
+	}
+	cmd() // hands the link to Steam
+	if len(opened) != 1 || opened[0] != steam.LibraryURI(1) {
+		t.Errorf("Steam should get the library link, got %v", opened)
 	}
 }
 
