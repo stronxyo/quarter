@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/stronxyo/quarter/internal/steam"
 	"github.com/stronxyo/quarter/internal/store"
 	"github.com/stronxyo/quarter/internal/webapi"
 )
@@ -84,10 +85,9 @@ func (s *Sources) Local(appID uint32) (string, bool) {
 // (newer clients keep it in a hashed subfolder), then Quarter's download.
 // A caller whose first choice turns out unusable tries the next.
 func (s *Sources) Paths(appID uint32) []string {
-	id := strconv.FormatUint(uint64(appID), 10)
 	var out []string
 	if s.steamPath != "" {
-		cache := filepath.Join(s.steamPath, "appcache", "librarycache", id)
+		cache := steam.LibraryCacheDir(s.steamPath, appID)
 		if p := filepath.Join(cache, "logo.png"); isFile(p) {
 			out = append(out, p)
 		} else if m, _ := filepath.Glob(filepath.Join(cache, "*", "logo.png")); len(m) > 0 {

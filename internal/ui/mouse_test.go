@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -163,21 +164,39 @@ func TestClickTabsSortAndLogos(t *testing.T) {
 	}
 }
 
-// The game's logo opens the game in the Steam library (s is its store page).
+// The game's logo opens the game in the Steam library, the library's home
+// first so a game Steam can't find doesn't show another (s is its store
+// page); a game Steam keeps no library artwork for isn't opened, and says so.
 func TestClickLogoOpensLibrary(t *testing.T) {
-	logos := &fakeLogos{paths: map[uint32][]string{1: {logoPNG(t)}}}
-	tm, _ := withLogos(t, logos, config.Settings{})
-	m := tm.(Model)
-	var opened []string
-	m.open = func(uri string) error { opened = append(opened, uri); return nil }
-	band := findTarget(t, m, tBand, 0, "")
-	m, cmd := m.handleMouse(tea.MouseClickMsg{X: band.x0 + 1, Y: band.y, Button: tea.MouseLeft})
-	if m.status != "Opening Alpha in your Steam library" || cmd == nil {
-		t.Fatalf("the logo should open the game in the Steam library: %q", m.status)
-	}
-	cmd() // hands the link to Steam
-	if len(opened) != 1 || opened[0] != steam.LibraryURI(1) {
-		t.Errorf("Steam should get the library link, got %v", opened)
+	for _, inLibrary := range []bool{true, false} {
+		logos := &fakeLogos{paths: map[uint32][]string{1: {logoPNG(t)}}}
+		tm, _ := withLogos(t, logos, config.Settings{})
+		m := tm.(Model)
+		m.steamRoot = t.TempDir()
+		if inLibrary {
+			if err := os.MkdirAll(steam.LibraryCacheDir(m.steamRoot, 1), 0o755); err != nil {
+				t.Fatal(err)
+			}
+		}
+		var opened []string
+		m.open = func(uri string) error { opened = append(opened, uri); return nil }
+		band := findTarget(t, m, tBand, 0, "")
+		m, cmd := m.handleMouse(tea.MouseClickMsg{X: band.x0 + 1, Y: band.y, Button: tea.MouseLeft})
+		if cmd == nil {
+			t.Fatal("the logo click should do something")
+		}
+		tm, _ = m.Update(cmd()) // the check and the links, as the program runs them
+		m = tm.(Model)
+		switch {
+		case inLibrary && (len(opened) != 2 || opened[0] != steam.LibraryHomeURI || opened[1] != steam.LibraryURI(1)):
+			t.Errorf("in the library: want the home, then the game's page, got %v", opened)
+		case inLibrary && m.status != "Opening Alpha in your Steam library":
+			t.Errorf("in the library: status %q", m.status)
+		case !inLibrary && len(opened) != 0:
+			t.Errorf("not in the library: Steam shouldn't be opened, got %v", opened)
+		case !inLibrary && m.status != "Alpha isn't in your Steam library (a demo, a playtest, or a game no longer sold)":
+			t.Errorf("not in the library: status %q", m.status)
+		}
 	}
 }
 
