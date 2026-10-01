@@ -178,7 +178,7 @@ func TestCheckDownloads(t *testing.T) {
 	m := dlModel(t, nil, updatingGames[0], bravo)
 	m.steamRoot = root
 
-	msg := m.checkDownloads()().(downloadsMsg)
+	msg := m.lookDownloads()()
 	if !msg.reread || msg.size != int64(len(log)) || msg.d[2].Total != 10e9 {
 		t.Fatalf("the first look reads the log: %+v", msg)
 	}
@@ -186,7 +186,7 @@ func TestCheckDownloads(t *testing.T) {
 		t.Error("Bravo's install file says paused")
 	}
 	m.logSize = msg.size
-	if msg := m.checkDownloads()().(downloadsMsg); msg.reread || !msg.paused[2] {
+	if msg := m.lookDownloads()(); msg.reread || !msg.paused[2] {
 		t.Errorf("the same size: no read of the log, the install file still: %+v", msg)
 	}
 }

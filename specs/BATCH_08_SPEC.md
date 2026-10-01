@@ -557,3 +557,24 @@ Pablo's part: hold down 10 s in Windows Terminal and say whether a logo flickers
 Why idle misses: the running-game check and the download check (two messages each time), every 2 s, about 90 messages a minute, each rebuilding the whole screen with nothing new; during a download the arrow's blink adds 2 a second. And while a game updates, the library is still re-read every 30 s (60 scans in 30 min), though the download log now sees a download start and end.
 
 C3 candidates, for Pablo to approve: one timer for the 2 s checks and no rebuild when nothing changed; the 30 s re-read only when the download log can't be read; `go-runewidth` v0.0.30 (its start-up work measured at 0 ms, about 12 ms off each launch); a size limit for the logos folder; the board at 5,000 games profiled (optional).
+
+### C3 (Pablo, 2026-09-30: "go 1 to 3 now")
+
+1. **One poll, and no redraw when nothing changed** (`internal/ui/poll.go`): one timer every 2 s asks Steam which game runs and looks at the download log, and brings both back in one message (it was two timers and three messages). Bubble Tea draws the screen after every message (`tea.go:888`), so after a round that found nothing new the screen drawn last is shown again; it is drawn anew after any other message, and at least every 30 s for the times on screen. A kept screen is tagged with the drawing it belongs to, so two model copies never share one.
+2. **The 30 s reads while a game updates wait while Steam's download log is there** (`updating.go`): the log sees a download start and end, which read the library (`downloads.go`); the reads go on as the fallback if the log goes.
+3. **`go-runewidth` v0.0.27 to v0.0.30** (indirect, through `charmbracelet/x/ansi`): its start-up work measured at 12 ms before, 0 ms after (`GODEBUG=inittrace=1`).
+
+Measured again in the Performance lab, same tests:
+
+| | Before | After | Target |
+|---|---|---|---|
+| Idle, no game, 10 min | 1.52% of a core | 0.87% | 1% |
+| Idle, a game running, 10 min | 1.46% | 0.42% | 1% |
+| A download, 10 min | 3.29% | 2.46% | 1% |
+| Library reads during a download | 60 in 30 min | 0 in 10 min (the one at start) | |
+| Messages a minute, idle | about 90 | 30 | |
+| Launch to first frame | 41.3 ms (worst 43.0) | 33.7 ms (worst 35.0) | 100 ms |
+
+Still over 1%: a download, from the arrow's blink, two full redraws a second. Not changed; options for Pablo.
+
+Tests: a round asks the running game, and the log once watched; nothing to ask, no round; an unknown answer stops the asking; one round at a time; a quiet round keeps the screen, a game starting, a key or 30 s draw it again; two model copies never share a screen; with the log there the 30 s reads wait.

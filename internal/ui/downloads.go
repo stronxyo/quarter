@@ -2,8 +2,8 @@ package ui
 
 // Downloads: games Steam is installing or updating show their progress,
 // estimated from Steam's download log (see steam.ReadDownloads). Every
-// downloadCheck Quarter looks whether the log changed and reads it only
-// then; while a game downloads it also reads that game's install file (a
+// pollEvery (poll.go) Quarter looks whether the log changed and reads it
+// only then; while a game downloads it also reads that game's install file (a
 // pause shows only there), and the arrow blinks while Steam works on it.
 
 import (
@@ -22,9 +22,8 @@ import (
 )
 
 const (
-	downloadCheck = 2 * time.Second        // how often the download log is looked at
-	blinkStep     = 500 * time.Millisecond // the arrow's blink, and the estimate's steps
-	dlBarWidth    = 40                     // the pane's progress bar, at most
+	blinkStep  = 500 * time.Millisecond // the arrow's blink, and the estimate's steps
+	dlBarWidth = 40                     // the pane's progress bar, at most
 )
 
 type (
@@ -36,9 +35,9 @@ type (
 		d      map[uint32]steam.Download
 		size   int64
 		paused map[uint32]bool
+		logOK  bool // the log is there: it sees downloads start and end
 	}
-	downloadCheckMsg struct{}
-	dlBlinkMsg       struct{}
+	dlBlinkMsg struct{}
 )
 
 // downloading reports whether any game in the library is being downloaded.
@@ -47,18 +46,20 @@ func (m Model) downloading() bool {
 }
 
 // watchDownloads starts looking at the download log, once the Steam folder
-// is known, and keeps looking for as long as Quarter runs.
+// is known, and keeps looking for as long as Quarter runs: the poll
+// (poll.go) looks every round from now on.
 func (m *Model) watchDownloads() tea.Cmd {
 	if m.dlWatch || m.steamRoot == "" {
 		return nil
 	}
 	m.dlWatch = true
-	return m.checkDownloads()
+	return m.startPoll(0)
 }
 
-// checkDownloads looks at the log's size, reads it when it changed, and
-// reads the install files of the games downloading, off the UI goroutine.
-func (m Model) checkDownloads() tea.Cmd {
+// lookDownloads looks at the log's size, reads it when it changed, and
+// reads the install files of the games downloading; the poll runs it off
+// the UI goroutine.
+func (m Model) lookDownloads() func() downloadsMsg {
 	root, seen := m.steamRoot, m.logSize
 	type game struct {
 		id  uint32
@@ -70,9 +71,11 @@ func (m Model) checkDownloads() tea.Cmd {
 			games = append(games, game{g.AppID, g.LibraryPath})
 		}
 	}
-	return func() tea.Msg {
+	return func() downloadsMsg {
 		msg := downloadsMsg{size: seen, paused: map[uint32]bool{}}
-		if info, err := os.Stat(filepath.Join(root, "logs", "content_log.txt")); err == nil && info.Size() != seen {
+		info, err := os.Stat(filepath.Join(root, "logs", "content_log.txt"))
+		msg.logOK = err == nil
+		if err == nil && info.Size() != seen {
 			if d, err := steam.ReadDownloads(root, time.Local); err == nil {
 				msg.reread, msg.d, msg.size = true, d, info.Size()
 			}
@@ -91,8 +94,8 @@ func (m Model) checkDownloads() tea.Cmd {
 // open, or a new install), has its install file just written: the library
 // is read at once.
 func (m Model) applyDownloads(msg downloadsMsg) (Model, tea.Cmd) {
-	cmds := []tea.Cmd{tea.Tick(downloadCheck, func(time.Time) tea.Msg { return downloadCheckMsg{} })}
-	m.dlPaused = msg.paused
+	var cmds []tea.Cmd
+	m.dlPaused, m.logOK = msg.paused, msg.logOK
 	if msg.reread {
 		changed := false
 		for id := range m.downloads {

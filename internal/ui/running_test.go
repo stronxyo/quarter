@@ -83,18 +83,6 @@ func TestRunningFavouriteShowsTheRunningMarker(t *testing.T) {
 	}
 }
 
-func TestCheckRunning(t *testing.T) {
-	if checkRunning(nil, 0) != nil {
-		t.Error("no way to ask means no polling")
-	}
-	if msg := checkRunning(func() (uint32, bool) { return 0, false }, 0)(); msg != nil {
-		t.Errorf("an unknown answer should stop the polling, got %v", msg)
-	}
-	if msg := checkRunning(func() (uint32, bool) { return 620, true }, 0)(); msg != (runningMsg{appID: 620}) {
-		t.Errorf("got %v, want runningMsg{620}", msg)
-	}
-}
-
 // Plain rows are ivory, and a favourite's orange star doesn't switch the
 // ivory off for the name after it.
 func TestRowsAreIvory(t *testing.T) {

@@ -1,28 +1,23 @@
 package ui
 
-import (
-	"time"
+import tea "charm.land/bubbletea/v2"
 
-	tea "charm.land/bubbletea/v2"
-)
-
-// runningPoll is how often Quarter asks Steam which game is running.
-const runningPoll = 2 * time.Second
-
-// runningMsg reports the game Steam is running, 0 for none.
+// runningMsg reports the game Steam is running, 0 for none. The poll
+// (poll.go) asks Steam every pollEvery.
 type runningMsg struct{ appID uint32 }
 
-// checkRunning asks after a delay, off the UI goroutine. A nil ask (or a
-// platform where Steam doesn't say) stops the polling.
-func checkRunning(ask func() (uint32, bool), after time.Duration) tea.Cmd {
-	if ask == nil {
-		return nil
+// applyRunning takes the game Steam is running: a change counts the play
+// time and, when a game stopped, reads its new playtime (afterplay.go).
+func (m Model) applyRunning(msg runningMsg) (Model, tea.Cmd) {
+	if msg.appID == m.running {
+		return m, nil
 	}
-	return tea.Tick(after, func(time.Time) tea.Msg {
-		id, known := ask()
-		if !known {
-			return nil
-		}
-		return runningMsg{appID: id}
-	})
+	var reread tea.Cmd
+	m.countPlayed(msg.appID)
+	if m.running != 0 {
+		reread = m.gameStopped(m.running)
+	}
+	m.running = msg.appID
+	m.list.SetDelegate(m.delegate())
+	return m, reread
 }

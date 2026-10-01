@@ -83,7 +83,14 @@ type Model struct {
 	running    uint32                // the game Steam is running, 0 for none
 	afterPlay  afterPlay             // a game that stopped, waiting for Steam to save its playtime
 
+	polling   bool      // a round of the background checks is on its way (poll.go)
+	viewQuiet bool      // this update was a check that found nothing new
+	reuseView bool      // the screen drawn last can be shown again
+	viewGen   uint64    // which drawing this model's screen is
+	memo      *viewMemo // the screen drawn last
+
 	updateWatch bool // a read of the library is scheduled while Steam updates a game
+	logOK       bool // the download log is there: the reads while updating wait
 
 	downloads map[uint32]steam.Download // what Steam's download log says, by game
 	dlPaused  map[uint32]bool           // downloads paused in Steam, from their install files
@@ -216,6 +223,10 @@ func New(opts Options) Model {
 		logoNoDisk:  make(map[uint32]bool),
 		settle:      logoSettle,
 
+		polling: opts.RunningApp != nil, // Init starts the checks
+		viewGen: viewGens.Add(1),
+		memo:    &viewMemo{},
+
 		splash: opts.Splash,
 		hist:   history.New(opts.Sessions, time.Local).WithReplay(opts.Replay),
 
@@ -243,7 +254,7 @@ func New(opts Options) Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	cmd := tea.Batch(scan(m.steamPath), checkRunning(m.runningApp, 0), askPictures(), m.blink(), m.introTick())
+	cmd := tea.Batch(scan(m.steamPath), m.pollCmd(0), askPictures(), m.blink(), m.introTick())
 	if m.introIndex >= 0 {
 		cmd = tea.Batch(cmd, m.persist()) // remember it, so the next start picks another
 	}
@@ -302,6 +313,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if more := tea.Batch(m.prepareNeighbours(), m.startDots()); more != nil {
 		cmd = tea.Batch(cmd, more)
 	}
+	m.settleView()
 	return m, cmd
 }
 
@@ -353,17 +365,11 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 	case logoWantMsg:
 		return m.wantLogo(msg)
 
+	case pollMsg:
+		return m.applyPoll(msg)
+
 	case runningMsg:
-		var reread tea.Cmd
-		if msg.appID != m.running {
-			m.countPlayed(msg.appID)
-			if m.running != 0 {
-				reread = m.gameStopped(m.running)
-			}
-			m.running = msg.appID
-			m.list.SetDelegate(m.delegate())
-		}
-		return m, tea.Batch(checkRunning(m.runningApp, runningPoll), reread)
+		return m.applyRunning(msg)
 
 	case afterPlayMsg:
 		return m.afterPlayTick(msg)
@@ -377,9 +383,6 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case downloadsMsg:
 		return m.applyDownloads(msg)
-
-	case downloadCheckMsg:
-		return m, m.checkDownloads()
 
 	case settleMsg:
 		return m, nil // Update reads the landed game's logo
@@ -821,7 +824,12 @@ func (m Model) body() string {
 	return list
 }
 
+// View is the screen: the one drawn last when a check found nothing new
+// (poll.go), else drawn again.
 func (m Model) View() tea.View {
+	if v, ok := m.keptView(); ok {
+		return v
+	}
 	var content string
 	switch {
 	case m.splash:
@@ -842,5 +850,6 @@ func (m Model) View() tea.View {
 	}
 	v := tea.NewView(content)
 	v.AltScreen = true
+	m.keepView(v)
 	return v
 }

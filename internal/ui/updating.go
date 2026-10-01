@@ -27,10 +27,12 @@ func (m *Model) watchUpdates() tea.Cmd {
 }
 
 // updateTick reads the library again, unless a read is running already
-// (its result sets the next one).
+// (its result sets the next one), or the download log is there: it sees a
+// download end, and the library is read then (downloads.go). The reads
+// carry on as the fallback, in case the log goes.
 func (m Model) updateTick() (Model, tea.Cmd) {
 	m.updateWatch = false
-	if m.scanning {
+	if m.scanning || m.logOK {
 		return m, m.watchUpdates()
 	}
 	m.scanning = true
