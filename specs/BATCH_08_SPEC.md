@@ -613,3 +613,11 @@ The blink (Pablo, 2026-09-30, after the Blink lab: "the one second blink feels n
 | The slowest intro frame | 33 ms | 4.4 ms (Neon) |
 
 Not guarded by a test: idle CPU (needs minutes; the Performance lab's `TestPerfIdle`), launch before `main` (`GODEBUG=inittrace=1`), release size (six builds). Measure them again before each release.
+
+## Games installed or uninstalled while Quarter is open (Pablo, 2026-10-01: "ive just unisntalled a game and in quarter it didnt appear to be unistalled until i re open it"; "implement, with no test")
+
+Found: DiRT Rally 2.0 uninstalled at 00:28:19. Steam logged `state changed : Uninstalled,` and `finished uninstall (No Error)`, removed `D:\SteamLibrary\steamapps\appmanifest_690790.acf`, and that folder's last-changed time became 00:28:19. Quarter re-read the library only on start, `r`, downloads starting and ending and a game stopping, so the game stayed listed.
+
+- Each 2 s round (`poll.go`) now also looks at the last-changed time of each library's `steamapps` folder (Steam's own and every library with an installed game); a change reads the library at once. The first round only notes the times. With a read already running, the old times are kept so the next round looks again.
+- It catches installs, uninstalls (Quarter's `u` or Steam's), games moved between drives, files deleted by hand and libraries added; it doesn't depend on the log's wording, and works the same on Linux and macOS. Only folder times are looked at: Steam stays read only.
+- No new tests, at Pablo's word; the existing ones pass.

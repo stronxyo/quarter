@@ -93,6 +93,8 @@ type Model struct {
 	updateWatch bool // a read of the library is scheduled while Steam updates a game
 	logOK       bool // the download log is there: the reads while updating wait
 
+	folders map[string]time.Time // each library's steamapps folder, when it last changed (poll.go)
+
 	downloads map[uint32]steam.Download // what Steam's download log says, by game
 	dlPaused  map[uint32]bool           // downloads paused in Steam, from their install files
 	steamRoot string                    // the Steam folder the scans found
