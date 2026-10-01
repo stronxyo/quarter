@@ -482,6 +482,14 @@ func (m Model) boardRecords(now time.Time) [][2]string {
 	return out
 }
 
+// calendarDays are the calendar's first day, the Monday a year of weeks
+// back, and today: the board draws from them, and the mouse finds a day by
+// them (mouse.go).
+func (m Model) calendarDays(now time.Time) (first, today time.Time) {
+	today = m.hist.DaysBack(1, now)
+	return today.AddDate(0, 0, -((int(today.Weekday())+6)%7)-7*(calendarWeeks-1)), today
+}
+
 // calendar is a year of days, GitHub-style: a column per week, Monday on
 // top, a day's shade how long was played; empty days the thin line.
 func (m Model) calendar(now time.Time) []string {
@@ -499,8 +507,7 @@ func (m Model) calendar(now time.Time) []string {
 		}
 		return 4
 	}
-	today := m.hist.DaysBack(1, now)
-	first := today.AddDate(0, 0, -((int(today.Weekday())+6)%7)-7*(calendarWeeks-1)) // the Monday a year of weeks back
+	first, today := m.calendarDays(now)
 
 	// A month's name goes over its first week, when there's room for it
 	// and a space before the next.

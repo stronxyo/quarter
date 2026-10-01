@@ -635,3 +635,27 @@ From `PLAN.md` (Batch 8, Phase D) and the brief's license and Valve rules (`PROJ
 7. **D7. Tag v0.1.0:** a git block for Pablo to push the tag; CI builds the release; check the six downloads on the release page.
 
 Done when: v0.1.0 is tagged and its six downloads are on the release page.
+
+## The mouse (Pablo, 2026-10-01: "lets add it now v0.1, so make all the propper tests")
+
+For people who don't live in a terminal. Designed in the Mouse lab (`Documents\Quarter\Mouse lab`, player `quarter-mouse`), Pablo's picks: double-click to play; the hover look "the same as the underline but without the line, just the color swap and also add the tini marker at the left but make it a small dot, maybe the squared dot"; three spaces between keys ("3 spaces look fine").
+
+### What it does
+
+- **Hover:** the text under the pointer turns amber, with `▪` (U+25AA, in both of Pablo's fonts) in the cell before it and a space between; not on the selected game or the active tab, which are lit already. Any key from the keyboard and a window resize clear it; after anything else it stays only while the same thing is still under the pointer (a filter shortening the list).
+- **Clicks:** a game is selected; a second click on it within 400 ms plays it, or installs it when it isn't installed (as Enter). The same in the history ranking. Filter tabs and history periods; every key on the key line and on the full list after `?` (22 keys), each doing what its key does; the column names sort, again to flip; the game's logo opens its store page; the quarter_ box plays a random intro, then the start screen (an easter egg); any click leaves the start screen, like any key.
+- **Right-click** a game: it is starred (as `f`).
+- **Wheel:** moves the selection; over the tabs, turns them (down the next, up the one before).
+- **HIGH SCORES calendar:** a day under the pointer says what was played then, under the pane: `Thu 1 Oct 2026 · 2.0h · Game 01, Game 04` (three games named, the rest counted).
+- **While typing a search,** a click elsewhere ends the typing and keeps the results, then acts (no letters typed); a click on the search box takes the typing back; `esc clear` and the play key click as themselves. (Clicking the count to clear was tried and dropped: beside the search box the 80-column list has no room for the count.)
+- **config.json `"mouse": "off"`** leaves the mouse to the terminal: plain text selection without Shift, the wheel as the terminal sends it.
+- With the mouse on, copying text from the screen needs Shift + drag (Windows Terminal; most terminals the same).
+
+### Code and cost
+
+- `internal/ui/mouse.go`; `history.DayGames`; `calendarDays` and `sortColumns` shared by the drawing and the clicks; `hoverStyle`, `hoverDayStyle`, `markerHover` in `styles.go`; the key line's gap three spaces (`help.go`: `h history` now fits from 93 columns, page from 103, move from 113).
+- What can be clicked is worked out from the drawn screen and kept until something other than the pointer moving happens (a hover changes looks, never places). Measured: a move along a row 0.16 ms, onto another row 0.71 ms (Pablo's library), 0.82 ms on 5,000 games. Idle unchanged: nothing runs while the mouse is still, and the hover doesn't animate.
+
+### Tests
+
+Targets match the screen at 150x40 and 90x30; double-click plays, a slow one doesn't, a game not installed installs; tabs, sort (and flip), the quarter_ box, clicks leaving the start screen; the logo opens the store page; right-click stars; all 22 keys of the full list click like their keys at two widths, history's 6 periods and 8 keys; the search clicks; the wheel; the calendar day; the hover's look, width and space; the hover clearing; `"mouse": "off"`; `DayGames`. The speed check adds the pointer onto another game (16 ms). Real loop (lab, Pablo's library): the `▪` shows, a double-click asks Steam once, a right-click stars, nothing printed, his data untouched.

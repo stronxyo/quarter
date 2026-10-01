@@ -187,6 +187,23 @@ func (h History) Days(app uint32) map[time.Time]time.Duration {
 	return out
 }
 
+// DayGames is what was played on day d (a day as Days keys it), most played
+// first: the HIGH SCORES calendar says it for the day under the pointer.
+func (h History) DayGames(d time.Time) []Entry {
+	per := map[uint32]time.Duration{}
+	for _, s := range h.sessions {
+		if day(s.Start.In(h.loc)).Equal(d) {
+			per[s.AppID] += s.Length()
+		}
+	}
+	out := make([]Entry, 0, len(per))
+	for app, played := range per {
+		out = append(out, Entry{App: app, Played: played})
+	}
+	slices.SortFunc(out, func(a, b Entry) int { return cmp.Or(cmp.Compare(b.Played, a.Played), cmp.Compare(a.App, b.App)) })
+	return out
+}
+
 // Weekdays is the time played on each weekday, Monday first.
 func (h History) Weekdays(app uint32) [7]time.Duration {
 	var out [7]time.Duration

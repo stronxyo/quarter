@@ -21,6 +21,8 @@ type Settings struct {
 
 	Goodbye     string `json:"goodbye"`      // "" a random goodbye on quitting, "off", or one goodbye's name
 	LastGoodbye string `json:"last_goodbye"` // the goodbye shown last, so the next quit picks another
+
+	Mouse string `json:"mouse"` // "" Quarter takes the mouse; "off" leaves it to the terminal (plain text selection)
 }
 
 const (

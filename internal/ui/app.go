@@ -135,6 +135,9 @@ type Model struct {
 	introStart   time.Time  // when it started
 	introDone    bool       // it has ended, or a key skipped it
 
+	mouseSetting string  // config.json's "mouse": "" Quarter takes the mouse, "off" not
+	pointer      pointer // the mouse pointer: what it is over, clicks (mouse.go)
+
 	goodbyeSetting string        // config.json's "goodbye": "" random, "off", or a goodbye's name
 	lastGoodbye    string        // the goodbye shown last, never shown twice in a row (saved)
 	played         time.Duration // time in games this session, finished runs
@@ -230,6 +233,7 @@ func New(opts Options) Model {
 		viewGen: viewGens.Add(1),
 		memo:    &viewMemo{},
 		rank:    &rankMemo{},
+		pointer: pointer{cache: &targetCache{}},
 
 		splash: opts.Splash,
 		hist:   history.New(opts.Sessions, time.Local).WithReplay(opts.Replay),
@@ -292,11 +296,19 @@ func scan(steamPath string) tea.Cmd {
 // Update handles a message, then lays the screen out again: whether the logo
 // fits depends on how many games are showing, which searches and filters change.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	_, pointerMoved := msg.(tea.MouseMotionMsg)
+	if !pointerMoved {
+		m.pointer.layoutGen = viewGens.Add(1) // anything but the pointer moving may move things (mouse.go)
+	}
 	m.rank = &rankMemo{}
 	before, _ := m.selected()
 	m, cmd := m.update(msg)
 	m.rank = &rankMemo{} // the message may have brought a new history
+	if !pointerMoved {
+		m.pointer.layoutGen = viewGens.Add(1) // and may have moved things: the targets are worked out again
+	}
 	m.layout()
+	m.settleHover(msg)
 	after, _ := m.selected()
 	if after.AppID != before.AppID && m.uninstallArmed != 0 {
 		// Moving away cancels a pending uninstall, so the second u never
@@ -370,6 +382,9 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case logoWantMsg:
 		return m.wantLogo(msg)
+
+	case tea.MouseMotionMsg, tea.MouseWheelMsg, tea.MouseClickMsg:
+		return m.handleMouse(msg)
 
 	case pollMsg:
 		return m.applyPoll(msg)
@@ -680,6 +695,13 @@ func (m Model) sectionLine(lead string) string {
 	return line + dimStyle.Render(strings.Repeat("─", max(fill, 0)))
 }
 
+// sortColumns are the columns' names, left to right, and what each sorts by
+// (n/p/l, or a click on the name).
+var sortColumns = []struct {
+	name  string
+	order library.SortOrder
+}{{"Name", library.SortName}, {"Played", library.SortPlaytime}, {"Last played", library.SortLastPlayed}}
+
 // columnHeader labels the columns and marks the sorted one with an arrow.
 func (m Model) columnHeader() string {
 	label := func(name string, order library.SortOrder) string {
@@ -692,7 +714,7 @@ func (m Model) columnHeader() string {
 		return name + " ▲"
 	}
 	line := columns(m.tableWidth()-rowStyle.GetHorizontalFrameSize(), strings.Repeat(" ", markerWidth),
-		label("Name", library.SortName), label("Played", library.SortPlaytime), label("Last played", library.SortLastPlayed))
+		label(sortColumns[0].name, sortColumns[0].order), label(sortColumns[1].name, sortColumns[1].order), label(sortColumns[2].name, sortColumns[2].order))
 	return rowStyle.Render(dimStyle.Render(line))
 }
 
@@ -853,9 +875,15 @@ func (m Model) View() tea.View {
 		if f := m.footer(); f != "" {
 			content += "\n" + f
 		}
+		if m.mouseOn() {
+			content = m.withHover(content)
+		}
 	}
 	v := tea.NewView(content)
 	v.AltScreen = true
+	if m.mouseOn() {
+		v.MouseMode = tea.MouseModeAllMotion // the pointer's moves too, for the hover
+	}
 	m.keepView(v)
 	return v
 }

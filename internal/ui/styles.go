@@ -41,7 +41,9 @@ var (
 	updatingStyle        = rowStyle.Foreground(colorUpdate)
 	selectedUpdateStyle  = selectedStyle.Foreground(colorUpdate).BorderForeground(colorUpdate)
 	updatingLabelStyle   = lipgloss.NewStyle().Bold(true).Foreground(colorUpdate)
-	updatingFgStyle      = lipgloss.NewStyle().Foreground(colorUpdate) // a download's progress bar
+	updatingFgStyle      = lipgloss.NewStyle().Foreground(colorUpdate)             // a download's progress bar
+	hoverStyle           = lipgloss.NewStyle().Foreground(colorAccent)             // under the mouse pointer (mouse.go)
+	hoverDayStyle        = lipgloss.NewStyle().Bold(true).Foreground(colorLogoTop) // a calendar day under the pointer
 	errorStyle           = lipgloss.NewStyle().Bold(true).Foreground(colorError)
 	alertStyle           = lipgloss.NewStyle().Foreground(colorError)
 	messageStyle         = lipgloss.NewStyle().Padding(1, 2)
@@ -50,6 +52,10 @@ var (
 // markerUpdating marks a game Steam is updating: U+2193, which Cascadia Mono
 // and JetBrains Mono both have (U+2B07, ⬇, is in neither).
 const markerUpdating = "↓"
+
+// markerHover marks what the mouse pointer is over: U+25AA, in both fonts
+// (Pablo's pick in the Mouse lab, 2026-10-01).
+const markerHover = "▪"
 
 const (
 	markerInstalled            = "▸"

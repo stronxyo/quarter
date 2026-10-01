@@ -243,6 +243,19 @@ func TestSpeedTargets(t *testing.T) {
 	ranking := pressDraw(m, press("h"))
 	board := pressDraw(ranking, press("h"))
 	dl, blink := downloadingBlink(t)
+	// The pointer moving onto another game: a new hover, drawn (mouse.go).
+	var rows []target
+	for _, tg := range m.targets() {
+		if tg.kind == tItem && tg.n > 0 && len(rows) < 2 {
+			rows = append(rows, tg)
+		}
+	}
+	flip := 0
+	pointerMove := func() {
+		flip = 1 - flip
+		tm, _ := m.Update(tea.MouseMotionMsg{X: 5, Y: rows[flip].y})
+		tm.(Model).View()
+	}
 
 	checks := []struct {
 		name   string
@@ -256,6 +269,7 @@ func TestSpeedTargets(t *testing.T) {
 		{"h, the HIGH SCORES board", keystrokeFrame, func() { pressDraw(ranking, press("h")) }},
 		{"tab on the board", keystrokeFrame, func() { pressDraw(board, tea.KeyPressMsg{Code: tea.KeyTab}) }},
 		{"a download's blink", keystrokeFrame, func() { blink(dl) }},
+		{"the pointer onto another game", keystrokeFrame, pointerMove},
 	}
 	for _, c := range checks {
 		if got := fastest(c.f); got > c.target {

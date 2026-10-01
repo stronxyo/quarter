@@ -175,3 +175,22 @@ func TestSince(t *testing.T) {
 		t.Error("no sessions: no start")
 	}
 }
+
+func TestDayGames(t *testing.T) {
+	loc := time.UTC
+	d := time.Date(2026, 9, 30, 0, 0, 0, 0, loc)
+	at := func(h int) time.Time { return d.Add(time.Duration(h) * time.Hour) }
+	h := New([]steam.Session{
+		{AppID: 1, Start: at(9), End: at(10), EndKnown: true},
+		{AppID: 2, Start: at(12), End: at(15), EndKnown: true},
+		{AppID: 1, Start: at(20), End: at(21), EndKnown: true},
+		{AppID: 3, Start: at(30), End: at(31), EndKnown: true}, // the next day
+	}, loc)
+	got := h.DayGames(d)
+	if len(got) != 2 || got[0] != (Entry{2, 3 * time.Hour}) || got[1] != (Entry{1, 2 * time.Hour}) {
+		t.Errorf("got %v, want game 2 3h, then game 1 2h", got)
+	}
+	if len(h.DayGames(d.AddDate(0, 0, -1))) != 0 {
+		t.Error("nothing the day before")
+	}
+}

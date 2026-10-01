@@ -124,7 +124,7 @@ func TestShortHelpFits(t *testing.T) {
 	for _, tc := range []struct {
 		w                int
 		move, page, hist bool
-	}{{60, false, false, false}, {80, false, false, false}, {86, false, false, true}, {95, false, true, true}, {120, true, true, true}} {
+	}{{60, false, false, false}, {80, false, false, false}, {92, false, false, false}, {93, false, false, true}, {103, false, true, true}, {113, true, true, true}, {120, true, true, true}} { // three spaces between keys since the mouse (2026-10-01)
 		w := tc.w
 		m, _ := withOpener(t, nil, portal2)
 		var tm tea.Model = m

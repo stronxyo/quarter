@@ -28,7 +28,7 @@ var (
 func (m Model) helpView() string {
 	h := help.New()
 	h.Styles = helpStyles
-	h.ShortSeparator = "  " // keycaps already set keys apart
+	h.ShortSeparator = "   " // three: the mouse's hover mark keeps a space on both sides (Pablo, 2026-10-01)
 	h.FullSeparator = "   "
 	if !m.fullHelp {
 		// Measured untruncated: help cuts an overlong line down to "…".
