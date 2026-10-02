@@ -16,6 +16,7 @@ import (
 	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/stronxyo/quarter/internal/art"
 	"github.com/stronxyo/quarter/internal/config"
@@ -124,6 +125,18 @@ func sayGoodbye(final tea.Model, save func(config.Settings) error) {
 		if err := save(s); err != nil {
 			slog.Warn("settings", "err", err)
 		}
+	}
+	printGoodbye(text, colourOutput)
+}
+
+// printGoodbye prints the goodbye in colour where the output reads colour
+// codes, and as plain text where it can't, never as the codes themselves
+// (the classic console showed "←[38;2;..." before, 2026-10-02).
+func printGoodbye(text string, colour func() (func(), bool)) {
+	restore, ok := colour()
+	defer restore()
+	if !ok {
+		text = ansi.Strip(text)
 	}
 	fmt.Print(text)
 }
