@@ -404,3 +404,60 @@ func TestSmallWindowWaitsQuietly(t *testing.T) {
 		t.Error("a small window should neither shine nor play an intro")
 	}
 }
+
+// The start screen's layout and its two resting pictures are kept, and
+// always match a fresh drawing: through blinks, a resize, and the scan
+// changing the system check.
+func TestStartScreenKept(t *testing.T) {
+	m, _, _ := splashedWith(t, 160, 44, 3, config.Settings{Intro: introOff})
+	fresh := func(m Model) string {
+		t.Helper()
+		c := m
+		c.start = &startMemo{} // nothing kept: drawn from scratch
+		return c.View().Content
+	}
+	var tm tea.Model = m
+	for range 4 {
+		tm, _ = tm.Update(blinkMsg{})
+		if got := tm.(Model); got.View().Content != fresh(got) {
+			t.Fatal("a kept resting picture should equal a fresh drawing")
+		}
+	}
+	key := tm.(Model).start.key
+	tm, _ = tm.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	if got := tm.(Model); got.View().Content != fresh(got) || got.start.key == key {
+		t.Error("a resize should lay the start screen out again")
+	}
+	tm, _ = tm.Update(scanDoneMsg{res: library.Result{PlaytimeKnown: true, Games: bigLibrary(7).Games}})
+	if got := tm.(Model); !strings.Contains(screen(got), "7 games") || got.View().Content != fresh(got) {
+		t.Errorf("a new scan should show in the check:\n%s", screen(got))
+	}
+}
+
+// While the start screen is up the list isn't laid out (it doesn't show);
+// the key that leaves it lays the list out for the window as it is then,
+// resized meanwhile or not.
+func TestListLaidOutAfterStart(t *testing.T) {
+	m, _, _ := splashedWith(t, 160, 44, 300, config.Settings{Intro: introOff})
+	var tm tea.Model = m
+	tm, _ = tm.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	tm, _ = tm.Update(press("x"))
+	got := tm.(Model)
+	if got.splash {
+		t.Fatal("a key should start")
+	}
+	want := got
+	want.layout()
+	if got.list.Height() != want.list.Height() || got.list.Width() != want.list.Width() || got.list.Height() == 0 {
+		t.Errorf("the list should be laid out for 100x30: %dx%d, want %dx%d", got.list.Width(), got.list.Height(), want.list.Width(), want.list.Height())
+	}
+	lines := strings.Split(screen(got), "\n")
+	if len(lines) > 30 {
+		t.Errorf("the screen is %d rows in a 30-row window", len(lines))
+	}
+	for _, l := range lines {
+		if ansi.StringWidth(l) > 100 {
+			t.Errorf("a line is wider than the window: %q", l)
+		}
+	}
+}

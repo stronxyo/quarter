@@ -14,7 +14,7 @@ type Settings struct {
 	Filter     string   `json:"filter"`      // filter name, e.g. "recent"
 	HidePane   bool     `json:"hide_pane"`   // d hid the detail pane on a wide window
 	HideLogos  bool     `json:"hide_logos"`  // o hid game logos
-	LogoBlocks string   `json:"logo_blocks"` // "sixths" for fonts without eighth blocks
+	LogoBlocks string   `json:"logo_blocks"` // "octants" for twice the detail, in fonts with block octants; "" quarter blocks
 	SplashSeen bool     `json:"splash_seen"` // the start screen has been shown
 	Intro      string   `json:"intro"`       // "" a random intro each start and as it waits, "off", or one intro's name
 	LastIntro  string   `json:"last_intro"`  // the intro played last, so the next start picks another
@@ -23,6 +23,8 @@ type Settings struct {
 	LastGoodbye string `json:"last_goodbye"` // the goodbye shown last, so the next quit picks another
 
 	Mouse string `json:"mouse"` // "" Quarter takes the mouse; "off" leaves it to the terminal (plain text selection)
+
+	Glyphs string `json:"glyphs"` // "" found out, "basic" the classic Windows console's way (stand-in characters, no game logos), "full" every character
 }
 
 const (

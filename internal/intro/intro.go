@@ -76,3 +76,16 @@ func (sc Screen) Frame(run *Run, elapsed time.Duration) (frame string, done bool
 	sc.frame(g)
 	return g.String(), false
 }
+
+// BasicGlyphs is set for the classic Windows console, whose fonts lack some
+// characters the intros draw (the UI's glyphs.go).
+var BasicGlyphs bool
+
+// diamond is the pattern on the back of the Card flip's card: ◆, or ♦
+// where ◆ is missing.
+func diamond() rune {
+	if BasicGlyphs {
+		return '♦'
+	}
+	return '◆'
+}

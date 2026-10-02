@@ -191,7 +191,9 @@ func (m Model) splashKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 }
 
 // startScreen lays the start screen out for the window, with the system
-// check as its header.
+// check as its header. The layout is kept (startMemo) while the window and
+// the check stay the same: it was laid out again on every blink and
+// animation frame (D3 profile).
 func (m Model) startScreen() (intro.Screen, bool) {
 	steam, games := "...", "..."
 	switch m.state {
@@ -200,14 +202,48 @@ func (m Model) startScreen() (intro.Screen, bool) {
 	case stateFailed:
 		steam, games = "NOT FOUND", "-"
 	}
+	key := fmt.Sprintf("%dx%d|%s|%s", m.width, m.height, steam, games)
+	if m.start != nil && m.start.key == key {
+		return m.start.sc, m.start.ok
+	}
 	check := func(label, result string) intro.Line {
 		dots := strings.Repeat(".", max(splashLeader-len(label)-2, 3))
 		return intro.Line{{Text: label, Tone: intro.Plain}, {Text: " " + dots + " ", Tone: intro.Faint}, {Text: result, Tone: intro.Bright}}
 	}
-	return intro.NewScreen(m.width, m.height, "QUARTER SYSTEM CHECK", []intro.Line{
+	sc, ok := intro.NewScreen(m.width, m.height, "QUARTER SYSTEM CHECK", []intro.Line{
 		check("Looking for Steam", steam),
 		check("Reading libraries", games),
 	})
+	if m.start != nil {
+		*m.start = startMemo{key: key, sc: sc, ok: ok}
+	}
+	return sc, ok
+}
+
+// startMemo is the start screen laid out last, for the window and system
+// check in key, and its two resting pictures (insert quarter dark, lit) once
+// drawn. Shared by the model's copies; the key keeps it right for each.
+type startMemo struct {
+	key  string
+	sc   intro.Screen
+	ok   bool
+	rest [2]string
+}
+
+// restView is the start screen as it waits, kept once drawn: the blink only
+// ever shows these two pictures.
+func (m Model) restView(sc intro.Screen) string {
+	i := 0
+	if m.blinkOn {
+		i = 1
+	}
+	if m.start == nil {
+		return sc.Rest(m.blinkOn)
+	}
+	if m.start.rest[i] == "" {
+		m.start.rest[i] = sc.Rest(m.blinkOn)
+	}
+	return m.start.rest[i]
 }
 
 // splashView is the whole screen while the splash is up: the intro's frame
@@ -233,7 +269,7 @@ func (m Model) splashView() string {
 			return frame
 		}
 	}
-	return sc.Rest(m.blinkOn)
+	return m.restView(sc)
 }
 
 // compactSplash is the start screen for windows too small for the logo box:

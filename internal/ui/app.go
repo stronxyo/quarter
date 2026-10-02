@@ -83,12 +83,13 @@ type Model struct {
 	running    uint32                // the game Steam is running, 0 for none
 	afterPlay  afterPlay             // a game that stopped, waiting for Steam to save its playtime
 
-	polling   bool      // a round of the background checks is on its way (poll.go)
-	viewQuiet bool      // this update was a check that found nothing new
-	reuseView bool      // the screen drawn last can be shown again
-	viewGen   uint64    // which drawing this model's screen is
-	memo      *viewMemo // the screen drawn last
-	rank      *rankMemo // the ranking worked out last (history.go)
+	polling   bool       // a round of the background checks is on its way (poll.go)
+	viewQuiet bool       // this update was a check that found nothing new
+	reuseView bool       // the screen drawn last can be shown again
+	viewGen   uint64     // which drawing this model's screen is
+	memo      *viewMemo  // the screen drawn last
+	rank      *rankMemo  // the ranking worked out last (history.go)
+	start     *startMemo // the start screen laid out last, and its resting pictures (splash.go)
 
 	updateWatch bool // a read of the library is scheduled while Steam updates a game
 	logOK       bool // the download log is there: the reads while updating wait
@@ -106,6 +107,7 @@ type Model struct {
 	logos        LogoSource                        // set once the Steam folder is known
 	logosHidden  bool                              // o pressed: the pane shows names only
 	logoBlocks   art.Blocks
+	basicGlyphs  bool                  // the classic console (glyphs.go): stand-ins, no game logos
 	logoCache    map[logoKey]drawnLogo // drawn logos, by game and size
 	logoPending  map[logoKey]bool      // being drawn, or waiting for a download
 	logoNone     map[uint32]bool       // no logo anywhere, this run
@@ -206,6 +208,8 @@ type Options struct {
 	Logos func(steamPath string) LogoSource // game logos, once the Steam folder is known
 
 	Splash bool // open on the INSERT QUARTER screen (the first run)
+
+	BasicGlyphs bool // the classic Windows console: stand-ins for characters its fonts lack, no game logos (glyphs.go)
 }
 
 // New returns the UI model.
@@ -241,6 +245,7 @@ func New(opts Options) Model {
 		viewGen: viewGens.Add(1),
 		memo:    &viewMemo{},
 		rank:    &rankMemo{},
+		start:   &startMemo{},
 		pointer: pointer{cache: &targetCache{}},
 		refused: make(map[uint32]time.Time),
 
@@ -256,6 +261,8 @@ func New(opts Options) Model {
 		m.replay = replayOn // brought in on an earlier run
 	}
 	maps.Copy(m.storeInfo, opts.StoreCache)
+	applyGlyphs(opts.BasicGlyphs)
+	m.basicGlyphs = opts.BasicGlyphs
 	m.applySettings(opts.Settings)
 	m.rng = rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), 1))
 	m.pickIntro(m.rng)
@@ -516,6 +523,9 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 				return m, nil
 			}
 			if key.Matches(msg, keys.Logos) {
+				if m.basicGlyphs { // glyphs.go: this console can't draw them cleanly
+					return m, m.note("Logos show in Windows Terminal, not in this console")
+				}
 				withPane := m
 				withPane.paneHidden = false // d hid the pane: the window still has room
 				if _, _, _, room := withPane.logoBand(); !room {
@@ -655,6 +665,13 @@ func nextSort(cur library.SortOrder, desc bool, picked library.SortOrder) (libra
 // layout gives the list every row except the header, section line, column
 // header and footer.
 func (m *Model) layout() {
+	if m.splash {
+		// Nothing of the list shows yet: its layout (the key line most of
+		// all) was half of Quarter's work on each blink and animation frame
+		// of the start screen (D3 profile). The key that leaves the start
+		// screen lays the list out before it first shows.
+		return
+	}
 	used := m.chromeRows()
 	if m.showLogo() {
 		used += logoHeight()

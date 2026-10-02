@@ -57,7 +57,7 @@ func runUI(steamPath string) error {
 	if err != nil {
 		// Without a data folder Quarter still runs, just without cache or log.
 		slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
-		final, err := tea.NewProgram(ui.New(ui.Options{SteamPath: steamPath, Open: steam.OpenURI})).Run()
+		final, err := tea.NewProgram(ui.New(ui.Options{SteamPath: steamPath, Open: steam.OpenURI, BasicGlyphs: basicGlyphs("")})).Run()
 		if err == nil {
 			sayGoodbye(final, nil)
 		}
@@ -91,6 +91,8 @@ func runUI(steamPath string) error {
 		// The start screen on every start, led by a random intro (Pablo's
 		// choice); config.json's "intro" turns the intros off.
 		Splash: true,
+
+		BasicGlyphs: basicGlyphs(settings.Glyphs),
 
 		FetchStore: webapi.NewStoreClient(config.StoreURL, config.StoreTimeout, config.StoreGap).AppDetails,
 		StoreCache: loadStoreCache(dir),

@@ -57,10 +57,10 @@ const (
 )
 
 // sparkSteps are the bar heights for weekly and weekday bars.
-const sparkSteps = "▁▂▃▄▅▆▇█"
+var sparkSteps = "▁▂▃▄▅▆▇█" // set by applyGlyphs
 
 // barParts are a horizontal bar's last cell, in eighths.
-const barParts = " ▏▎▍▌▋▊▉"
+var barParts = " ▏▎▍▌▋▊▉" // set by applyGlyphs
 
 // histKey handles a key while history is open, and h from the games. ok is
 // false for a key history leaves to the rest of the app.

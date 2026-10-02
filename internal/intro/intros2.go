@@ -301,7 +301,7 @@ var more = []intro{
 					for x := s.lx; x < s.lx+s.bw; x++ {
 						if (x+y*2)%6 < 2 {
 							nx := int(math.Round(cx + (float64(x)-cx)*k))
-							g.set(nx, y, cell{r: '◆', fg: colDim})
+							g.set(nx, y, cell{r: diamond(), fg: colDim})
 						}
 					}
 				}

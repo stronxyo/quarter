@@ -74,7 +74,7 @@ func (m Model) helpView() string {
 // supportText is the donate link at the right end of the key line (Pablo,
 // 2026-10-02, his pick of four: "buy me a coffee ↗"), with its key, c; the
 // key or a click opens Ko-fi.
-const supportText = "buy me a coffee " + markerLink
+var supportText = "buy me a coffee " + markerLink // set again by applyGlyphs
 
 // supportGap is the least room kept between the keys and the link: the
 // key line's own gap between keys.

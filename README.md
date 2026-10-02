@@ -89,6 +89,8 @@ While Quarter has the mouse, hold `Shift` to select and copy text the usual way.
 
 Game logos are drawn as real pictures in terminals that support Sixel graphics: Windows Terminal 1.22 or later (tested), and by their documentation WezTerm, iTerm2, foot, Konsole and mlterm. Other terminals, including Kitty and Ghostty for now, get the logos as block art in one colour. Quarter finds out on its own; there is nothing to set.
 
+The classic Windows console (the old black window, still the default on Windows 10) has no way to draw them cleanly, so there Quarter shows no game logos and swaps a few characters its fonts lack for ones they have. Everything else works the same. For the logos, use [Windows Terminal](https://aka.ms/terminal), free from Microsoft and the default on Windows 11.
+
 Logos come from Steam's own cache on your computer first, and from Steam's servers for games that aren't there.
 
 ## Settings
@@ -106,7 +108,8 @@ A few settings are only in the file. Close Quarter before editing it.
 | `"intro"` | `""` a random intro (default), `"off"`, or one intro by name |
 | `"goodbye"` | `""` a random goodbye (default), `"off"`, or one goodbye by name |
 | `"mouse"` | `""` Quarter takes the mouse (default), `"off"` leaves it to the terminal |
-| `"logo_blocks"` | `"sixths"` for fonts without the finer block characters |
+| `"logo_blocks"` | `"octants"` for twice the detail, in fonts that have block octants (Windows Terminal's own Cascadia Mono) |
+| `"glyphs"` | `""` found out (default), `"basic"` the classic console's way (no game logos, simpler characters), `"full"` every character |
 
 Intros: `crt-power-on`, `implode`, `coin-drop`, `staggered-drop`, `raster-reveal`, `typewriter`, `decode`, `light-sweep`, `dither-dissolve`, `glitch-settle`, `starfield-warp`, `beams`, `slice`, `stack-up`, `spiral-in`, `ignite`, `rally`, `coin-roll`, `block-drop`, `march`, `snake`, `plasma`, `fire`, `code-rain`, `card-flip`, `synthwave`, `installer`, `shockwave`, `liquid-fill`, `neon`, `firework`, `zoom-punch`.
 

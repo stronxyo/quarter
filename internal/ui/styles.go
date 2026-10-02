@@ -57,29 +57,33 @@ const markerUpdating = "↓"
 // (Pablo's pick in the Mouse lab, 2026-10-01).
 const markerHover = "▪"
 
-// markerLink follows the website's name in the details pane: it opens
-// (Pablo, 2026-10-02). U+2197 is in JetBrains Mono; on Cascadia and Consolas
-// Windows draws it from Segoe UI Symbol, as it does the favourite star.
-const markerLink = "↗"
-
-const (
+// The list's markers and the website's arrow, as set by applyGlyphs
+// (glyphs.go): these, or stand-ins the classic Windows console's fonts have.
+// markerLink follows the website's name: it opens (Pablo, 2026-10-02).
+// U+2197 is in JetBrains Mono; on Cascadia and Consolas Windows Terminal
+// draws it from Segoe UI Symbol, as it does the favourite star.
+var (
+	markerLink                 = "↗"
 	markerInstalled            = "▸"
 	markerUninstalled          = "▹"
 	markerFavourite            = "✦"
 	markerFavouriteUninstalled = "✧"
 	markerRunning              = "▶"
-	markerWidth                = 1  // one marker: the favourite star, else the installed dot
-	hoursWidth                 = 9  // fits "99999.9h"
-	agoWidth                   = 13 // fits "11 months ago"
-	maxTableWidth              = 80 // keeps the numbers near the names on wide terminals
-	minListRows                = 8  // the big logo gives way before the list gets shorter than this
-	listChromeRows             = 1  // the row the list keeps for its page counter
-	logoIndent                 = 2  // lines the box up with the section line
-	paneMinWidth               = 40 // the detail pane beside the list, at its narrowest
-	paneMaxWidth               = 80 // the pop-up pane on a narrow window
-	paneTextWidth              = 76 // the pane's contents, a centred column: readable lines stop at about 75 (Batch 8, A2)
-	paneGap                    = 2
-	minTableWidth              = 56 // narrower than this, the pane becomes a pop-up
-	logoPadTop                 = 1
-	logoPadBottom              = 1
+)
+
+const (
+	markerWidth    = 1  // one marker: the favourite star, else the installed dot
+	hoursWidth     = 9  // fits "99999.9h"
+	agoWidth       = 13 // fits "11 months ago"
+	maxTableWidth  = 80 // keeps the numbers near the names on wide terminals
+	minListRows    = 8  // the big logo gives way before the list gets shorter than this
+	listChromeRows = 1  // the row the list keeps for its page counter
+	logoIndent     = 2  // lines the box up with the section line
+	paneMinWidth   = 40 // the detail pane beside the list, at its narrowest
+	paneMaxWidth   = 80 // the pop-up pane on a narrow window
+	paneTextWidth  = 76 // the pane's contents, a centred column: readable lines stop at about 75 (Batch 8, A2)
+	paneGap        = 2
+	minTableWidth  = 56 // narrower than this, the pane becomes a pop-up
+	logoPadTop     = 1
+	logoPadBottom  = 1
 )

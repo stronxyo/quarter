@@ -8,3 +8,6 @@ package main
 func colourOutput() (restore func(), ok bool) {
 	return func() {}, true
 }
+
+// classicConsole is false: the classic console is Windows only.
+func classicConsole() bool { return false }
