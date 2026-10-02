@@ -1,0 +1,129 @@
+# GoReleaser (v2.18.2, pinned in CI): the release of Quarter when a version
+# tag is pushed. Six builds, archives with checksums, then the packages:
+# Homebrew (your tap), winget (a pull request to Microsoft's list) and the
+# AUR. Try it locally without publishing: goreleaser release --snapshot --clean
+version: 2
+
+project_name: quarter
+
+builds:
+  - id: quarter
+    main: ./cmd/quarter
+    binary: quarter
+    env:
+      - CGO_ENABLED=0 # one static program per system, nothing else to install
+    goos: [windows, darwin, linux]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Tag }} # quarter --version prints the tag, e.g. v0.1.0
+
+archives:
+  - id: quarter
+    name_template: "quarter_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip] # winget takes zip
+    files:
+      - README.md
+      - LICENSE
+      - CHANGELOG.md
+      - PRIVACY.md
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^specs:"
+      - "^notes:"
+      - "^chore:"
+
+release:
+  github:
+    owner: stronxyo
+    name: quarter
+  footer: |
+    Install: see the [README](https://github.com/stronxyo/quarter#install). Not affiliated with Valve.
+
+# macOS and Linux: brew install stronxyo/tap/quarter
+homebrew_casks:
+  - name: quarter
+    repository:
+      owner: stronxyo
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Casks
+    homepage: https://github.com/stronxyo/quarter
+    description: Browse, search and launch your Steam library in the terminal
+    license: MIT
+    binaries:
+      - quarter
+    # The program isn't signed with an Apple developer account (paid), so
+    # macOS would refuse to open it; this lets it run, as GoReleaser's docs
+    # suggest for unsigned programs.
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/quarter"]
+          end
+    commit_author:
+      name: stronxyo
+      email: 58714125+stronxyo@users.noreply.github.com
+
+# Windows: winget install quarter
+winget:
+  - name: quarter
+    publisher: stronxyo
+    package_identifier: stronxyo.Quarter
+    short_description: Browse, search and launch your Steam library in the terminal
+    license: MIT
+    homepage: https://github.com/stronxyo/quarter
+    publisher_url: https://github.com/stronxyo
+    tags: [steam, games, launcher, terminal, tui]
+    release_notes: "{{ .Changelog }}"
+    repository:
+      owner: stronxyo
+      name: winget-pkgs # your fork of microsoft/winget-pkgs
+      token: "{{ .Env.WINGET_TOKEN }}"
+      pull_request:
+        enabled: true
+        base:
+          owner: microsoft
+          name: winget-pkgs
+          branch: master
+    commit_author:
+      name: stronxyo
+      email: 58714125+stronxyo@users.noreply.github.com
+
+# Arch Linux: yay -S quarter-tui-bin ("quarter" is taken on the AUR by
+# Coin3D's Qt library; the command is still quarter)
+aurs:
+  - name: quarter-tui-bin
+    homepage: https://github.com/stronxyo/quarter
+    description: Browse, search and launch your Steam library in the terminal
+    maintainers:
+      - stronxyo <58714125+stronxyo@users.noreply.github.com>
+    license: MIT
+    private_key: "{{ .Env.AUR_KEY }}"
+    git_url: ssh://aur@aur.archlinux.org/quarter-tui-bin.git
+    # Not "quarter": on the AUR that names Coin3D's library, which this
+    # neither provides nor conflicts with. A from-source quarter-tui could
+    # come later; the two would be the same program.
+    provides: [quarter-tui]
+    conflicts: [quarter-tui]
+    package: |-
+      install -Dm755 "./quarter" "${pkgdir}/usr/bin/quarter"
+      install -Dm644 "./LICENSE" "${pkgdir}/usr/share/licenses/quarter-tui-bin/LICENSE"
+    commit_author:
+      name: stronxyo
+      email: 58714125+stronxyo@users.noreply.github.com

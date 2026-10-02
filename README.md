@@ -37,7 +37,7 @@ macOS and Linux:
 curl -fsSL https://raw.githubusercontent.com/stronxyo/quarter/main/install.sh | sh
 ```
 
-or with Homebrew (`brew install stronxyo/tap/quarter`), the AUR (`yay -S quarter-bin`) or Nix (`nix run github:stronxyo/quarter`).
+or with Homebrew (`brew install stronxyo/tap/quarter`) or, on Arch Linux, the AUR (`yay -S quarter-tui-bin`).
 
 With Go installed:
 
