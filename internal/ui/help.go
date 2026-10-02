@@ -40,9 +40,9 @@ func (m Model) helpView() string {
 		case m.list.SettingFilter():
 			lines = [][]key.Binding{searchKeys(state)}
 		case m.detailOpen:
-			lines = shortHelp(append([]key.Binding{helpClose}, gameKeys(state)...))
+			lines = shortHelp(append([]key.Binding{helpClose}, m.gameKeys(state)...))
 		default:
-			lines = shortHelp(gameKeys(state))
+			lines = shortHelp(m.gameKeys(state))
 		}
 		for _, b := range lines {
 			if line := h.ShortHelpView(b); lipgloss.Width(line) <= m.width-2 {

@@ -7,6 +7,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/stronxyo/quarter/internal/config"
 	"github.com/stronxyo/quarter/internal/library"
 	"github.com/stronxyo/quarter/internal/steam"
 )
@@ -14,9 +15,10 @@ import (
 // statusLifetime is how long an action's message stays in the footer.
 const statusLifetime = 3 * time.Second
 
-// openDoneMsg reports whether a steam:// link was handed off.
+// openDoneMsg reports whether a link (steam:// or a web page) was handed off.
 type openDoneMsg struct {
 	id  int
+	uri string
 	err error
 }
 
@@ -50,17 +52,28 @@ func (m Model) stateOf() (library.Game, gameState) {
 	return g, gameNotInstalled
 }
 
-// action runs a game key (play, install, uninstall, store page) for the
-// selected game, as far as its state allows (see the spec's "Keys that
-// follow the game"). handled is false when msg is not a game key.
+// action runs a game key (play, install, uninstall, store page, website,
+// SteamDB) for the selected game, as far as its state allows (see the
+// spec's "Keys that follow the game"); SteamDB opens for any game, running
+// too, and the website for any game the store gave one for (without, w does
+// nothing, as it isn't on the key line). handled is false when msg is not
+// a game key.
 func (m Model) action(msg tea.KeyPressMsg) (_ Model, _ tea.Cmd, handled bool) {
 	play, install, uninstall, store := key.Matches(msg, keys.Play), key.Matches(msg, keys.Install), key.Matches(msg, keys.Uninstall), key.Matches(msg, keys.Store)
-	if !play && !install && !uninstall && !store {
+	web, db := key.Matches(msg, keys.Website), key.Matches(msg, keys.SteamDB)
+	if !play && !install && !uninstall && !store && !web && !db {
 		return m, nil, false
 	}
 	it, state := m.stateOf()
 	switch {
 	case state == gameNone:
+		return m, nil, true
+	case db:
+		return m.openFor(fmt.Sprintf(config.SteamDBURL, it.AppID), "Opening SteamDB for "+it.Name)
+	case web:
+		if site := m.selectedWebsite(); site != "" {
+			return m.openFor(site, "Opening "+siteName(site))
+		}
 		return m, nil, true
 	case state == gameRunning:
 		return m, m.note(it.Name + " is already running"), true
@@ -79,6 +92,19 @@ func (m Model) action(msg tea.KeyPressMsg) (_ Model, _ tea.Cmd, handled bool) {
 		return m.openFor(steam.InstallURI(it.AppID), markerUpdating+" Opening install for "+it.Name)
 	}
 	return m, nil, true // a key this game doesn't take: nothing happens
+}
+
+// selectedWebsite is the selected game's official site, "" until the store
+// has given one.
+func (m Model) selectedWebsite() string {
+	g, ok := m.selected()
+	if !ok {
+		return ""
+	}
+	if info, state := m.storeStatus(g.AppID); state == storeReady {
+		return info.Website
+	}
+	return ""
 }
 
 // uninstall asks Steam to uninstall g on the second u: the first only
@@ -112,9 +138,9 @@ func (m *Model) note(text string) tea.Cmd {
 func openURI(open func(string) error, uri string, id int) tea.Cmd {
 	return func() tea.Msg {
 		if open == nil {
-			return openDoneMsg{id: id, err: fmt.Errorf("opening links is not available")}
+			return openDoneMsg{id: id, uri: uri, err: fmt.Errorf("opening links is not available")}
 		}
-		return openDoneMsg{id: id, err: open(uri)}
+		return openDoneMsg{id: id, uri: uri, err: open(uri)}
 	}
 }
 

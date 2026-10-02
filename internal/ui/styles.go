@@ -57,6 +57,11 @@ const markerUpdating = "↓"
 // (Pablo's pick in the Mouse lab, 2026-10-01).
 const markerHover = "▪"
 
+// markerLink follows the website's name in the details pane: it opens
+// (Pablo, 2026-10-02). U+2197 is in JetBrains Mono; on Cascadia and Consolas
+// Windows draws it from Segoe UI Symbol, as it does the favourite star.
+const markerLink = "↗"
+
 const (
 	markerInstalled            = "▸"
 	markerUninstalled          = "▹"

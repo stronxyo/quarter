@@ -385,7 +385,11 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 		if msg.err != nil {
 			slog.Warn("open", "err", msg.err)
-			m.status = "Could not open Steam: " + msg.err.Error()
+			opener := "Steam"
+			if strings.HasPrefix(msg.uri, "http") {
+				opener = "the browser"
+			}
+			m.status = "Could not open " + opener + ": " + msg.err.Error()
 			m.statusWrong = true
 		}
 		return m, clearStatusAfter(msg.id)

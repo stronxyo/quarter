@@ -5,8 +5,9 @@ package ui
 // over: its text in amber with a small square before it. A click acts on it:
 // a game is selected, a double-click plays or installs it; tabs, keys on the
 // key line, column names (sort, again to flip), the game's logo (the game in
-// the Steam library; s is its store page) and the quarter_ box (an intro)
-// all work. A right-click stars a game.
+// the Steam library; s is its store page), the quarter_ box (an intro) and
+// the website in the details pane (2026-10-02) all work. A right-click
+// stars a game.
 // The wheel moves the selection, or over the tabs, turns them. On the HIGH
 // SCORES calendar, a day under the pointer says what was played then.
 // config.json's "mouse": "off" leaves the mouse to the terminal (plain text
@@ -55,6 +56,7 @@ const (
 	tBand               // the game's logo
 	tQuarter            // the quarter_ box
 	tDay                // a day on the HIGH SCORES calendar
+	tWebsite            // the website in the details pane
 )
 
 // target is something on screen the pointer can act on: row y, columns x0
@@ -150,6 +152,8 @@ func (m Model) workOutTargets() []target {
 		for i := range m.list.Paginator.ItemsOnPage(len(items)) {
 			out = append(out, target{kind: tItem, y: top + 2 + i, x0: 0, x1: m.tableWidth(), n: page*per + i})
 		}
+		// First, so it wins over the game row under the pop-up pane.
+		out = append(m.websiteTarget(lines, top), out...)
 	} else {
 		for i, p := range histPeriods {
 			label(tPeriod, 0, i, p.label, 0)
@@ -163,6 +167,35 @@ func (m Model) workOutTargets() []target {
 		out = append(out, m.dayTargets(lines, top)...)
 	}
 	return append(out, m.keyTargets(top+len(lines))...)
+}
+
+// websiteTarget is the website's name in the details pane, beside the list
+// or in its pop-up, found on the row the pane labels Website: a click opens
+// it, as w does, in any terminal (Quarter has the mouse, so the terminal's
+// own link click doesn't reach it).
+func (m Model) websiteTarget(lines []string, top int) []target {
+	if m.selectedWebsite() == "" || (!m.sideBySide() && !m.detailOpen) {
+		return nil
+	}
+	label := fmt.Sprintf("%-*s", paneLabelWidth, "Website") // the label as the pane pads it
+	for i, l := range lines {
+		x := strings.Index(l, label)
+		if x < 0 || !strings.Contains(l[:x], "│") {
+			continue // not the pane's row: the label sits inside its frame
+		}
+		start := x + len(label)
+		value := l[start:]
+		if end := strings.Index(value, "│"); end >= 0 {
+			value = value[:end]
+		}
+		value = strings.TrimRight(value, " ")
+		if value == "" {
+			continue
+		}
+		x0 := ansi.StringWidth(l[:start])
+		return []target{{kind: tWebsite, y: top + i, x0: x0 - 1, x1: x0 + ansi.StringWidth(value) + 1}}
+	}
+	return nil
 }
 
 // dayTargets are the board's calendar days: its Mon row found where the
@@ -191,7 +224,7 @@ func (m Model) dayTargets(lines []string, top int) []target {
 func (m Model) keyTargets(y int) []target {
 	_, state := m.stateOf()
 	var all []key.Binding
-	for _, set := range [][][]key.Binding{historyHelp(), {searchKeys(state)}, shortHelp(append([]key.Binding{helpClose}, gameKeys(state)...)), fullHelp(m.width)} {
+	for _, set := range [][][]key.Binding{historyHelp(), {searchKeys(state)}, shortHelp(append([]key.Binding{helpClose}, m.gameKeys(state)...)), fullHelp(m.width)} {
 		for _, line := range set {
 			all = append(all, line...)
 		}
@@ -519,6 +552,8 @@ func (m Model) handleMouse(msg tea.Msg) (Model, tea.Cmd) {
 			}
 		case tQuarter:
 			return m.replayIntro()
+		case tWebsite:
+			return m.pressFor(keys.Website.Keys()[0])
 		case tKey:
 			return m.pressFor(t.key)
 		}

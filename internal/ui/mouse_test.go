@@ -14,6 +14,7 @@ import (
 	"github.com/stronxyo/quarter/internal/config"
 	"github.com/stronxyo/quarter/internal/library"
 	"github.com/stronxyo/quarter/internal/steam"
+	"github.com/stronxyo/quarter/internal/webapi"
 )
 
 // mouseGames are 40 games, a third installed.
@@ -278,7 +279,7 @@ func TestRightClickFavourite(t *testing.T) {
 	}
 }
 
-// After ?, all 22 keys of the full list click, each like its key; history's
+// After ?, all 24 keys of the full list click, each like its key; history's
 // key line and periods click too.
 func TestEveryKeyClicks(t *testing.T) {
 	for _, w := range []int{150, 90} {
@@ -293,8 +294,8 @@ func TestEveryKeyClicks(t *testing.T) {
 				keysShown = append(keysShown, tg)
 			}
 		}
-		if len(keysShown) != 22 {
-			t.Errorf("%d wide: %d keys clickable on the full list, want 22", w, len(keysShown))
+		if len(keysShown) != 24 {
+			t.Errorf("%d wide: %d keys clickable on the full list, want 24", w, len(keysShown))
 		}
 		for _, tg := range keysShown {
 			clicked, _ := clickOn(fresh(), tg, tea.MouseLeft)
@@ -446,5 +447,45 @@ func TestMouseOff(t *testing.T) {
 	}
 	if s := tm.(Model).settings(); s.Mouse != mouseOff {
 		t.Errorf("the setting should be kept: %q", s.Mouse)
+	}
+}
+
+// The website in the details pane clicks like w and lights up under the
+// pointer; without a website there is nothing to click.
+func TestWebsiteClicks(t *testing.T) {
+	for _, w := range []int{150, 90} {
+		m, opened := withOpener(t, nil, mouseGames()...)
+		g, _ := m.selected()
+		m.storeInfo[g.AppID] = webapi.StoreEntry{Info: webapi.StoreInfo{Publishers: []string{"Valve"}, Website: "https://www.example.com/"}, Fetched: time.Now()}
+		tm, _ := tea.Model(m).Update(tea.WindowSizeMsg{Width: w, Height: 40})
+		m = tm.(Model)
+		if !m.sideBySide() {
+			tm, _ = m.Update(press("d")) // the pop-up pane
+			m = tm.(Model)
+		}
+		tg := findTarget(t, m, tWebsite, 0, "")
+		lines := drawnLines(m)
+		if got := ansi.Cut(lines[tg.y], tg.x0+1, tg.x1-1); got != "example.com "+markerLink { // the name and its arrow
+			t.Errorf("%d wide: the target covers %q, want the website's name", w, got)
+		}
+		if lit := ansi.Strip(pointAt(m, tg).View().Content); !strings.Contains(strings.Split(lit, "\n")[tg.y], markerHover+" example.com") { // the mark, then the space before it, as on tabs
+			t.Errorf("%d wide: the website should light up under the pointer", w)
+		}
+		clicked, cmd := clickOn(m, tg, tea.MouseLeft)
+		for _, msg := range messages(cmd) {
+			clicked.Update(msg)
+		}
+		if len(*opened) != 1 || (*opened)[0] != "https://www.example.com/" || !strings.Contains(clicked.status, "Opening example.com") {
+			t.Errorf("%d wide: a click should open the website: opened %v, status %q", w, *opened, clicked.status)
+		}
+
+		delete(m.storeInfo, g.AppID)
+		m.storeInfo[g.AppID] = webapi.StoreEntry{Info: webapi.StoreInfo{Publishers: []string{"Valve"}}, Fetched: time.Now()}
+		m.pointer.cache = &targetCache{}
+		for _, tg := range m.targets() {
+			if tg.kind == tWebsite {
+				t.Errorf("%d wide: no website, nothing to click", w)
+			}
+		}
 	}
 }

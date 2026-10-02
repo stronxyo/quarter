@@ -149,3 +149,62 @@ func TestPaneShowsAchievements(t *testing.T) {
 		t.Error("Bravo has no achievements; the row should not show")
 	}
 }
+
+// Publisher and website sit in a block of their own under the table, after
+// a blank line; the website shows as its name and links to the full
+// address. Without either, there is no block.
+func TestPublisherAndWebsite(t *testing.T) {
+	m := sized(t, 150, 30).(Model)
+	m.storeInfo[1] = webapi.StoreEntry{Info: webapi.StoreInfo{
+		Developers: []string{"Psyonix LLC"}, Publishers: []string{"Psyonix LLC"}, Website: "http://www.rocketleague.com/",
+	}, Fetched: time.Now()}
+	raw := m.detailView(60, 25)
+	lines := strings.Split(ansi.Strip(raw), "\n")
+	at := -1
+	for i, l := range lines {
+		if strings.Contains(l, "Publisher") {
+			at = i
+		}
+	}
+	if at < 2 || !strings.Contains(lines[at-2], "Library") {
+		t.Fatalf("Publisher should come after Library and a blank line:\n%s", strings.Join(lines, "\n"))
+	}
+	if strings.Trim(lines[at-1], "│ ") != "" || !strings.Contains(lines[at], "Psyonix LLC") || !strings.Contains(lines[at+1], "Website") || !strings.Contains(lines[at+1], "rocketleague.com") {
+		t.Errorf("want a blank line, Publisher, then Website:\n%s", strings.Join(lines, "\n"))
+	}
+	if strings.Contains(lines[at+1], "http") || strings.Contains(lines[at+1], "www.") {
+		t.Errorf("the website shows as its name: %q", lines[at+1])
+	}
+	if !strings.Contains(lines[at+1], "rocketleague.com "+markerLink) {
+		t.Errorf("the website's name ends in the arrow: %q", lines[at+1])
+	}
+	if strings.Contains(raw, "\x1b]8;") {
+		t.Error("no terminal link codes: Windows Terminal underlines them with dots")
+	}
+
+	// A name too long for the pane is cut, and the arrow stays.
+	m.storeInfo[1] = webapi.StoreEntry{Info: webapi.StoreInfo{Website: "https://www." + strings.Repeat("long", 20) + ".com/"}, Fetched: time.Now()}
+	for _, l := range strings.Split(ansi.Strip(m.detailView(40, 25)), "\n") {
+		if strings.Contains(l, "Website") && !strings.Contains(l, "… "+markerLink) {
+			t.Errorf("a cut name keeps its arrow: %q", l)
+		}
+	}
+
+	m.storeInfo[1] = webapi.StoreEntry{Info: webapi.StoreInfo{Developers: []string{"Psyonix LLC"}}, Fetched: time.Now()}
+	if v := ansi.Strip(m.detailView(60, 25)); strings.Contains(v, "Publisher") || strings.Contains(v, "Website") {
+		t.Errorf("without a publisher or website, no block:\n%s", v)
+	}
+}
+
+func TestSiteName(t *testing.T) {
+	for in, want := range map[string]string{
+		"http://www.rocketleague.com":        "rocketleague.com",
+		"https://www.teamfortress.com/":      "teamfortress.com",
+		"https://example.com/games/thing/":   "example.com/games/thing",
+		"https://store.example.com/game?x=1": "store.example.com/game",
+	} {
+		if got := siteName(in); got != want {
+			t.Errorf("siteName(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

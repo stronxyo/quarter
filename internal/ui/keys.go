@@ -15,6 +15,8 @@ type appKeys struct {
 	Install    key.Binding
 	Uninstall  key.Binding
 	Store      key.Binding
+	Website    key.Binding
+	SteamDB    key.Binding
 	Favourite  key.Binding
 	SortName   key.Binding
 	SortPlayed key.Binding
@@ -33,6 +35,8 @@ var keys = appKeys{
 	Install:    key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "install")),
 	Uninstall:  key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "uninstall")),
 	Store:      key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "store page")),
+	Website:    key.NewBinding(key.WithKeys("w"), key.WithHelp("w", "website")),
+	SteamDB:    key.NewBinding(key.WithKeys("b"), key.WithHelp("b", "steamdb")),
 	Favourite:  key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "favourite")),
 	SortName:   key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "sort name")),
 	SortPlayed: key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "sort played")),
@@ -88,17 +92,22 @@ var (
 )
 
 // gameKeys are the key line's keys for the selected game: only what its
-// state allows.
-func gameKeys(state gameState) []key.Binding {
+// state allows, then its website, once the store has given one, and its
+// SteamDB page, which every Steam app has.
+func (m Model) gameKeys(state gameState) []key.Binding {
+	links := []key.Binding{keys.SteamDB}
+	if m.selectedWebsite() != "" {
+		links = []key.Binding{keys.Website, keys.SteamDB}
+	}
 	switch state {
 	case gameRunning:
-		return []key.Binding{helpRunning}
+		return append([]key.Binding{helpRunning}, links...)
 	case gameUpdating:
-		return []key.Binding{helpUpdating}
+		return append([]key.Binding{helpUpdating}, links...)
 	case gameInstalled:
-		return []key.Binding{keys.Play, helpUninstall}
+		return append([]key.Binding{keys.Play, helpUninstall}, links...)
 	case gameNotInstalled:
-		return []key.Binding{helpInstallBoth}
+		return append([]key.Binding{helpInstallBoth}, links...)
 	}
 	return nil
 }
@@ -115,8 +124,8 @@ func searchKeys(state gameState) []key.Binding {
 
 // shortHelp is the one line of keycaps under the list, as versions from widest
 // to narrowest: the first that fits is shown. The arrow keys, the easiest to
-// guess, give way first on narrow windows, then h history and the sort keys
-// (all still listed under ?).
+// guess, give way first on narrow windows, then h history, the sort keys,
+// and w website and b steamdb (all still listed under ?).
 func shortHelp(game []key.Binding) [][]key.Binding {
 	core := slices.Concat(game, []key.Binding{helpSearch, helpSort, keys.Filter, keys.History, keys.Help, helpQuit})
 	without := func(drop ...key.Binding) []key.Binding {
@@ -130,6 +139,7 @@ func shortHelp(game []key.Binding) [][]key.Binding {
 		core,
 		without(keys.History),
 		without(keys.History, helpSort),
+		without(keys.History, helpSort, keys.Website, keys.SteamDB),
 	}
 }
 
@@ -154,7 +164,7 @@ func fullHelp(width int) [][]key.Binding {
 	}
 	return [][]key.Binding{
 		{helpMove, helpEnds, helpPage, helpPgKeys, helpHomeEnd},
-		{helpPlayFull, helpInstFull, helpUninsFull, keys.Store, keys.Favourite},
+		{helpPlayFull, helpInstFull, helpUninsFull, keys.Store, keys.Website, keys.SteamDB, keys.Favourite},
 		{helpSearch, keys.SortName, keys.SortPlayed, keys.SortLast},
 		{keys.Filter, keys.History, replay, keys.Details, keys.Logos, keys.Refresh, helpLess, helpQuit},
 	}

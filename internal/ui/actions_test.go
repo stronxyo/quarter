@@ -4,11 +4,13 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/stronxyo/quarter/internal/library"
+	"github.com/stronxyo/quarter/internal/webapi"
 )
 
 // withOpener returns a ready model whose link opener records what it was
@@ -119,14 +121,20 @@ func TestHelpToggle(t *testing.T) {
 }
 
 // The key line always fits: on narrow windows the arrows give way, move
-// first, then h history (still listed under ?).
+// first, then h history, the sort keys, and w website and b steamdb (all
+// still listed under ?).
 func TestShortHelpFits(t *testing.T) {
 	for _, tc := range []struct {
-		w                int
-		move, page, hist bool
-	}{{60, false, false, false}, {80, false, false, false}, {92, false, false, false}, {93, false, false, true}, {103, false, true, true}, {113, true, true, true}, {120, true, true, true}} { // three spaces between keys since the mouse (2026-10-01)
+		w                       int
+		move, page, hist, links bool
+	}{ // three spaces between keys since the mouse (2026-10-01); w and b since 2026-10-02
+		{60, false, false, false, false}, {80, false, false, false, false}, {91, false, false, false, false},
+		{92, false, false, false, true}, {116, false, false, false, true}, {117, false, false, true, true},
+		{126, false, false, true, true}, {127, false, true, true, true}, {137, true, true, true, true},
+	} {
 		w := tc.w
 		m, _ := withOpener(t, nil, portal2)
+		m.storeInfo[620] = webapi.StoreEntry{Info: webapi.StoreInfo{Website: "https://www.thinkwithportals.com/"}, Fetched: time.Now()}
 		var tm tea.Model = m
 		tm, _ = tm.Update(tea.WindowSizeMsg{Width: w, Height: 30})
 		line := lineWith(ansi.Strip(tm.(Model).View().Content), "q quit")
@@ -136,8 +144,64 @@ func TestShortHelpFits(t *testing.T) {
 		if got := ansi.StringWidth(line); got > w {
 			t.Errorf("width %d: key line is %d wide", w, got)
 		}
-		if strings.Contains(line, "move") != tc.move || strings.Contains(line, "page") != tc.page || strings.Contains(line, "h history") != tc.hist {
-			t.Errorf("width %d: want move %v, page %v, history %v: %q", w, tc.move, tc.page, tc.hist, line)
+		links := strings.Contains(line, "w website") && strings.Contains(line, "b steamdb")
+		if strings.Contains(line, "move") != tc.move || strings.Contains(line, "page") != tc.page || strings.Contains(line, "h history") != tc.hist || links != tc.links {
+			t.Errorf("width %d: want move %v, page %v, history %v, links %v: %q", w, tc.move, tc.page, tc.hist, tc.links, line)
 		}
+	}
+}
+
+// w opens the game's website once the store has given it, b its SteamDB
+// page; both for a running game too. Without a website, w says why.
+func TestWebsiteAndSteamDBKeys(t *testing.T) {
+	m, opened := withOpener(t, nil, portal2)
+	m.storeInfo[620] = webapi.StoreEntry{Info: webapi.StoreInfo{Website: "https://www.thinkwithportals.com/"}, Fetched: time.Now()}
+	m.running = 620
+	got := act(m, press("w")).(Model)
+	got = act(got, press("b")).(Model)
+	if want := []string{"https://www.thinkwithportals.com/", "https://steamdb.info/app/620/"}; strings.Join(*opened, " ") != strings.Join(want, " ") {
+		t.Errorf("opened %v, want %v", *opened, want)
+	}
+	if !strings.Contains(got.status, "SteamDB for Portal 2") {
+		t.Errorf("status %q", got.status)
+	}
+
+	bar := lineWith(ansi.Strip(m.View().Content), "q quit")
+	if !strings.Contains(bar, "w website") || !strings.Contains(bar, "b steamdb") {
+		t.Errorf("with a website, the key line has w and b: %q", bar)
+	}
+
+	// No website listed, not on the store, store info not here yet: w is
+	// off the key line and does nothing; b stays.
+	for _, entry := range []*webapi.StoreEntry{
+		{Info: webapi.StoreInfo{Name: "Portal 2"}, Fetched: time.Now()},
+		{Failed: true, Fetched: time.Now()},
+		nil,
+	} {
+		m, opened := withOpener(t, nil, portal2)
+		if entry != nil {
+			m.storeInfo[620] = *entry
+		}
+		bar := lineWith(ansi.Strip(m.View().Content), "q quit")
+		if strings.Contains(bar, "website") || !strings.Contains(bar, "b steamdb") {
+			t.Errorf("without a website, w leaves the key line, b stays: %q", bar)
+		}
+		got := act(m, press("w")).(Model)
+		if len(*opened) != 0 || got.status != "" {
+			t.Errorf("w without a website should do nothing: opened %v, status %q", *opened, got.status)
+		}
+	}
+}
+
+// A web page that fails to open blames the browser, not Steam.
+func TestWebsiteOpenFails(t *testing.T) {
+	m, _ := withOpener(t, errors.New("no browser"), portal2)
+	got := act(m, press("b")).(Model)
+	if !strings.Contains(got.status, "Could not open the browser") {
+		t.Errorf("status %q", got.status)
+	}
+	got = act(m, press("s")).(Model)
+	if !strings.Contains(got.status, "Could not open Steam") {
+		t.Errorf("status %q", got.status)
 	}
 }

@@ -62,8 +62,12 @@ const (
 	StoreRefresh      = 7 * 24 * time.Hour      // store details rarely change
 	StoreRetry        = 24 * time.Hour          // how long a "not on the store" answer is trusted
 	StoreCache        = "store.json"
-	StoreCacheVersion = 2 // 2: achievement totals
+	StoreCacheVersion = 4 // 2: achievement totals; 3: website; 4: short links followed to the official site
 )
+
+// SteamDBURL is a game's page on SteamDB, an unofficial site with the
+// game's history on Steam (b opens it); %d is the appid.
+const SteamDBURL = "https://steamdb.info/app/%d/"
 
 // Game logos from Steam's CDN, for games whose logo isn't in Steam's own
 // cache. Downloads and the list of games without one live in LogoDir.

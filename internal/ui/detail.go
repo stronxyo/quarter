@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -143,6 +144,21 @@ func (m Model) detailView(width, height int) string {
 		} else {
 			row("Status", "not installed")
 		}
+		// Who publishes it and its official site, a block of their own
+		// (Pablo, 2026-10-02). The site's name ends in an arrow, always
+		// shown even when the name is cut: w or a click opens it (mouse.go).
+		// No terminal link (OSC 8): Windows Terminal underlines those with
+		// dots, and Quarter's own click works in every terminal.
+		if state == storeReady && (len(info.Publishers) > 0 || info.Website != "") {
+			b.WriteString("\n")
+			if len(info.Publishers) > 0 {
+				row("Publisher", info.Publishers[0])
+			}
+			if info.Website != "" {
+				name := ansi.Truncate(siteName(info.Website), max(inner-paneLabelWidth-2, 1), "…")
+				row("Website", name+" "+markerLink)
+			}
+		}
 		if g.Favourite {
 			b.WriteString("\n" + starStyle.Render(markerFavourite+" Favourite") + "\n")
 		}
@@ -167,6 +183,16 @@ func (m Model) selected() (library.Game, bool) {
 	}
 	it, ok := m.list.SelectedItem().(gameItem)
 	return it.Game, ok
+}
+
+// siteName is a website as the pane shows it: no scheme, no "www.", no
+// trailing slash ("http://www.rocketleague.com/" is "rocketleague.com").
+func siteName(site string) string {
+	u, err := url.Parse(site)
+	if err != nil || u.Host == "" {
+		return site
+	}
+	return strings.TrimPrefix(u.Host, "www.") + strings.TrimRight(u.Path, "/")
 }
 
 // achievementBar draws the count, then a bar: a thicker orange band for what's
