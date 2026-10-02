@@ -279,7 +279,7 @@ func TestRightClickFavourite(t *testing.T) {
 	}
 }
 
-// After ?, all 25 keys of the full list click, each like its key; history's
+// After ?, all 25 keys of the full list click, and the link under it, each like its key; history's
 // key line and periods click too.
 func TestEveryKeyClicks(t *testing.T) {
 	for _, w := range []int{150, 90} {
@@ -294,8 +294,8 @@ func TestEveryKeyClicks(t *testing.T) {
 				keysShown = append(keysShown, tg)
 			}
 		}
-		if len(keysShown) != 25 {
-			t.Errorf("%d wide: %d keys clickable on the full list, want 25", w, len(keysShown))
+		if len(keysShown) != 26 {
+			t.Errorf("%d wide: %d keys clickable on the full list, want 26", w, len(keysShown))
 		}
 		for _, tg := range keysShown {
 			clicked, _ := clickOn(fresh(), tg, tea.MouseLeft)
@@ -490,14 +490,15 @@ func TestWebsiteClicks(t *testing.T) {
 	}
 }
 
-// "c buy me a coffee ↗" ends the key line, flush with the right edge, when
-// there is room after the keys; for it the arrows' hints give way, never a
-// key. A click opens Ko-fi; it lights up under the pointer.
+// "c buy me a coffee ↗" always ends the key line, flush with the right edge,
+// at any width (Pablo, 2026-10-02: "must always be visible no matter the
+// wide"), the keys fitting in the rest; and in the ? view, on a line of its
+// own. A click opens Ko-fi; it lights up under the pointer.
 func TestSupportLink(t *testing.T) {
 	for _, tc := range []struct {
 		w            int
 		link, arrows bool
-	}{{100, false, false}, {141, false, true}, {142, true, false}, {161, true, false}, {162, true, true}, {200, true, true}} {
+	}{{40, true, false}, {60, true, false}, {80, true, false}, {100, true, false}, {158, true, false}, {159, true, true}, {200, true, true}} {
 		m, opened := withOpener(t, nil, mouseGames()...)
 		g, _ := m.selected()
 		m.storeInfo[g.AppID] = webapi.StoreEntry{Info: webapi.StoreInfo{Website: "https://www.example.com/"}, Fetched: time.Now()}
@@ -515,11 +516,6 @@ func TestSupportLink(t *testing.T) {
 			t.Errorf("%d wide: the key line is %d wide", tc.w, ansi.StringWidth(bar))
 		}
 		if tc.link {
-			for _, k := range []string{"enter play", "u uninstall", "w website", "b steamdb", "/ search", "n/p/l sort", "tab filter", "h history", "? more", "q quit"} {
-				if !strings.Contains(bar, k) {
-					t.Errorf("%d wide: the link took the place of %q", tc.w, k)
-				}
-			}
 			tg := findTarget(t, m, tKey, 0, "c")
 			if lit := ansi.Strip(pointAt(m, tg).View().Content); !strings.Contains(lit, markerHover+" c "+supportText) { // the mark before the key, as on every key
 				t.Errorf("%d wide: the link should light up under the pointer", tc.w)
@@ -552,5 +548,25 @@ func TestSupportKey(t *testing.T) {
 	m = typed(m, "/c")
 	if len(*opened) != 0 || m.list.FilterInput.Value() != "c" {
 		t.Errorf("c in a search is a letter: opened %v, search %q", *opened, m.list.FilterInput.Value())
+	}
+}
+
+// In the ? view, the link has a line of its own at the bottom right, and
+// the view still fits the window.
+func TestSupportLinkInFullHelp(t *testing.T) {
+	for _, w := range []int{80, 120, 200} {
+		m, _ := withOpener(t, nil, mouseGames()...)
+		tm, _ := tea.Model(m).Update(tea.WindowSizeMsg{Width: w, Height: 40})
+		tm, _ = tm.Update(press("?"))
+		lines := drawnLines(tm.(Model))
+		last := lines[len(lines)-1]
+		if !strings.HasSuffix(last, "c "+supportText) || strings.TrimSpace(strings.TrimSuffix(last, "c "+supportText)) != "" {
+			t.Errorf("%d wide: the ? view should end with the link alone at the right: %q", w, last)
+		}
+		for _, l := range lines {
+			if ansi.StringWidth(l) > w {
+				t.Errorf("%d wide: a line is %d wide: %q", w, ansi.StringWidth(l), l)
+			}
+		}
 	}
 }

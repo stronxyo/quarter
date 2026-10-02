@@ -120,17 +120,17 @@ func TestHelpToggle(t *testing.T) {
 	}
 }
 
-// The key line always fits: on narrow windows the arrows give way, move
-// first, then h history, the sort keys, and w website and b steamdb (all
-// still listed under ?).
+// The key line always fits, with c buy me a coffee always at its right end:
+// on narrower windows the arrows give way, move first, then h history, the
+// sort keys, and w website and b steamdb (all still listed under ?).
 func TestShortHelpFits(t *testing.T) {
 	for _, tc := range []struct {
 		w                       int
 		move, page, hist, links bool
-	}{ // three spaces between keys since the mouse (2026-10-01); w and b since 2026-10-02
-		{60, false, false, false, false}, {80, false, false, false, false}, {91, false, false, false, false},
-		{92, false, false, false, true}, {116, false, false, false, true}, {117, false, false, true, true},
-		{126, false, false, true, true}, {127, false, true, true, true}, {137, true, true, true, true},
+	}{ // three spaces between keys since the mouse (2026-10-01); w and b, and the link's 22 cells, since 2026-10-02
+		{60, false, false, false, false}, {80, false, false, false, false}, {113, false, false, false, false},
+		{114, false, false, false, true}, {138, false, false, false, true}, {139, false, false, true, true},
+		{148, false, false, true, true}, {149, false, true, true, true}, {159, true, true, true, true},
 	} {
 		w := tc.w
 		m, _ := withOpener(t, nil, portal2)
@@ -143,6 +143,9 @@ func TestShortHelpFits(t *testing.T) {
 		}
 		if got := ansi.StringWidth(line); got > w {
 			t.Errorf("width %d: key line is %d wide", w, got)
+		}
+		if !strings.HasSuffix(line, "c "+supportText) {
+			t.Errorf("width %d: the key line should end with the link: %q", w, line)
 		}
 		links := strings.Contains(line, "w website") && strings.Contains(line, "b steamdb")
 		if strings.Contains(line, "move") != tc.move || strings.Contains(line, "page") != tc.page || strings.Contains(line, "h history") != tc.hist || links != tc.links {
@@ -166,7 +169,12 @@ func TestWebsiteAndSteamDBKeys(t *testing.T) {
 		t.Errorf("status %q", got.status)
 	}
 
-	bar := lineWith(ansi.Strip(m.View().Content), "q quit")
+	// On a window wide enough for every key next to the link.
+	wideBar := func(m Model) string {
+		tm, _ := tea.Model(m).Update(tea.WindowSizeMsg{Width: 160, Height: 30})
+		return lineWith(ansi.Strip(tm.(Model).View().Content), "q quit")
+	}
+	bar := wideBar(m)
 	if !strings.Contains(bar, "w website") || !strings.Contains(bar, "b steamdb") {
 		t.Errorf("with a website, the key line has w and b: %q", bar)
 	}
@@ -182,7 +190,7 @@ func TestWebsiteAndSteamDBKeys(t *testing.T) {
 		if entry != nil {
 			m.storeInfo[620] = *entry
 		}
-		bar := lineWith(ansi.Strip(m.View().Content), "q quit")
+		bar := wideBar(m)
 		if strings.Contains(bar, "website") || !strings.Contains(bar, "b steamdb") {
 			t.Errorf("without a website, w leaves the key line, b stays: %q", bar)
 		}
