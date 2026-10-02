@@ -118,9 +118,10 @@ func (m Model) histKey(msg tea.KeyPressMsg) (_ Model, _ tea.Cmd, ok bool) {
 			m.histSel = n - 1
 		}
 	default:
-		// Refresh, help and quitting go on as usual; every other key waits
-		// for the games view, so it never acts on a game not on show.
-		passes := key.Matches(msg, keys.Refresh, keys.Help, helpQuit) || s == "ctrl+c"
+		// Refresh, help, buy me a coffee and quitting go on as usual; every
+		// other key waits for the games view, so it never acts on a game not
+		// on show.
+		passes := key.Matches(msg, keys.Refresh, keys.Help, keys.Support, helpQuit) || s == "ctrl+c"
 		return m, nil, !passes
 	}
 	return m, nil, true

@@ -223,7 +223,7 @@ func (m Model) dayTargets(lines []string, top int) []target {
 // starting at screen row y: each key with its words is a button.
 func (m Model) keyTargets(y int) []target {
 	_, state := m.stateOf()
-	var all []key.Binding
+	all := []key.Binding{keys.Support} // the key line's corner (help.go)
 	for _, set := range [][][]key.Binding{historyHelp(), {searchKeys(state)}, shortHelp(append([]key.Binding{helpClose}, m.gameKeys(state)...)), fullHelp(m.width)} {
 		for _, line := range set {
 			all = append(all, line...)

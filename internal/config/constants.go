@@ -69,6 +69,9 @@ const (
 // game's history on Steam (b opens it); %d is the appid.
 const SteamDBURL = "https://steamdb.info/app/%d/"
 
+// SupportURL is where "buy me a coffee" on the key line leads: Pablo's Ko-fi.
+const SupportURL = "https://ko-fi.com/stronxyo"
+
 // Game logos from Steam's CDN, for games whose logo isn't in Steam's own
 // cache. Downloads and the list of games without one live in LogoDir.
 const (

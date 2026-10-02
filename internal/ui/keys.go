@@ -17,6 +17,7 @@ type appKeys struct {
 	Store      key.Binding
 	Website    key.Binding
 	SteamDB    key.Binding
+	Support    key.Binding
 	Favourite  key.Binding
 	SortName   key.Binding
 	SortPlayed key.Binding
@@ -37,6 +38,7 @@ var keys = appKeys{
 	Store:      key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "store page")),
 	Website:    key.NewBinding(key.WithKeys("w"), key.WithHelp("w", "website")),
 	SteamDB:    key.NewBinding(key.WithKeys("b"), key.WithHelp("b", "steamdb")),
+	Support:    key.NewBinding(key.WithKeys("c"), key.WithHelp("c", supportText)), // Pablo, 2026-10-02: "go with c"
 	Favourite:  key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "favourite")),
 	SortName:   key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "sort name")),
 	SortPlayed: key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "sort played")),
@@ -89,6 +91,9 @@ var (
 	helpHomeEnd   = key.NewBinding(key.WithKeys("home", "end"), key.WithHelp("home/end", "top/end"))
 	helpInstFull  = key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "install"))
 	helpUninsFull = key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "uninstall x2"))
+	// Short: the ? view fills 80 columns, and this column's words fit 12 cells
+	// ("play/install"); the key line's corner says it in full.
+	helpSupportFull = key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "coffee "+markerLink))
 )
 
 // gameKeys are the key line's keys for the selected game: only what its
@@ -164,7 +169,7 @@ func fullHelp(width int) [][]key.Binding {
 	}
 	return [][]key.Binding{
 		{helpMove, helpEnds, helpPage, helpPgKeys, helpHomeEnd},
-		{helpPlayFull, helpInstFull, helpUninsFull, keys.Store, keys.Website, keys.SteamDB, keys.Favourite},
+		{helpPlayFull, helpInstFull, helpUninsFull, keys.Store, keys.Website, keys.SteamDB, keys.Favourite, helpSupportFull},
 		{helpSearch, keys.SortName, keys.SortPlayed, keys.SortLast},
 		{keys.Filter, keys.History, replay, keys.Details, keys.Logos, keys.Refresh, helpLess, helpQuit},
 	}

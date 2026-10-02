@@ -65,6 +65,7 @@ Then run `quarter`.
 | `w` | The game's official website, when it has one |
 | `b` | The game's page on SteamDB |
 | `f` | Favourite |
+| `c` | Buy me a coffee (opens Ko-fi) |
 | `/` | Search (`esc` clears it) |
 | `n` `p` `l` | Sort by name, played, last played (again to flip) |
 | `tab` | Next filter |
@@ -80,7 +81,7 @@ The key line at the bottom shows only what the selected game allows: no `i` for 
 
 ### Mouse
 
-Click a game to select it, double-click to play or install it. The filter tabs, the column names (sort), the keys on the key line, the website in the details pane, the game's logo (opens the game in your Steam library) and the quarter_ box (an intro) all click. Right-click stars a game. The wheel moves through the list.
+Click a game to select it, double-click to play or install it. The filter tabs, the column names (sort), the keys on the key line, the website in the details pane, the game's logo (opens the game in your Steam library), the quarter_ box (an intro) and "buy me a coffee" in the bottom-right corner all click. Right-click stars a game. The wheel moves through the list.
 
 While Quarter has the mouse, hold `Shift` to select and copy text the usual way. To leave the mouse to the terminal, set `"mouse": "off"` in the settings.
 
@@ -131,7 +132,7 @@ In a famous story about a giant virtual world, a player named Parzival plays a p
 
 ## Support
 
-Quarter is free and always will be. If it makes your library a nicer place, you can buy me a coffee on [Ko-fi](https://ko-fi.com/stronxyo) or sponsor me on [GitHub Sponsors](https://github.com/sponsors/stronxyo).
+Quarter is free and always will be. If it makes your library a nicer place, you can buy me a coffee on [Ko-fi](https://ko-fi.com/stronxyo) (or press `c` in Quarter, or click "buy me a coffee" in its bottom-right corner) or sponsor me on [GitHub Sponsors](https://github.com/sponsors/stronxyo).
 
 ## Not affiliated with Valve
 

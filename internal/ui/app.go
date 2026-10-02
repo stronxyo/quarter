@@ -116,6 +116,7 @@ type Model struct {
 
 	settle             time.Duration // a pause this long on a game is a landing (scroll.go)
 	lastMove, prevMove time.Time     // the selection's last two changes
+	moves              int           // changes noted, so one isn't noted twice
 	dotsOn             bool          // the band's dots are stepping
 
 	sixel        bool      // the terminal draws Sixel: logos are pictures
@@ -311,6 +312,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	m.rank = &rankMemo{}
 	before, _ := m.selected()
+	noted := m.moves
 	m, cmd := m.update(msg)
 	m.rank = &rankMemo{} // the message may have brought a new history
 	if !pointerMoved {
@@ -328,7 +330,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if after.AppID != 0 && after.AppID != before.AppID && m.needsStore(after.AppID) {
 		cmd = tea.Batch(cmd, wantStore(after.AppID, m.debounce))
 	}
-	if after.AppID != before.AppID {
+	// A wheel step is a key press inside this message (pressFor), whose own
+	// Update already noted the move: noting it again, a moment later, would
+	// make one wheel click look like a held key and show the dots.
+	if after.AppID != before.AppID && m.moves == noted {
 		cmd = tea.Batch(cmd, m.moved())
 	}
 	if logo := m.ensureLogo(); logo != nil {
@@ -522,6 +527,10 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 			if key.Matches(msg, keys.Help) {
 				m.fullHelp = !m.fullHelp
 				return m, nil
+			}
+			if key.Matches(msg, keys.Support) {
+				m, cmd, _ := m.openFor(config.SupportURL, "Opening Ko-fi, thank you!")
+				return m, cmd
 			}
 			if m, cmd, ok := m.action(msg); ok {
 				return m, cmd

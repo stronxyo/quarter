@@ -195,3 +195,36 @@ func TestKeptLogos(t *testing.T) {
 		t.Errorf("at most %d kept, the selected game's always: %d kept", keptLogos, len(m.logoCache))
 	}
 }
+
+// A wheel click is one step, like one press of an arrow key: no held key,
+// no dots (it used to be noted twice, a moment apart, and looked held).
+// Clicks spun faster than a held key's steps count as one.
+func TestWheelStepIsOneStep(t *testing.T) {
+	m, clock := mouseModel(t, 150, 40)
+	wheel := func() {
+		t.Helper()
+		*clock = clock.Add(0)
+		tm, _ := m.Update(tea.MouseWheelMsg{X: 10, Y: 10, Button: tea.MouseWheelDown})
+		m = tm.(Model)
+	}
+	m.lastMove, m.prevMove = time.Time{}, time.Time{} // the model's first move was noted before the test's clock took over
+	start, noted := m.list.Index(), m.moves
+	*clock = clock.Add(time.Second)
+	wheel()
+	if m.moves-noted != 1 {
+		t.Errorf("one wheel click should be noted as one move, got %d", m.moves-noted)
+	}
+	if m.list.Index() != start+1 || m.holding() {
+		t.Fatalf("one wheel click: moved to %d (from %d), holding %v; want one step, not held", m.list.Index(), start, m.holding())
+	}
+	*clock = clock.Add(300 * time.Millisecond)
+	wheel()
+	if m.holding() {
+		t.Error("wheel clicks 300 ms apart are single steps")
+	}
+	*clock = clock.Add(40 * time.Millisecond)
+	wheel()
+	if !m.holding() {
+		t.Error("wheel clicks 40 ms apart are a fast spin, like a held key")
+	}
+}

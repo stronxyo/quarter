@@ -399,6 +399,7 @@ From Pablo's video: holding down kept the last logo on screen (a picture is eras
 - A single press never shows the dots or empties the band: the logo changes straight to the next.
 - After landing, the dots show only when the logo is still on its way after 200 ms (a first download).
 - Picked in the Scroll lab over A (the last logo stays), B (empty) and D (the game's name while moving).
+- The wheel (fixed 2026-10-02, Pablo: "when scrolling with mouse wheel the 3 dots appear way to aften, i want it to look instant as if in navigating with arrow keys one click at a time"): a wheel click is a key press inside the mouse message, and both used to note the move, 0.5 ms apart, so every click looked like a held key and showed the dots. A move is now noted once (`moves`), so a wheel click is one step like one arrow press; only clicks spun faster than 150 ms apart count as held, as keys do. Test: `TestWheelStepIsOneStep`.
 
 ### Loading
 
@@ -638,6 +639,12 @@ From `PLAN.md` (Batch 8, Phase D) and the brief's license and Valve rules (`PROJ
 7. **D7. Tag v0.1.0:** a git block for Pablo to push the tag; CI builds the release; check the six downloads on the release page.
 
 Done when: v0.1.0 is tagged and its six downloads are on the release page.
+
+## The donate link (Pablo, 2026-10-02: "the donate link can be inside the app too right? full right down corner...?"; his pick of four: "buy me a coffee ↗")
+
+- `c buy me a coffee ↗` ends the key line, drawn like the other keys, flush with the window's right edge, at least 6 cells after the keys. `c` (Pablo, 2026-10-02: "make the buy me a coffe to have a quick letter input too, so for people that dont use mouse"; "go with c") or a click opens Ko-fi (`config.SupportURL`, `https://ko-fi.com/stronxyo`), lighting up under the pointer like other clickable text. On every key line (the list, history, search), not on the start screen. `c` works on the list and in history; typed into a search it is a letter. The `?` view lists it as `c coffee ↗`: its column's words must fit 12 cells for the view to fit 80 columns.
+- The keys come first: for the link, only the arrows' hints (`↑↓ move`, `←→ page`, `g/G`) give way, never a key; without room it isn't shown. With today's keys it shows from 142 columns (162 with the arrows' hints).
+- Tests: `TestSupportLink` (where it shows at 100 to 200 columns, flush right, no key lost, the hover, the click opens Ko-fi); `TestSupportKey` (c on the list and in history, a letter in a search); the `?` view still fits 80 columns; 25 keys click in `?`, 9 on history's key line.
 
 ## The mouse (Pablo, 2026-10-01: "lets add it now v0.1, so make all the propper tests")
 

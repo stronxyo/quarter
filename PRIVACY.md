@@ -38,7 +38,7 @@ The data folder is `%APPDATA%\quarter` on Windows, `~/Library/Application Suppor
 | Steam's image servers (`shared.akamai.steamstatic.com`) | A game's Steam app number | For games without a logo on your computer | The game's logo |
 | A link-shortening service (for example `t.co`) | The short link the store gives as a game's website | Only for such games | Where the link leads, so Quarter shows the official site (the site itself is not visited) |
 | Steam Web API (`api.steampowered.com`) | Your public Steam ID and a year | Only after you press `a` in history and say yes | Your past years from Steam Replay (only years you set to Public) |
-| Your web browser | The game's website or SteamDB page | Only when you press `w` or `b`, or click the website | Opening the page |
+| Your web browser | The game's website or SteamDB page, or Quarter's Ko-fi page | Only when you press `w`, `b` or `c`, or click the website or "buy me a coffee" | Opening the page |
 
 Nothing else is sent, to anyone. Quarter doesn't report usage, crashes or anything about you.
 

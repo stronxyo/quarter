@@ -44,10 +44,25 @@ func (m Model) helpView() string {
 		default:
 			lines = shortHelp(m.gameKeys(state))
 		}
+		// The widest version that fits, with the donate link when there is
+		// room; for the link, the arrows' hints give way, never a key.
+		widest := ""
 		for _, b := range lines {
-			if line := h.ShortHelpView(b); lipgloss.Width(line) <= m.width-2 {
-				return "\n  " + line
+			line := h.ShortHelpView(b)
+			if lipgloss.Width(line) > m.width-2 {
+				continue
 			}
+			if widest == "" {
+				widest = line
+			} else if !sameKeys(b, lines[0]) {
+				break // this version drops keys: the link isn't worth one
+			}
+			if with, ok := m.withSupport(line, h.ShortHelpView([]key.Binding{keys.Support})); ok {
+				return "\n  " + with
+			}
+		}
+		if widest != "" {
+			return "\n  " + widest
 		}
 		// Still too wide: drop keys from the middle until it fits, the game's
 		// keys first and q quit last kept. (bubbles v2.2.1 help doesn't cut
@@ -63,4 +78,42 @@ func (m Model) helpView() string {
 	}
 	h.SetWidth(max(m.width-2, 0))
 	return "\n  " + strings.ReplaceAll(h.FullHelpView(fullHelp(m.width)), "\n", "\n  ")
+}
+
+// supportText is the donate link at the right end of the key line (Pablo,
+// 2026-10-02, his pick of four: "buy me a coffee ↗"), with its key, c; the
+// key or a click opens Ko-fi.
+const supportText = "buy me a coffee " + markerLink
+
+// supportGap is the least room kept between the keys and the link.
+const supportGap = 6
+
+// withSupport ends the key line (drawn after a two-space indent) with the
+// donate link, its key and words drawn as the other keys' (support), flush
+// with the window's right edge, if there is room for it after the keys.
+func (m Model) withSupport(line, support string) (string, bool) {
+	room := m.width - 2 - lipgloss.Width(line)
+	if room < supportGap+lipgloss.Width(support) {
+		return line, false
+	}
+	return line + strings.Repeat(" ", room-lipgloss.Width(support)) + support, true
+}
+
+// arrowHints are the key line's hints for keys anyone guesses; they are the
+// first to give way.
+var arrowHints = []key.Binding{helpMove, helpPage, helpEnds}
+
+// sameKeys reports whether two versions of the key line hold the same keys,
+// leaving the arrows' hints aside.
+func sameKeys(a, b []key.Binding) bool {
+	keysOf := func(bs []key.Binding) []string {
+		var out []string
+		for _, k := range bs {
+			if !slices.ContainsFunc(arrowHints, func(h key.Binding) bool { return h.Help() == k.Help() }) {
+				out = append(out, k.Help().Key)
+			}
+		}
+		return out
+	}
+	return slices.Equal(keysOf(a), keysOf(b))
 }

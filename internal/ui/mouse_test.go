@@ -279,7 +279,7 @@ func TestRightClickFavourite(t *testing.T) {
 	}
 }
 
-// After ?, all 24 keys of the full list click, each like its key; history's
+// After ?, all 25 keys of the full list click, each like its key; history's
 // key line and periods click too.
 func TestEveryKeyClicks(t *testing.T) {
 	for _, w := range []int{150, 90} {
@@ -294,8 +294,8 @@ func TestEveryKeyClicks(t *testing.T) {
 				keysShown = append(keysShown, tg)
 			}
 		}
-		if len(keysShown) != 24 {
-			t.Errorf("%d wide: %d keys clickable on the full list, want 24", w, len(keysShown))
+		if len(keysShown) != 25 {
+			t.Errorf("%d wide: %d keys clickable on the full list, want 25", w, len(keysShown))
 		}
 		for _, tg := range keysShown {
 			clicked, _ := clickOn(fresh(), tg, tea.MouseLeft)
@@ -318,8 +318,8 @@ func TestEveryKeyClicks(t *testing.T) {
 			histKeys++
 		}
 	}
-	if periods != len(histPeriods) || histKeys != 8 {
-		t.Errorf("history: %d periods and %d keys clickable, want %d and 8", periods, histKeys, len(histPeriods))
+	if periods != len(histPeriods) || histKeys != 9 { // 8 keys and c buy me a coffee in the corner
+		t.Errorf("history: %d periods and %d keys clickable, want %d and 9", periods, histKeys, len(histPeriods))
 	}
 	m, _ = clickOn(m, findTarget(t, m, tPeriod, 2, ""), tea.MouseLeft)
 	if m.histPeriod != 2 {
@@ -487,5 +487,70 @@ func TestWebsiteClicks(t *testing.T) {
 				t.Errorf("%d wide: no website, nothing to click", w)
 			}
 		}
+	}
+}
+
+// "c buy me a coffee ↗" ends the key line, flush with the right edge, when
+// there is room after the keys; for it the arrows' hints give way, never a
+// key. A click opens Ko-fi; it lights up under the pointer.
+func TestSupportLink(t *testing.T) {
+	for _, tc := range []struct {
+		w            int
+		link, arrows bool
+	}{{100, false, false}, {141, false, true}, {142, true, false}, {161, true, false}, {162, true, true}, {200, true, true}} {
+		m, opened := withOpener(t, nil, mouseGames()...)
+		g, _ := m.selected()
+		m.storeInfo[g.AppID] = webapi.StoreEntry{Info: webapi.StoreInfo{Website: "https://www.example.com/"}, Fetched: time.Now()}
+		tm, _ := tea.Model(m).Update(tea.WindowSizeMsg{Width: tc.w, Height: 40})
+		m = tm.(Model)
+		lines := drawnLines(m)
+		bar := lines[len(lines)-1]
+		if got := strings.HasSuffix(bar, "c "+supportText); got != tc.link {
+			t.Errorf("%d wide: link at the right edge %v, want %v: %q", tc.w, got, tc.link, bar)
+		}
+		if got := strings.Contains(bar, "move"); got != tc.arrows {
+			t.Errorf("%d wide: arrows' hints %v, want %v: %q", tc.w, got, tc.arrows, bar)
+		}
+		if ansi.StringWidth(bar) > tc.w {
+			t.Errorf("%d wide: the key line is %d wide", tc.w, ansi.StringWidth(bar))
+		}
+		if tc.link {
+			for _, k := range []string{"enter play", "u uninstall", "w website", "b steamdb", "/ search", "n/p/l sort", "tab filter", "h history", "? more", "q quit"} {
+				if !strings.Contains(bar, k) {
+					t.Errorf("%d wide: the link took the place of %q", tc.w, k)
+				}
+			}
+			tg := findTarget(t, m, tKey, 0, "c")
+			if lit := ansi.Strip(pointAt(m, tg).View().Content); !strings.Contains(lit, markerHover+" c "+supportText) { // the mark before the key, as on every key
+				t.Errorf("%d wide: the link should light up under the pointer", tc.w)
+			}
+			clicked, cmd := clickOn(m, tg, tea.MouseLeft)
+			for _, msg := range messages(cmd) {
+				clicked.Update(msg)
+			}
+			if len(*opened) != 1 || (*opened)[0] != config.SupportURL || !strings.Contains(clicked.status, "Ko-fi") {
+				t.Errorf("%d wide: a click should open Ko-fi: opened %v, status %q", tc.w, *opened, clicked.status)
+			}
+		}
+	}
+}
+
+// c opens Ko-fi on the list and in history, with or without the link on
+// show; typed into a search it is a letter.
+func TestSupportKey(t *testing.T) {
+	for _, keys := range [][]string{{"c"}, {"h", "c"}} {
+		m, opened := withOpener(t, nil, mouseGames()...)
+		var tm tea.Model = m
+		for _, k := range keys {
+			tm = act(tm, press(k))
+		}
+		if len(*opened) != 1 || (*opened)[0] != config.SupportURL || !strings.Contains(tm.(Model).status, "Ko-fi") {
+			t.Errorf("%v: c should open Ko-fi: opened %v, status %q", keys, *opened, tm.(Model).status)
+		}
+	}
+	m, opened := withOpener(t, nil, mouseGames()...)
+	m = typed(m, "/c")
+	if len(*opened) != 0 || m.list.FilterInput.Value() != "c" {
+		t.Errorf("c in a search is a letter: opened %v, search %q", *opened, m.list.FilterInput.Value())
 	}
 }

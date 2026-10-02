@@ -37,6 +37,7 @@ type (
 // moved notes a change of selection, and checks back once it may have landed.
 func (m *Model) moved() tea.Cmd {
 	m.prevMove, m.lastMove = m.lastMove, m.now()
+	m.moves++
 	return tea.Tick(m.settle, func(time.Time) tea.Msg { return settleMsg{} })
 }
 
