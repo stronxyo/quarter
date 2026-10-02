@@ -134,6 +134,11 @@ type Model struct {
 	introRun     *intro.Run // it playing, once the window's size is known
 	introStart   time.Time  // when it started
 	introDone    bool       // it has ended, or a key skipped it
+	introAgain   bool       // it is a replay as the start screen waits: a key starts
+	shineAt      time.Time  // when the logo shines next as the start screen waits; zero until it rests
+	shineStart   time.Time  // when the shine crossing it now began, zero for none
+	againAt      time.Time  // when an intro plays again as it waits
+	rng          *rand.Rand // the shine's and the replays' random times, and which intro
 
 	mouseSetting string               // config.json's "mouse": "" Quarter takes the mouse, "off" not
 	pointer      pointer              // the mouse pointer: what it is over, clicks (mouse.go)
@@ -251,7 +256,8 @@ func New(opts Options) Model {
 	}
 	maps.Copy(m.storeInfo, opts.StoreCache)
 	m.applySettings(opts.Settings)
-	m.pickIntro(rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), 1)))
+	m.rng = rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), 1))
+	m.pickIntro(m.rng)
 	if opts.Cached != nil {
 		m.state = stateReady
 		m.installed, m.uninstalled = opts.Cached.Games, opts.Cached.Uninstalled
@@ -442,7 +448,12 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case blinkMsg:
 		m.blinkOn = !m.blinkOn
-		return m, m.blink()
+		var cmd tea.Cmd
+		m, cmd = m.waiting()
+		return m, tea.Batch(m.blink(), cmd)
+
+	case shineTickMsg:
+		return m.stepShine()
 
 	case clearStatusMsg:
 		if msg.id == m.statusID {

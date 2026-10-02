@@ -19,6 +19,20 @@ import (
 // as it happens, so it never adds waiting of its own: the first key skips
 // the intro, the next one starts. config.json's "intro" turns the intros
 // off ("off") or picks one by name.
+//
+// As it waits, like a cabinet's attract mode (Pablo, 2026-10-02): a band
+// of light crosses the logo every 10 to 20 seconds, and an intro plays
+// again every 45 to 60 seconds, at random and never the one before. Any
+// key during a replay starts. Both are timed by the blink, so nothing else
+// ticks while the screen waits.
+
+// shineGap and againGap are the shortest and longest waits for the next
+// shine, counted from the last one's end, and for the next intro, counted
+// from the screen coming to rest.
+var (
+	shineGap = [2]time.Duration{10 * time.Second, 20 * time.Second}
+	againGap = [2]time.Duration{45 * time.Second, 60 * time.Second}
+)
 
 // blinkEvery is how long insert quarter stays lit, and stays dark.
 const blinkEvery = 530 * time.Millisecond
@@ -32,10 +46,12 @@ const splashLeader = 30
 // introOff is the "intro" setting that turns the intros off.
 const introOff = "off"
 
-// blinkMsg turns insert quarter on or off; introTickMsg draws the next frame.
+// blinkMsg turns insert quarter on or off; introTickMsg and shineTickMsg
+// draw the next frame.
 type (
 	blinkMsg     struct{}
 	introTickMsg struct{}
+	shineTickMsg struct{}
 )
 
 // blink schedules the next blink while the splash is up.
@@ -109,6 +125,56 @@ func (m Model) stepIntro() (Model, tea.Cmd) {
 	return m, m.introTick()
 }
 
+// waiting runs the start screen's attract mode, on each blink: once the
+// screen rests, it sets when the logo shines and when an intro plays
+// again, then starts each when its time comes.
+func (m Model) waiting() (Model, tea.Cmd) {
+	if !m.splash || m.introPending() {
+		return m, nil
+	}
+	if _, ok := m.startScreen(); !ok {
+		return m, nil // too small a window: no logo to shine, no intro
+	}
+	now := m.now()
+	switch {
+	case m.shineAt.IsZero(): // just came to rest
+		m.shineAt, m.againAt = now.Add(m.between(shineGap)), now.Add(m.between(againGap))
+	case m.introSetting != introOff && !now.Before(m.againAt):
+		m.pickIntro(m.rng)
+		m.introDone, m.introRun, m.introAgain = false, nil, true
+		m.shineAt, m.shineStart = time.Time{}, time.Time{} // set again once it rests
+		m.startIntro()
+		return m, m.introTick()
+	case m.shineStart.IsZero() && !now.Before(m.shineAt):
+		m.shineStart = now
+		m.shineAt = now.Add(intro.ShineLength + m.between(shineGap))
+		return m, m.shineTick()
+	}
+	return m, nil
+}
+
+// between is a random wait from gap[0] to gap[1].
+func (m Model) between(gap [2]time.Duration) time.Duration {
+	return gap[0] + time.Duration(m.rng.Int64N(int64(gap[1]-gap[0])+1))
+}
+
+// shineTick schedules the shine's next frame.
+func (m Model) shineTick() tea.Cmd {
+	return tea.Tick(introFrame, func(time.Time) tea.Msg { return shineTickMsg{} })
+}
+
+// stepShine ends the shine when it has crossed the logo.
+func (m Model) stepShine() (Model, tea.Cmd) {
+	if !m.splash || m.shineStart.IsZero() {
+		return m, nil
+	}
+	if m.now().Sub(m.shineStart) >= intro.ShineLength {
+		m.shineStart = time.Time{}
+		return m, nil
+	}
+	return m, m.shineTick()
+}
+
 // splashKey handles a key on the splash. "Press any key" means any: q too
 // (pressed out of habit, it mustn't quit), so only ctrl+c quits. During
 // the intro a key skips to the start screen; after it, a key starts.
@@ -116,7 +182,7 @@ func (m Model) splashKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	if msg.String() == "ctrl+c" {
 		return m, tea.Quit
 	}
-	if m.introIndex >= 0 && !m.introDone {
+	if m.introIndex >= 0 && !m.introDone && !m.introAgain {
 		m.introDone = true
 		return m, nil
 	}
@@ -159,6 +225,11 @@ func (m Model) splashView() string {
 			return "" // not started: never a glimpse of the start screen first
 		}
 		if frame, done := sc.Frame(m.introRun, m.now().Sub(m.introStart)); !done {
+			return frame
+		}
+	}
+	if !m.shineStart.IsZero() {
+		if frame, done := sc.Shine(m.blinkOn, m.now().Sub(m.shineStart)); !done {
 			return frame
 		}
 	}

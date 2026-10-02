@@ -207,11 +207,10 @@ var intros = []intro{
 		dur:  1.0,
 		draw: func(g *grid, s scene, t float64, _ *fxState) {
 			fade := outCubic(span(t, 0, 0.3))
-			sweep := -6 + float64(s.bw+s.bh+12)*inOutSine(span(t, 0.3, 1.0))
+			p := span(t, 0.3, 1.0)
 			for _, pc := range s.logo {
-				d := float64(pc.x-s.lx) + 0.5*float64(pc.y-s.ly) - sweep
 				c := pc.c
-				c.fg = mix(mix(colBG, c.fg, fade), colHot, math.Max(0, 1-math.Abs(d)/6))
+				c.fg = mix(mix(colBG, c.fg, fade), colHot, shine(s, pc, p))
 				g.set(pc.x, pc.y, c)
 			}
 		},

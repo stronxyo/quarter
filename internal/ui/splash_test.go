@@ -308,3 +308,99 @@ func TestSplashSmallWindow(t *testing.T) {
 		}
 	}
 }
+
+// As the start screen waits, a band of light crosses the logo every 10 to
+// 20 seconds: colour only, then the screen rests again. With intros off,
+// no intro plays again.
+func TestShineWhileWaiting(t *testing.T) {
+	m, clock, _ := splashedWith(t, 160, 44, 3, config.Settings{Intro: introOff})
+	next, _ := m.Update(blinkMsg{})
+	m = next.(Model)
+	if wait := m.shineAt.Sub(*clock); wait < shineGap[0] || wait > shineGap[1] {
+		t.Fatalf("the first shine should come 10 to 20 s after the screen rests, got %v", wait)
+	}
+	sc, _ := m.startScreen()
+	*clock = m.shineAt
+	next, _ = m.Update(blinkMsg{})
+	m = next.(Model)
+	if m.shineStart.IsZero() {
+		t.Fatal("the shine should start when its time comes")
+	}
+	if gap := m.shineAt.Sub(m.shineStart) - intro.ShineLength; gap < shineGap[0] || gap > shineGap[1] {
+		t.Errorf("the next shine should come 10 to 20 s after this one ends, got %v", gap)
+	}
+	*clock = clock.Add(intro.ShineLength / 2)
+	v := m.View().Content
+	if v == sc.Rest(m.blinkOn) {
+		t.Error("halfway, the logo should shine")
+	}
+	if ansi.Strip(v) != ansi.Strip(sc.Rest(m.blinkOn)) {
+		t.Error("the shine should change colours only")
+	}
+	*clock = clock.Add(intro.ShineLength)
+	next, cmd := m.Update(shineTickMsg{})
+	m = next.(Model)
+	if !m.shineStart.IsZero() || cmd != nil || m.View().Content != sc.Rest(m.blinkOn) {
+		t.Error("once across, the shine stops and the screen rests")
+	}
+	*clock = clock.Add(2 * time.Minute)
+	next, _ = m.Update(blinkMsg{})
+	if next.(Model).introPending() {
+		t.Error(`with "intro": "off", no intro plays again`)
+	}
+}
+
+// Every 45 to 60 seconds an intro plays again, never the one before; once
+// over, the waits start again from the rest. A key during it starts.
+func TestIntroPlaysAgain(t *testing.T) {
+	m, clock, _ := splashedWith(t, 160, 44, 3, config.Settings{})
+	played := func(m Model) Model {
+		t.Helper()
+		next, _ := m.Update(introTickMsg{})
+		*clock = clock.Add(intro.Length(m.introIndex))
+		next, _ = next.Update(introTickMsg{})
+		next, _ = next.Update(blinkMsg{}) // resting: the waits are set
+		m = next.(Model)
+		if m.introPending() {
+			t.Fatal("the intro should be over")
+		}
+		if wait := m.againAt.Sub(*clock); wait < againGap[0] || wait > againGap[1] {
+			t.Fatalf("the next intro should come 45 to 60 s after the rest, got %v", wait)
+		}
+		return m
+	}
+	m = played(m)
+	for range 3 {
+		before := m.introIndex
+		*clock = m.againAt
+		next, _ := m.Update(blinkMsg{})
+		m = next.(Model)
+		if !m.introPending() || m.introRun == nil {
+			t.Fatal("an intro should play again when its time comes")
+		}
+		if m.introIndex == before {
+			t.Errorf("%s played twice in a row", intro.Key(before))
+		}
+		sc, _ := m.startScreen()
+		if v := m.View().Content; v == sc.Rest(false) || v == sc.Rest(true) {
+			t.Error("the replay's frame should show, not the start screen")
+		}
+		if next, _ := m.Update(press("x")); next.(Model).splash {
+			t.Error("a key during a replay should start")
+		}
+		m = played(m)
+	}
+}
+
+// A window too small for the logo box has nothing to shine and no intro.
+func TestSmallWindowWaitsQuietly(t *testing.T) {
+	m, clock, _ := splashedWith(t, 60, 20, 3, config.Settings{})
+	for range 3 {
+		*clock = clock.Add(time.Minute)
+		next, _ := m.Update(blinkMsg{})
+		m = next.(Model)
+	}
+	if !m.shineAt.IsZero() || !m.shineStart.IsZero() || m.introPending() {
+		t.Error("a small window should neither shine nor play an intro")
+	}
+}

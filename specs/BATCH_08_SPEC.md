@@ -678,3 +678,11 @@ Steam's own word (Pablo, 2026-10-01: Astro Burn "opens the last opened game in l
 - After a link, the log is watched 3 s (every 250 ms, `steam.RefusedSince`); a refusal brings the red message and the game is remembered. Only a game never tried before, with artwork, still shows the last game once.
 - The opening itself is unchanged: one link, nothing before it (Pablo: the single link is better than either form with anything before it). Undocumented log: missing or worded otherwise, nothing is found and Quarter behaves as without it.
 - Tests: the log reader (latest time per game, a 2 MB line, Windows line ends, the literal `<id>`, no log; the same second counts, earlier doesn't); the click learning a refusal and the next click not opening Steam; refusals read at start, once, installed and 30-days-old ones not blocked. Against Pablo's real log: 17 blocked, Astro Burn among them, Rocket League (installed) not.
+
+## Attract mode on the start screen (Pablo, 2026-10-02: "lets build this first ... make the shine sweep to apear randomly between 10 secs and 20 secs. then the random intro vid again in random time between 45secs and 60 secs"; no lab, all parts already seen)
+
+- As "insert quarter" waits, the Light sweep intro's band of light crosses the logo (0.7 s, colour only, insert quarter keeps blinking) every 10 to 20 s, counted from the last shine's end (`intro.Screen.Shine`, sharing `shine` with the Light sweep intro).
+- Every 45 to 60 s, counted from the screen coming to rest, an intro plays again: random and never the one before, or the named one; none with `"intro": "off"` (the shine still shows). Once it ends, both waits start again.
+- A key during a replay starts (the first intro's key still only skips it). Too small a window (the compact screen): neither.
+- Both are timed by the blink tick that already runs; only the shine's 0.7 s and a replay draw at 30 fps.
+- Tests (`splash_test.go`): the shine's times, colour only, ending at rest, no replay when off; three replays in a row, each different from the one before, waits reset after each, a key starts; the small window quiet.

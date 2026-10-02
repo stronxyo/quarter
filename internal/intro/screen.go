@@ -10,6 +10,7 @@ import (
 	"math"
 	"slices"
 	"strings"
+	"time"
 )
 
 // rgb is a colour, 0 to 255 per channel.
@@ -454,16 +455,47 @@ func NewScreen(w, h int, title string, checks []Line) (Screen, bool) {
 
 // Rest is the start screen as it waits: everything, insert quarter lit or
 // dark as it blinks.
-func (sc Screen) Rest(coinLit bool) string {
+func (sc Screen) Rest(coinLit bool) string { return sc.rest(coinLit, -1) }
+
+// ShineLength is how long the shine takes to cross the logo: the band of
+// light of the Light sweep intro, at its speed.
+const ShineLength = 700 * time.Millisecond
+
+// Shine is the start screen as it waits, with a band of light crossing the
+// logo, elapsed into it. done is true once it has passed (the caller then
+// shows Rest).
+func (sc Screen) Shine(coinLit bool, elapsed time.Duration) (frame string, done bool) {
+	if elapsed < 0 || elapsed >= ShineLength {
+		return "", true
+	}
+	return sc.rest(coinLit, elapsed.Seconds()/ShineLength.Seconds()), false
+}
+
+// rest draws the waiting start screen, the shine p of the way across the
+// logo; p below 0 is no shine.
+func (sc Screen) rest(coinLit bool, p float64) string {
 	g := newGrid(sc.s.w, sc.s.h)
-	for _, p := range sc.s.logo {
-		g.set(p.x, p.y, p.c)
+	for _, pc := range sc.s.logo {
+		c := pc.c
+		if p >= 0 {
+			c.fg = mix(c.fg, colHot, shine(sc.s, pc, p))
+		}
+		g.set(pc.x, pc.y, c)
 	}
 	if coinLit {
 		put(g, sc.s.coin)
 	}
 	sc.frame(g)
 	return g.String()
+}
+
+// shine is how much a band of light lights cell pc, 0 to 1, as the band
+// goes p of the way across the logo (diagonally, from before its left
+// edge to past its right).
+func shine(s scene, pc piece, p float64) float64 {
+	sweep := -6 + float64(s.bw+s.bh+12)*inOutSine(p)
+	d := float64(pc.x-s.lx) + 0.5*float64(pc.y-s.ly) - sweep
+	return math.Max(0, 1-math.Abs(d)/6)
 }
 
 // frame draws what every frame has, intro or rest: the header and press any
