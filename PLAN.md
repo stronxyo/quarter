@@ -158,6 +158,19 @@ The v1.0 goal is one terminal library for every PC launcher. One launcher per ba
 
 The v0.2 and v0.3 features in the brief (collections, backlog, stats) are planned alongside; the order is decided before v0.1 ships.
 
+## Before v0.1: Steam starts quietly
+
+Pablo moved this before the release on 2026-10-07: when Quarter has to start Steam to play a game, Steam starts in the tray without its window. Its own session; everything is in `specs/STEAM_QUIET_START.md`.
+
+## After v0.1: games from outside the launchers
+
+Pablo asked on 2026-10-07 for games on the PC that didn't come through Steam, with as little friction for the user as possible. Not started; ideas in order of least friction, each to be verified in its own research phase:
+1. **Steam's non-Steam games:** games the user already added to Steam ("Add a Non-Steam Game") are listed in Steam's `userdata/<id>/config/shortcuts.vdf` (a binary VDF) on every system, and can be started through Steam. Nothing to ask the user. To verify: the file format, the id used to launch them, and where their artwork lives.
+2. **The other launchers:** Epic, GOG, Ubisoft, Battle.net, Xbox, EA (the section above). Found by reading each launcher's own records, nothing to ask.
+3. **A folder the user adds:** a games folder (for example `D:\Games`) picked once in the settings; Quarter lists the games in it. The hard part is choosing the right program inside each game's folder among launchers, uninstallers and crash reporters: guess from the folder and file names and sizes, and let the user correct it once. Never search the whole PC.
+4. **Windows' installed programs list** (the Uninstall keys in the registry): finds anything installed with an installer, but mixes games with every other program; Windows-only, so at most a helper for 3.
+- **Rules:** nothing scanned without the user knowing; no folder outside what the user picked; logos where a source exists, the text fallback otherwise.
+
 ## Testing
 
 - Unit tests for `vdf`, `steam/*` parsers, `filter`, `library/merge`, run against `testdata/`
