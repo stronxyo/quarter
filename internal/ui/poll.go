@@ -21,6 +21,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/stronxyo/quarter/internal/steam"
 )
 
 const (
@@ -35,6 +37,7 @@ type pollMsg struct {
 	stopAsking bool                 // Steam doesn't say on this platform: don't ask again
 	downloads  *downloadsMsg        // the look at the download log, when it is watched
 	folders    map[string]time.Time // each library's steamapps folder, when it last changed
+	client     *steam.Client        // what Steam's client says, while Quarter waits on it (steamstart.go)
 }
 
 // libraryFolders are the steamapps folders to look at: Steam's own and
@@ -65,7 +68,11 @@ func (m Model) pollCmd(after time.Duration) tea.Cmd {
 		look = m.lookDownloads()
 		folders = m.libraryFolders()
 	}
-	if ask == nil && look == nil {
+	var client func() (steam.Client, bool)
+	if m.steamClient != nil && (m.launch.appID != 0 || m.booting()) {
+		client = m.steamClient
+	}
+	if ask == nil && look == nil && client == nil {
 		return nil
 	}
 	return tea.Tick(after, func(time.Time) tea.Msg {
@@ -77,6 +84,11 @@ func (m Model) pollCmd(after time.Duration) tea.Cmd {
 		if look != nil {
 			d := look()
 			msg.downloads = &d
+		}
+		if client != nil {
+			if c, known := client(); known {
+				msg.client = &c
+			}
 		}
 		if len(folders) > 0 {
 			msg.folders = map[string]time.Time{}
@@ -113,6 +125,16 @@ func (m Model) applyPoll(msg pollMsg) (Model, tea.Cmd) {
 		quiet = msg.running == m.running
 		var cmd tea.Cmd
 		m, cmd = m.applyRunning(runningMsg{appID: msg.running})
+		cmds = append(cmds, cmd)
+	}
+	if c := msg.client; c != nil {
+		waiting := m.launch
+		m = m.notedClient(*c)
+		var cmd tea.Cmd
+		m, cmd = m.checkLaunch(*c)
+		if m.launch != waiting {
+			quiet = false
+		}
 		cmds = append(cmds, cmd)
 	}
 	if d := msg.downloads; d != nil {

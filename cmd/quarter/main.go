@@ -86,6 +86,12 @@ func runUI(steamPath string) error {
 		DeleteReplay: func() error { return removeIfThere(filepath.Join(dir, config.ReplayFile)) },
 		RunningApp:   steam.RunningApp,
 
+		// Steam starts in the tray when Quarter opens, and games start
+		// without its window (specs/BATCH_08_SPEC.md, "Steam starts quietly").
+		SteamClient: steam.ClientState,
+		StartSteam:  func() error { return steam.StartQuiet(steamPath) },
+		PlayQuiet:   func(id uint32) error { return steam.PlayQuiet(steamPath, id) },
+
 		Settings:     settings,
 		SaveSettings: func(s config.Settings) error { return config.SaveSettings(dir, s) },
 		// The start screen on every start, led by a random intro (Pablo's

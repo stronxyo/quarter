@@ -84,6 +84,10 @@ func (m Model) action(msg tea.KeyPressMsg) (_ Model, _ tea.Cmd, handled bool) {
 		return m.openFor(steam.StoreURI(it.AppID), "Opening the store page for "+it.Name)
 	case state == gameUpdating && play:
 		return m, m.note(it.Name + " is updating in Steam"), true
+	case state == gameInstalled && play && m.launch.appID != 0:
+		return m, nil, true // a game is waiting for Steam: nothing until it starts
+	case state == gameInstalled && play && m.playQuietly():
+		return m.launchQuietly(it)
 	case state == gameInstalled && play:
 		return m.openFor(steam.PlayURI(it.AppID), markerRunning+" Launching "+it.Name)
 	case state == gameInstalled && uninstall:

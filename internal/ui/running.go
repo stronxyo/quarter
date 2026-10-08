@@ -9,6 +9,7 @@ type runningMsg struct{ appID uint32 }
 // applyRunning takes the game Steam is running: a change counts the play
 // time and, when a game stopped, reads its new playtime (afterplay.go).
 func (m Model) applyRunning(msg runningMsg) (Model, tea.Cmd) {
+	m = m.launchRunning(msg.appID)
 	if msg.appID == m.running {
 		return m, nil
 	}

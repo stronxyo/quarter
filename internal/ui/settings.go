@@ -32,6 +32,7 @@ func (m *Model) applySettings(s config.Settings) {
 	m.introSetting, m.lastIntro = s.Intro, s.LastIntro
 	m.goodbyeSetting, m.lastGoodbye = s.Goodbye, s.LastGoodbye
 	m.mouseSetting = s.Mouse
+	m.steamStartSetting = s.SteamStart
 }
 
 // settings snapshots what should be remembered for the next run.
@@ -57,6 +58,8 @@ func (m Model) settings() config.Settings {
 		LastGoodbye: m.lastGoodbye,
 
 		Mouse: m.mouseSetting,
+
+		SteamStart: m.steamStartSetting,
 	}
 }
 

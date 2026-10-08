@@ -16,6 +16,7 @@ The first release.
 ### Playing
 
 - Play, install, uninstall (press twice) and the store page, all handed to the Steam client.
+- On Windows, Steam starts in the tray when Quarter opens, and a game played with Steam closed starts without Steam's window ("Opening Steam" shows while Steam signs in); `"steam_start": "normal"` keeps Steam's window. macOS and Linux open Steam as before.
 - The game running now, and downloads and updates with their progress, shown live.
 - A game's logo opens it in your Steam library; a game Steam can't show there gets a message instead.
 

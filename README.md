@@ -11,6 +11,7 @@ Quarter sits on top of the Steam client you already have. It reads your library 
 - **Game logos as real pictures** in terminals that draw Sixel graphics, and as one-colour block art everywhere else.
 - **A details pane:** developer, year, genres, achievements, size, library folder, publisher and the official website.
 - **Play history:** your sessions recorded from Steam's log, a ranking by period, a HIGH SCORES board with a calendar of played days, and, if you ask for them, your past years from Steam Replay.
+- **Steam starts quietly:** on Windows, Quarter starts Steam in the tray as it opens, and games start without Steam's window.
 - **Live Steam state:** a game running now, downloads and updates with their progress, games installed or uninstalled while Quarter is open.
 - **Arcade touches:** an intro on start, an attract mode while the start screen waits, a goodbye when you quit.
 - **Keyboard first, mouse welcome:** every action has a key, and the mouse works too.
@@ -110,6 +111,7 @@ A few settings are only in the file. Close Quarter before editing it.
 | `"mouse"` | `""` Quarter takes the mouse (default), `"off"` leaves it to the terminal |
 | `"logo_blocks"` | `"octants"` for twice the detail, in fonts that have block octants (Windows Terminal's own Cascadia Mono) |
 | `"glyphs"` | `""` found out (default), `"basic"` the classic console's way (no game logos, simpler characters), `"full"` every character |
+| `"steam_start"` | `""` Steam starts in the tray when Quarter opens, and games start without its window (default, Windows); `"normal"` Steam opens with its window, as before |
 
 Intros: `crt-power-on`, `implode`, `coin-drop`, `staggered-drop`, `raster-reveal`, `typewriter`, `decode`, `light-sweep`, `dither-dissolve`, `glitch-settle`, `starfield-warp`, `beams`, `slice`, `stack-up`, `spiral-in`, `ignite`, `rally`, `coin-roll`, `block-drop`, `march`, `snake`, `plasma`, `fire`, `code-rain`, `card-flip`, `synthwave`, `installer`, `shockwave`, `liquid-fill`, `neon`, `firework`, `zoom-punch`.
 

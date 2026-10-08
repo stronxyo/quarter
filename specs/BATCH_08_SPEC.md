@@ -740,3 +740,32 @@ The start screen's cost, profiled (3 min): most of it Go waking for each animati
 - **Install scripts** (`install.sh`, `install.ps1`): find the latest release (the release page's redirect, or GitHub's API in PowerShell), download this system's archive and `checksums.txt`, refuse anything that doesn't match, install to `~/.local/bin` or `%LOCALAPPDATA%\Programs\quarter` with no admin rights, and put it on the PATH (PowerShell: the user's PATH; sh: says which line to add). The PowerShell script runs in a block of its own, so nothing stays in the user's window. Settings for a fixed version, the folder and a test server. Tested against the dry run on a local server: Windows PowerShell 5.1 and PowerShell 7 install and add the PATH (Pablo's own PATH restored after); a tampered download refused by both scripts, nothing installed, PATH untouched, no temporary files left; the sh script installs the Linux build (from Git Bash, the program itself not run: no Linux here) and on Windows points to the PowerShell line. `.gitattributes` keeps `.sh` files in Unix line endings.
 - **Nix moved to after v0.1:** a flake needs a hash of the dependencies only Nix can compute, and there is no Nix on this PC; the README's `nix run` line is out until CI can build it on Linux.
 - **For D5/D7, Pablo's part:** a public repo `stronxyo/homebrew-tap`; a fork of `microsoft/winget-pkgs`; one classic GitHub token with `public_repo` (a fine-grained token can't open pull requests on Microsoft's repo), stored as the secrets `HOMEBREW_TAP_TOKEN` and `WINGET_TOKEN`; an AUR account with an SSH key, the private key as the secret `AUR_KEY`. Microsoft reviews a first winget package by hand, so `winget install quarter` works some days after the release.
+
+## Steam starts quietly (Pablo, 2026-10-08: "lets use this steam -silent -applaunch <id>"; "go")
+
+Before v0.1, from `specs/STEAM_QUIET_START.md` (research and Pablo's live tries there). No lab for the look (Pablo: "we dont need lab for this"); the real program loop was checked in `Documents/Quarter/Steam start lab`.
+
+### What it does (Windows)
+
+1. **Quarter opens with Steam closed:** it starts `steam.exe -silent` (Valve: "Silent startup mode (tray mode only)"), off the UI goroutine; Steam goes to the tray, no window. Steam already running: nothing.
+2. **Play with Steam ready:** the `steam://rungameid/<id>` link, as before, "Launching X".
+3. **Play with Steam closed, or while the start Quarter made is still signing in:** `steam.exe -silent -applaunch <id>`, which Steam holds until it has signed in (tried by Pablo). The message line under the pane says "Opening Steam" with the logo band's three moving dots until the game runs (`RunningAppID`), then goes; the row says running as before. Play again while it waits: nothing.
+4. **At 60 s with no game** (Pablo: "90 is too much, make it 60"): Steam not running ends the wait, light red: "Steam didn't start. Press enter to try again." Steam still signing in (`ActiveUser` 0): no resend, the game is already held; the message says "Steam is still signing in". Steam signed in without the game: `-applaunch` once more, "Still opening Steam". Safe: Steam sets `RunningAppID` 0.55 s before the game's window shows, so a game already starting isn't sent twice.
+5. **At 120 s still no game:** the wait ends, light red: "Steam hasn't signed in; open it from the tray.", or "Steam is open but didn't start X; it may be updating. Click the logo to see Steam, or press enter to try again."
+6. **Install, uninstall, the store page, the logo click:** unchanged, Steam's window shows (Pablo: "yes").
+7. **Quitting Quarter:** Steam stays in the tray. Steam is started detached from the terminal.
+8. **`"steam_start": "normal"`** in config.json: as before, no start at opening, play by the link (Pablo: "agree" to a setting, default quiet).
+9. **Linux and macOS:** as before (the fallback): no one can try `-silent` there for Quarter yet, and on macOS `open -a Steam --args` drops the arguments once Steam runs.
+
+### How Steam is read
+
+- **Running:** `HKCU\Software\Valve\Steam\ActiveProcess\pid` is a live process whose program is `steam.exe`. Steam leaves the pid there after quitting (seen 2026-10-07: a stale 29952, later 2568, with no Steam running), so the pid alone isn't enough.
+- **Signed in:** `ActiveProcess\ActiveUser` not 0. Measured 2026-10-08 (a read-only watch every 0.5 s while Pablo ran the commands): Steam's pid live at once; `ActiveUser` still last run's account for 1.6 s, then 0 while signing in, then the account at 26.6 s; `RunningAppID` the game at 30.9 s, the game's window at 31.5 s; `RunningAppID` back to 0 within 3 s of quitting. So a start Quarter made counts as finished only once Steam was seen signing in and then signed in, or signed in 10 s after the start; a start not seen finished in 120 s is no longer waited on.
+- **steam.exe:** `--steam-path`'s folder when given, else the registry's `SteamExe`, else the folder Quarter finds Steam in.
+- Steam's state is read only while Quarter waits on its own start or on a game (one registry read and one process look per 2 s round); idle rounds cost what they did.
+
+### Code and tests
+
+`internal/steam/client.go`, `client_windows.go`, `client_other.go`; `internal/ui/steamstart.go`, with `app.go`, `actions.go`, `poll.go`, `running.go`, `settings.go`; `config.Settings.SteamStart`; `cmd/quarter/main.go`. Tests: `TestIsSteamImage`, `TestLiveSteam` (a live non-Steam pid and a finished pid aren't Steam), `TestSteamStartsAtOpen`, `TestPlayPicksQuietOrLink`, `TestBootEndsWhenSignedIn`, `TestLaunchWaitEnds`, `TestLaunchChecks`, `TestPollAsksSteamOnlyWhileWaiting`, `TestSteamStartSettingKept`; each checked to fail with its part broken (no single resend, no stale-account grace, the wait not ending when the game runs). The real loop (lab, fake Steam, size sent twice, log to a file): Steam started once at opening, one quiet play for two presses, "Opening Steam" on screen, gone once the game runs, nothing but the screen in the terminal; it fails with the start or the wait's end taken out. Every test, `TestSpeedTargets` unchanged, vet and staticcheck pass; Linux and macOS build.
+
+**Not tested:** Steam signed out (Steam shows its sign-in window: it needs the user, so the start isn't quiet then).

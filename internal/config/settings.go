@@ -25,6 +25,8 @@ type Settings struct {
 	Mouse string `json:"mouse"` // "" Quarter takes the mouse; "off" leaves it to the terminal (plain text selection)
 
 	Glyphs string `json:"glyphs"` // "" found out, "basic" the classic Windows console's way (stand-in characters, no game logos), "full" every character
+
+	SteamStart string `json:"steam_start"` // "" Steam starts in the tray when Quarter opens, and games start without its window (Windows); "normal" Steam opens as it always has
 }
 
 const (

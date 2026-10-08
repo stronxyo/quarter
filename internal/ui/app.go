@@ -83,6 +83,13 @@ type Model struct {
 	running    uint32                // the game Steam is running, 0 for none
 	afterPlay  afterPlay             // a game that stopped, waiting for Steam to save its playtime
 
+	steamClient       func() (steam.Client, bool) // what Steam's client says about itself; nil where it doesn't say (steamstart.go)
+	startSteam        func() error                // starts Steam in the tray; may be nil
+	playQuiet         func(uint32) error          // starts a game through Steam, Steam in the tray first; may be nil
+	steamStartSetting string                      // config.json's "steam_start": "" quiet, "normal" as before
+	boot              steamBoot                   // a start of Steam Quarter made, until Steam is signed in
+	launch            launchWait                  // a game played quietly, waiting for Steam to start it
+
 	polling   bool       // a round of the background checks is on its way (poll.go)
 	viewQuiet bool       // this update was a check that found nothing new
 	reuseView bool       // the screen drawn last can be shown again
@@ -205,6 +212,10 @@ type Options struct {
 
 	RunningApp func() (uint32, bool) // which game Steam is running, if it says
 
+	SteamClient func() (steam.Client, bool) // what Steam's client says about itself; known false where it doesn't say
+	StartSteam  func() error                // starts Steam in the tray, with no window
+	PlayQuiet   func(uint32) error          // starts a game through Steam, starting Steam in the tray first
+
 	Logos func(steamPath string) LogoSource // game logos, once the Steam folder is known
 
 	Splash bool // open on the INSERT QUARTER screen (the first run)
@@ -233,6 +244,9 @@ func New(opts Options) Model {
 		jitter:       halfJitter,
 		debounce:     storeDebounce,
 		runningApp:   opts.RunningApp,
+		steamClient:  opts.SteamClient,
+		startSteam:   opts.StartSteam,
+		playQuiet:    opts.PlayQuiet,
 
 		newLogos:    opts.Logos,
 		logoCache:   make(map[logoKey]drawnLogo),
@@ -279,7 +293,7 @@ func New(opts Options) Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	cmd := tea.Batch(scan(m.steamPath), m.pollCmd(0), askPictures(), m.blink(), m.introTick())
+	cmd := tea.Batch(scan(m.steamPath), m.pollCmd(0), askPictures(), m.blink(), m.introTick(), m.startSteamAtOpen())
 	if m.introIndex >= 0 {
 		cmd = tea.Batch(cmd, m.persist()) // remember it, so the next start picks another
 	}
@@ -433,6 +447,15 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case runningMsg:
 		return m.applyRunning(msg)
+
+	case steamStartedMsg:
+		return m.steamStarted(msg)
+
+	case launchSentMsg:
+		return m.launchSent(msg)
+
+	case launchDotsMsg:
+		return m.launchDotsStep()
 
 	case afterPlayMsg:
 		return m.afterPlayTick(msg)
@@ -798,7 +821,7 @@ func (m Model) notice() (string, lipgloss.Style) {
 	switch {
 	case wrong:
 		return text, alertStyle
-	case m.status != "":
+	case m.status != "" || m.launch.appID != 0:
 		return text, activeTabStyle
 	}
 	return text, dimStyle
@@ -808,6 +831,8 @@ func (m Model) noticeText() (text string, wrong bool) {
 	switch {
 	case m.status != "":
 		return m.status, m.statusWrong
+	case m.launch.appID != 0:
+		return m.launchText(), false
 	case m.scanErr != nil:
 		return "Could not rescan Steam, showing the last saved library. Press r to retry.", true
 	case len(m.missing) > 0:

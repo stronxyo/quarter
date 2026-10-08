@@ -36,3 +36,17 @@ Today, when Steam is closed and the user plays a game from Quarter, the `steam:/
 - Start Steam quietly only when a game is played (the default idea), or as soon as Quarter opens (games then start faster, but Steam runs even if he only browses)?
 - A setting to turn it off (`"steam start": "quiet" | "normal"` or similar)?
 - When it's done: spec section in `specs/BATCH_08_SPEC.md`, README line if user-facing, CHANGELOG entry under 0.1.0.
+
+## Results (2026-10-07 and 08)
+
+**Answered by Pablo:** start Steam when Quarter opens ("since quarter is just for steam, maybe let it open steam at start"); a setting, yes ("agree"); install, uninstall and the logo click keep Steam's window ("yes"); `steam -silent -applaunch <id>` for play; "Opening Steam" under the details pane only when a game is played while Steam is still starting; no lab ("we dont need lab for this"); 60 s, not 90, before Quarter looks at why there's no game.
+
+**Research:**
+
+1. Valve's page lists `-silent` twice: "Silent startup mode (tray mode only)" and "Suppresses the dialog box that opens when you start steam ... (Steam must be off for this to work)"; also `-applaunch <appID>` ("Launches an Game or Application through Steam"). It names no system. Steam's own start-with-Windows entry on Pablo's PC is `steam.exe -silent`. Linux: people report `steam -silent` starts it minimized (steam-for-linux #5806); macOS: nothing found; both keep today's behaviour.
+2. Windows: `ActiveProcess\pid` stays after Steam quits, so Quarter checks the pid is a live `steam.exe`.
+3. Windows hands `steam://` links to `Steam.exe -- "%1"` (HKCR\steam). `-applaunch` was picked over that form: listed by Valve, the same on every system.
+4. Pablo's tries on his real Steam, 2026-10-08, each from Steam fully closed: `steam.exe -silent -- steam://rungameid/2728140` and `steam.exe -silent -applaunch 2728140` both started Metropolis 1998 Demo with no Steam window, Steam only in the tray after, in about 30 s. Then `steam.exe -silent`, and 5 s later `steam.exe -silent -applaunch 2728140`: the second was held and run 4 s after Steam signed in, no window. Timings in `BATCH_08_SPEC.md`, "Steam starts quietly".
+5. No Steam setting was changed by Quarter or the tries; `-silent` only applies to that start.
+
+Sources: [Valve Developer Community: Command line options (Steam)](https://developer.valvesoftware.com/wiki/Command_line_options_(Steam)), [steam-for-linux #5806](https://github.com/ValveSoftware/steam-for-linux/issues/5806).
