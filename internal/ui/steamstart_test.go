@@ -304,3 +304,17 @@ func TestSteamStartSettingKept(t *testing.T) {
 		t.Errorf("saved %+v, want steam_start kept", saved)
 	}
 }
+
+// The waiting message's dots are small squares in fixed places, so the
+// text never shifts as they fill.
+func TestLaunchDots(t *testing.T) {
+	f := &fakeSteam{known: true}
+	m := playKey(t, quietModel(t, f, config.Settings{}))
+	want := []string{"Opening Steam       ", "Opening Steam  ▪    ", "Opening Steam  ▪ ▪  ", "Opening Steam  ▪ ▪ ▪"}
+	for step, w := range want {
+		f.clock = time.UnixMilli(int64(step) * dotsStep.Milliseconds())
+		if got := m.launchText(); got != w {
+			t.Errorf("step %d: %q, want %q", step, got, w)
+		}
+	}
+}

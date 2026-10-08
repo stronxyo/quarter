@@ -203,14 +203,16 @@ func (m Model) stopLaunch(text string) Model {
 }
 
 // launchText is the waiting message with its dots: fixed places, filled one
-// by one, as in the logo band.
+// by one, as in the logo band, but the hover's small square, the band's
+// blocks being too big beside text (Pablo, 2026-10-08: "the small square is
+// good"); Consolas, Cascadia Mono and JetBrains Mono all have it.
 func (m Model) launchText() string {
 	n := int(m.now().UnixMilli()/dotsStep.Milliseconds()) % (dotSlots + 1)
 	slots := make([]string, dotSlots)
 	for i := range slots {
-		slots[i] = strings.Repeat(" ", len([]rune(dot)))
+		slots[i] = " "
 		if i < n {
-			slots[i] = dot
+			slots[i] = markerHover
 		}
 	}
 	return m.launch.text + launchSpace + strings.Join(slots, " ")

@@ -749,12 +749,12 @@ Before v0.1, from `specs/STEAM_QUIET_START.md` (research and Pablo's live tries 
 
 1. **Quarter opens with Steam closed:** it starts `steam.exe -silent` (Valve: "Silent startup mode (tray mode only)"), off the UI goroutine; Steam goes to the tray, no window. Steam already running: nothing.
 2. **Play with Steam ready:** the `steam://rungameid/<id>` link, as before, "Launching X".
-3. **Play with Steam closed, or while the start Quarter made is still signing in:** `steam.exe -silent -applaunch <id>`, which Steam holds until it has signed in (tried by Pablo). The message line under the pane says "Opening Steam" with the logo band's three moving dots until the game runs (`RunningAppID`), then goes; the row says running as before. Play again while it waits: nothing.
+3. **Play with Steam closed, or while the start Quarter made is still signing in:** `steam.exe -silent -applaunch <id>`, which Steam holds until it has signed in (tried by Pablo). The message line under the pane says "Opening Steam" with three moving dots, filling like the logo band's but the hover's small square `▪` (the band's blocks looked too big beside text; Pablo: "the small square is good"; in Consolas, Cascadia Mono and JetBrains Mono), until the game runs (`RunningAppID`), then goes; the row says running as before. Play again while it waits: nothing.
 4. **At 60 s with no game** (Pablo: "90 is too much, make it 60"): Steam not running ends the wait, light red: "Steam didn't start. Press enter to try again." Steam still signing in (`ActiveUser` 0): no resend, the game is already held; the message says "Steam is still signing in". Steam signed in without the game: `-applaunch` once more, "Still opening Steam". Safe: Steam sets `RunningAppID` 0.55 s before the game's window shows, so a game already starting isn't sent twice.
 5. **At 120 s still no game:** the wait ends, light red: "Steam hasn't signed in; open it from the tray.", or "Steam is open but didn't start X; it may be updating. Click the logo to see Steam, or press enter to try again."
 6. **Install, uninstall, the store page, the logo click:** unchanged, Steam's window shows (Pablo: "yes").
 7. **Quitting Quarter:** Steam stays in the tray. Steam is started detached from the terminal.
-8. **`"steam_start": "normal"`** in config.json: as before, no start at opening, play by the link (Pablo: "agree" to a setting, default quiet).
+8. **`"steam_start": "normal"`** in config.json: as before, no start at opening, play by the link (Pablo: "agree" to a setting, default quiet). Only in config.json, explained in the README's settings section, no key (Pablo: "lets keep the other on the config but explained on the readme").
 9. **Linux and macOS:** as before (the fallback): no one can try `-silent` there for Quarter yet, and on macOS `open -a Steam --args` drops the arguments once Steam runs.
 
 ### How Steam is read
