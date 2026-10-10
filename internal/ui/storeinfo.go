@@ -37,33 +37,29 @@ const (
 	storeLoading                    // a request is out
 	storeReady                      // details known
 	storeNotFound                   // the store has no page for it
-	storeOffline                    // the last request failed; retried later
+	storeOffline                    // requests are paused after a network failure; retried later
 )
 
-// storeStatus reports what the pane can show for appID.
+// storeStatus reports what the pane can show for appID. Details already
+// known keep showing while they are refreshed or requests are paused.
 func (m Model) storeStatus(appID uint32) (webapi.StoreInfo, storeState) {
-	if m.fetching == appID && appID != 0 {
-		if e, ok := m.storeInfo[appID]; ok && !e.Failed {
-			return e.Info, storeReady // refreshing old details: keep showing them
-		}
-		return webapi.StoreInfo{}, storeLoading
-	}
-	if m.offline[appID] {
-		return webapi.StoreInfo{}, storeOffline
-	}
 	e, ok := m.storeInfo[appID]
 	switch {
-	case !ok:
-		return webapi.StoreInfo{}, storeUnknown
-	case e.Failed:
+	case ok && !e.Failed:
+		return e.Info, storeReady
+	case m.fetching == appID && appID != 0:
+		return webapi.StoreInfo{}, storeLoading
+	case ok:
 		return webapi.StoreInfo{}, storeNotFound
+	case m.storePause.active(m.now()) || m.serverFailed[appID]:
+		return webapi.StoreInfo{}, storeOffline
 	}
-	return e.Info, storeReady
+	return webapi.StoreInfo{}, storeUnknown
 }
 
 // needsStore reports whether appID's details are missing or stale.
 func (m Model) needsStore(appID uint32) bool {
-	if m.fetchStore == nil || appID == 0 || m.offline[appID] {
+	if m.fetchStore == nil || appID == 0 {
 		return false
 	}
 	e, ok := m.storeInfo[appID]
@@ -79,20 +75,18 @@ func wantStore(appID uint32, after time.Duration) tea.Cmd {
 // first, then, in the background, every other game in list order. One
 // request is out at a time; the client's rate limit spaces them.
 func (m *Model) nextStoreFetch() tea.Cmd {
-	if m.fetching != 0 || m.fetchStore == nil {
-		return nil
+	if m.fetching != 0 || m.fetchStore == nil || m.storePause.active(m.now()) {
+		return nil // a paused store keeps the wanted game for when it resumes
 	}
 	id := uint32(0)
 	if m.needsStore(m.wanted) {
 		id = m.wanted
 	} else {
-		// Installed games first, then the candidates. When the store is
-		// unreachable, only the game the user is looking at is tried.
+		// Installed games first, then the candidates. A game the server
+		// failed on waits for the user to select it, so one bad answer
+		// doesn't hold up the rest.
 		for _, g := range slices.Concat(m.installed, m.uninstalled) {
-			if m.storeDown {
-				break
-			}
-			if m.needsStore(g.AppID) {
+			if m.needsStore(g.AppID) && !m.serverFailed[g.AppID] {
 				id = g.AppID
 				break
 			}
@@ -113,24 +107,44 @@ func (m *Model) nextStoreFetch() tea.Cmd {
 // applyStore records an answer, saves the cache, and moves on to the next.
 func (m Model) applyStore(msg storeDoneMsg) (Model, tea.Cmd) {
 	m.fetching = 0
-	var save tea.Cmd
+	var cmds []tea.Cmd
 	switch {
 	case msg.err == nil:
-		m.storeDown = false
 		m.storeInfo[msg.appID] = webapi.StoreEntry{Info: msg.info, Fetched: msg.at}
-		save = m.persistStore()
-	case errors.Is(msg.err, webapi.ErrNotOnStore):
-		m.storeInfo[msg.appID] = webapi.StoreEntry{Failed: true, Fetched: msg.at}
-		save = m.persistStore()
-	default:
-		// A network problem says nothing about the game, so it isn't cached;
-		// the game is skipped for this run instead.
+		m.storePause = pause{}
+		delete(m.serverFailed, msg.appID)
+		cmds = append(cmds, m.persistStore(), m.answered())
+	case isNetFailure(msg.err):
+		// Says nothing about the game, so nothing is cached: the store
+		// pauses and the game is asked again when it resumes.
 		slog.Warn("store", "app", msg.appID, "err", msg.err)
-		m.offline[msg.appID] = true
-		m.storeDown = true
+		if errors.Is(msg.err, webapi.ErrServer) {
+			m.serverFailed[msg.appID] = true
+		}
+		if msg.appID == m.selectedID() {
+			m.wanted = msg.appID
+		}
+		cmds = append(cmds, m.failed(&m.storePause, msg.err, false))
+		if !errors.Is(msg.err, webapi.ErrUnreachable) {
+			cmds = append(cmds, m.answered())
+		}
+	default:
+		// Not on the store, or an answer that can't be read: remembered as
+		// a failure, asked again after StoreRetry.
+		if !errors.Is(msg.err, webapi.ErrNotOnStore) {
+			slog.Warn("store", "app", msg.appID, "err", msg.err)
+		}
+		m.storeInfo[msg.appID] = webapi.StoreEntry{Failed: true, Fetched: msg.at}
+		cmds = append(cmds, m.persistStore(), m.answered())
 	}
 	m.rebuild()
-	return m, tea.Batch(m.refreshList(), save, m.nextStoreFetch())
+	return m, tea.Batch(append(cmds, m.refreshList(), m.nextStoreFetch())...)
+}
+
+// selectedID is the selected game's appid, 0 for none.
+func (m Model) selectedID() uint32 {
+	g, _ := m.selected()
+	return g.AppID
 }
 
 // persistStore saves the store cache off the UI goroutine.

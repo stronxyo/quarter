@@ -43,6 +43,10 @@ var NonGameAppIDs = map[uint32]string{
 	858280:  "Proton 3.7",
 }
 
+// SteamReadRetry is the wait before a Steam file that couldn't be read is
+// read again, in case Steam was writing it.
+const SteamReadRetry = 100 * time.Millisecond
+
 // LogFile is written in DataDir while the UI runs, since the terminal is taken.
 const LogFile = "quarter.log"
 
@@ -58,8 +62,15 @@ const (
 	StoreRefresh      = 7 * 24 * time.Hour      // store details rarely change
 	StoreRetry        = 24 * time.Hour          // how long a "not on the store" answer is trusted
 	StoreCache        = "store.json"
-	StoreCacheVersion = 2 // 2: achievement totals
+	StoreCacheVersion = 4 // 2: achievement totals; 3: website; 4: short links followed to the official site
 )
+
+// SteamDBURL is a game's page on SteamDB, an unofficial site with the
+// game's history on Steam (b opens it); %d is the appid.
+const SteamDBURL = "https://steamdb.info/app/%d/"
+
+// SupportURL is where "buy me a coffee" on the key line leads: Pablo's Ko-fi.
+const SupportURL = "https://ko-fi.com/stronxyo"
 
 // Game logos from Steam's CDN, for games whose logo isn't in Steam's own
 // cache. Downloads and the list of games without one live in LogoDir.
@@ -68,11 +79,29 @@ const (
 	LogoDir      = "logos"
 	LogoMaxBytes = 2 << 20 // logos are 10 to 200 KB; anything over 2 MB is refused
 	LogoRetry    = 7 * 24 * time.Hour
+	LogoKeep     = 3000 // downloads kept, least recently used go first: about 270 MB at 90 KB a logo (Pablo, 2026-09-30: "lets do 3k")
+)
+
+// SessionsFile keeps every game session read from Steam's game process log,
+// so play history outlives the log.
+const (
+	SessionsFile    = "sessions.json"
+	SessionsVersion = 1
+)
+
+// The past years from Steam: Steam Replay's data, from the Web API method
+// its page reads (defined in Steam's protobufs, not in Valve's docs), kept
+// in ReplayFile once the user asks for it.
+const (
+	ReplayURL     = "https://api.steampowered.com/ISaleFeatureService/GetUserYearInReview/v1/"
+	ReplayTimeout = 15 * time.Second
+	ReplayFile    = "replay.json"
+	ReplayVersion = 1
 )
 
 // LibraryCache is the scanned library saved in DataDir, shown instantly on the
 // next launch. Bump LibraryCacheVersion whenever the cached fields change.
 const (
 	LibraryCache        = "library.json"
-	LibraryCacheVersion = 3 // 2: games carry achievements; 3: not-installed candidates
+	LibraryCacheVersion = 5 // 2: games carry achievements; 3: not-installed candidates; 4: games Steam is updating; 5: installing and paused
 )

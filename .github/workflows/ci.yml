@@ -1,0 +1,49 @@
+# CI: on every push and pull request, the format check and staticcheck
+# (Linux), then vet, tests and the build on Windows, Linux and macOS.
+# Actions are pinned to full commit hashes, as GitHub's security guide
+# advises; the version each hash is sits beside it.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      # On Linux only: Windows checks files out with CRLF line endings,
+      # which gofmt would report on every file.
+      - name: gofmt
+        run: |
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then echo "Not formatted (run gofmt -w):"; echo "$out"; exit 1; fi
+      - name: staticcheck
+        run: go run honnef.co/go/tools/cmd/staticcheck@2026.2.1 ./...
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: vet
+        run: go vet ./...
+      # The full tests, speed targets included (TestSpeedTargets,
+      # TestIntroFrameSpeed); some UI tests take about 90 s.
+      - name: test
+        run: go test ./...
+      - name: build
+        run: go build ./cmd/quarter

@@ -9,14 +9,23 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
+// platformCandidates are the places Steam is found on Windows: where the
+// user's Steam says it is, where its installer put it (machine-wide), and
+// the installer's default.
 func platformCandidates() []string {
 	var dirs []string
-	if k, err := registry.OpenKey(registry.CURRENT_USER, `Software\Valve\Steam`, registry.QUERY_VALUE); err == nil {
-		if path, _, err := k.GetStringValue("SteamPath"); err == nil && path != "" {
-			dirs = append(dirs, path)
+	add := func(root registry.Key, path, name string) {
+		k, err := registry.OpenKey(root, path, registry.QUERY_VALUE)
+		if err != nil {
+			return
 		}
-		k.Close()
+		defer k.Close()
+		if dir, _, err := k.GetStringValue(name); err == nil && dir != "" {
+			dirs = append(dirs, dir)
+		}
 	}
+	add(registry.CURRENT_USER, `Software\Valve\Steam`, "SteamPath")
+	add(registry.LOCAL_MACHINE, `SOFTWARE\WOW6432Node\Valve\Steam`, "InstallPath")
 	return append(dirs, `C:\Program Files (x86)\Steam`)
 }
 

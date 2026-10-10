@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -21,12 +22,13 @@ var (
 // paneLabelWidth fits the longest label, "Achievements", plus a space.
 const paneLabelWidth = 13
 
-// The achievement bar: a middle-third block (U+1FB0B) for unlocked, a light
-// rule for the rest.
+// The achievement bar: a heavy line for unlocked, a light line for the rest.
+// Both are box drawing, which every monospace font has (the middle-third
+// block first used here, U+1FB0B, is missing from most).
 const (
 	barCells      = 14
 	barCountWidth = 8 // fits "999/999 "
-	barFilled     = "🬋"
+	barFilled     = "━"
 	barEmpty      = "─"
 )
 
@@ -51,18 +53,27 @@ func (m Model) tableWidth() int {
 	return min(m.width, maxTableWidth)
 }
 
-// paneWidth grows with the window, from paneMinWidth up to paneMaxWidth, so
-// big windows give the game logo its full width.
+// paneWidth is the pane's width. Beside the list, the pane and the logo above
+// it fill the rest of the window, out to its right edge; as a pop-up on a
+// narrow window, up to paneMaxWidth.
 func (m Model) paneWidth() int {
 	if m.sideBySide() {
-		return min(m.width-paneGap-m.tableWidth(), paneMaxWidth)
+		return m.width - paneGap - m.tableWidth()
 	}
 	return min(m.width, paneMaxWidth)
 }
 
-// detailView draws the selected game's pane, width by height cells.
+// paneX is the column the right block (logo band and pane) starts at, so it
+// ends at the window's right edge.
+func (m Model) paneX() int {
+	return m.width - m.paneWidth()
+}
+
+// detailView draws the selected game's pane, width by height cells. On a
+// wide pane its contents stay a column at most paneTextWidth wide, on the
+// left, so lines stay readable.
 func (m Model) detailView(width, height int) string {
-	inner := width - paneStyle.GetHorizontalFrameSize()
+	inner := min(width-paneStyle.GetHorizontalFrameSize(), paneTextWidth)
 	var b strings.Builder
 
 	g, ok := m.selected()
@@ -73,8 +84,11 @@ func (m Model) detailView(width, height int) string {
 		// the quarter_ box.
 		b.WriteString(paneTitleStyle.Width(inner).Render(strings.ToUpper(g.Label())) + "\n")
 
-		if g.AppID == m.running {
+		switch {
+		case g.AppID == m.running:
 			b.WriteString(runningLabelStyle.Render(markerRunning+" RUNNING NOW") + "\n")
+		case g.Updating:
+			b.WriteString(strings.Join(m.dlView().lines(g, inner), "\n") + "\n")
 		}
 
 		info, state := m.storeStatus(g.AppID)
@@ -102,7 +116,11 @@ func (m Model) detailView(width, height int) string {
 		case storeNotFound:
 			b.WriteString(dimStyle.Render("not on the Steam store") + "\n")
 		case storeOffline:
-			b.WriteString(dimStyle.Render("store info unavailable") + "\n")
+			msg := "store info unavailable, retrying"
+			if m.storePause.busy {
+				msg = "store busy, retrying"
+			}
+			b.WriteString(alertStyle.Render(msg) + "\n")
 		}
 		b.WriteString("\n")
 
@@ -126,6 +144,21 @@ func (m Model) detailView(width, height int) string {
 		} else {
 			row("Status", "not installed")
 		}
+		// Who publishes it and its official site, a block of their own
+		// (Pablo, 2026-10-02). The site's name ends in an arrow, always
+		// shown even when the name is cut: w or a click opens it (mouse.go).
+		// No terminal link (OSC 8): Windows Terminal underlines those with
+		// dots, and Quarter's own click works in every terminal.
+		if state == storeReady && (len(info.Publishers) > 0 || info.Website != "") {
+			b.WriteString("\n")
+			if len(info.Publishers) > 0 {
+				row("Publisher", info.Publishers[0])
+			}
+			if info.Website != "" {
+				name := ansi.Truncate(siteName(info.Website), max(inner-paneLabelWidth-2, 1), "…")
+				row("Website", name+" "+markerLink)
+			}
+		}
 		if g.Favourite {
 			b.WriteString("\n" + starStyle.Render(markerFavourite+" Favourite") + "\n")
 		}
@@ -142,14 +175,28 @@ func (m Model) detailView(width, height int) string {
 	return paneStyle.Width(width).Height(height).MaxHeight(height).Render(strings.Join(lines, "\n"))
 }
 
-// selected returns the highlighted game, if the list has one.
+// selected returns the game on show: the list's highlighted game, or with
+// history open the ranking's, so the logo and the pane follow it.
 func (m Model) selected() (library.Game, bool) {
+	if m.histView != histOff {
+		return m.rankedGame()
+	}
 	it, ok := m.list.SelectedItem().(gameItem)
 	return it.Game, ok
 }
 
+// siteName is a website as the pane shows it: no scheme, no "www.", no
+// trailing slash ("http://www.rocketleague.com/" is "rocketleague.com").
+func siteName(site string) string {
+	u, err := url.Parse(site)
+	if err != nil || u.Host == "" {
+		return site
+	}
+	return strings.TrimPrefix(u.Host, "www.") + strings.TrimRight(u.Path, "/")
+}
+
 // achievementBar draws the count, then a bar: a thicker orange band for what's
-// unlocked and a thin dim line for the rest, e.g. "72/88   🬋🬋🬋🬋🬋🬋🬋🬋🬋🬋🬋───".
+// unlocked and a thin dim line for the rest, e.g. "72/88   ━━━━━━━━━━━───".
 // The count is padded so bars line up from game to game.
 func achievementBar(achieved, total int) string {
 	filled := (achieved*barCells + total/2) / total // rounded

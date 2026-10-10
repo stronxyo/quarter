@@ -23,6 +23,7 @@ type Manifest struct {
 	LibraryPath string
 	SizeOnDisk  int64
 	StateFlags  uint32
+	BuildID     uint32 // the version installed; 0 until a first install finishes
 	LastUpdated time.Time
 }
 
@@ -31,26 +32,63 @@ func (m Manifest) Installed() bool {
 	return m.StateFlags&stateFullyInstalled != 0
 }
 
-// InstalledGames scans every library for fully installed games, dropping
-// Steam tools. Files that can't be read are skipped and returned as warnings.
-func InstalledGames(steamPath string) ([]Manifest, []error) {
-	var games []Manifest
-	var warnings []error
+// stateUpdating are the StateFlags bits Steam sets while it brings a game up
+// to date: update required (2), running (256), paused (512), started (1024),
+// validating (131072), adding files (262144), preallocating (524288),
+// downloading (1048576), staging (2097152) and committing (4194304).
+// Source: github.com/lutris/lutris/blob/master/docs/steam.rst (2026-09-29).
+const stateUpdating = 2 | 256 | 512 | 1024 | 131072 | 262144 | 524288 | 1048576 | 2097152 | 4194304
 
-	libs, err := Libraries(steamPath)
+// Updating reports whether Steam is downloading the game (an update, or a
+// first install) so it can't be played yet. A playable game with an update
+// waiting (StateFlags 6) is Installed, not Updating.
+func (m Manifest) Updating() bool {
+	return !m.Installed() && m.StateFlags&stateUpdating != 0
+}
+
+// FirstInstall reports whether an update in progress is the game's first
+// install: Steam keeps buildid at 0 until one has finished (seen on DiRT
+// Rally 2.0, 2026-09-29).
+func (m Manifest) FirstInstall() bool { return m.Updating() && m.BuildID == 0 }
+
+// statePaused is the StateFlags bit for an update paused in Steam.
+const statePaused = 512
+
+// Paused reports whether Steam's update of the game is paused.
+func (m Manifest) Paused() bool { return m.Updating() && m.StateFlags&statePaused != 0 }
+
+// InstalledGames scans every library for installed games, and games Steam
+// is updating, dropping Steam tools. Libraries that aren't connected (an
+// unplugged drive) are returned in missing; files that can't be read are
+// skipped and returned as warnings.
+func InstalledGames(steamPath string) (games []Manifest, missing []LibraryFolder, warnings []error) {
+	libs, err := LibraryFolders(steamPath)
 	if err != nil {
 		warnings = append(warnings, err)
 	}
 	for _, lib := range libs {
-		manifests, errs := Manifests(lib)
+		if !lib.connected() {
+			missing = append(missing, lib)
+			continue
+		}
+		manifests, errs := Manifests(lib.Path)
 		warnings = append(warnings, errs...)
 		for _, m := range manifests {
-			if m.Installed() && IsGame(m.AppID) {
+			if (m.Installed() || m.Updating()) && IsGame(m.AppID) {
 				games = append(games, m)
 			}
 		}
 	}
-	return games, warnings
+	return games, missing, warnings
+}
+
+// ReadManifest reads one game's appmanifest in library.
+func ReadManifest(library string, appID uint32) (Manifest, error) {
+	root, err := readVDF(filepath.Join(library, "steamapps", fmt.Sprintf("appmanifest_%d.acf", appID)))
+	if err != nil {
+		return Manifest{}, err
+	}
+	return parseManifest(root, library)
 }
 
 // Manifests reads every appmanifest in one library, sorted by appid.
@@ -70,7 +108,7 @@ func Manifests(library string) ([]Manifest, []error) {
 		}
 		m, err := parseManifest(root, library)
 		if err != nil {
-			warnings = append(warnings, fmt.Errorf("%s: %w", filepath.Base(file), err))
+			warnings = append(warnings, &FileError{Name: filepath.Base(file), Err: err})
 			continue
 		}
 		manifests = append(manifests, m)
@@ -96,6 +134,7 @@ func parseManifest(root *vdf.Node, library string) (Manifest, error) {
 		LibraryPath: library,
 		SizeOnDisk:  parseInt(state.ValueOf("SizeOnDisk")),
 		StateFlags:  uint32(parseInt(state.ValueOf("StateFlags"))),
+		BuildID:     uint32(parseInt(state.ValueOf("buildid"))),
 	}
 	if ts := parseInt(state.ValueOf("LastUpdated")); ts > 0 {
 		m.LastUpdated = time.Unix(ts, 0)

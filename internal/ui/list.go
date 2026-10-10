@@ -33,7 +33,8 @@ func columns(width int, marker, name, played, last string) string {
 type rowDelegate struct {
 	playtimeKnown bool
 	now           func() time.Time
-	running       uint32 // the game Steam is running, 0 for none
+	running       uint32                    // the game Steam is running, 0 for none
+	dlCell        func(library.Game) string // a downloading game's last column; nil: "updating"
 }
 
 func (d rowDelegate) Height() int                         { return 1 }
@@ -47,13 +48,17 @@ func (d rowDelegate) Render(w io.Writer, m list.Model, index int, item list.Item
 	}
 	selected := index == m.Index()
 	running := d.running != 0 && g.AppID == d.running
+	updating := g.Updating && !running
 
-	// One marker per row: a big triangle while running, else a favourite's
-	// star, else a small triangle (filled when installed).
+	// One marker per row: a big triangle while running, an arrow while Steam
+	// updates it, else a favourite's star, else a small triangle (filled
+	// when installed).
 	marker := markerUninstalled
 	switch {
 	case running:
 		marker = markerRunning // the big triangle: playing now
+	case updating:
+		marker = markerUpdating
 	case g.Favourite:
 		marker = favouriteMarker(g)
 	case g.Installed:
@@ -61,23 +66,33 @@ func (d rowDelegate) Render(w io.Writer, m list.Model, index int, item list.Item
 	}
 
 	last := library.FormatAgo(g.LastPlayed, d.now())
-	if running {
+	switch {
+	case running:
 		last = markerRunning + " running"
+	case updating:
+		last = markerUpdating + " updating"
+		if d.dlCell != nil {
+			last = d.dlCell(g.Game)
+		}
 	}
 	// The marker takes one cell; it's drawn separately below.
 	line := columns(m.Width()-rowStyle.GetHorizontalFrameSize(), " ", g.Label(),
 		library.FormatHours(g.Playtime, d.playtimeKnown), last)[1:]
 
-	// The selected and running rows are one color from marker to end: a
-	// colored star inside would end in a reset that switches the row's color
-	// off after it. Other rows color the star and the text separately.
+	// The selected, running and updating rows are one color from marker to
+	// end: a colored star inside would end in a reset that switches the row's
+	// color off after it. Other rows color the star and the text separately.
 	switch {
 	case selected && running:
 		fmt.Fprint(w, selectedRunningStyle.Render(marker+line))
+	case selected && updating:
+		fmt.Fprint(w, selectedUpdateStyle.Render(marker+line))
 	case selected:
 		fmt.Fprint(w, selectedStyle.Render(marker+line))
 	case running:
 		fmt.Fprint(w, runningStyle.Render(marker+line))
+	case updating:
+		fmt.Fprint(w, updatingStyle.Render(marker+line))
 	case g.Favourite:
 		fmt.Fprint(w, rowStyle.Render(starStyle.Render(marker)+textStyle.Render(line)))
 	default:

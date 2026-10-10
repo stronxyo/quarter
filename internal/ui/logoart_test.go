@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"errors"
 	"image"
 	"image/color"
 	"image/png"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -16,6 +18,7 @@ import (
 	"github.com/stronxyo/quarter/internal/art"
 	"github.com/stronxyo/quarter/internal/config"
 	"github.com/stronxyo/quarter/internal/library"
+	"github.com/stronxyo/quarter/internal/webapi"
 )
 
 // fakeLogos serves logos from temporary files and counts what was asked.
@@ -23,6 +26,7 @@ type fakeLogos struct {
 	paths     map[uint32][]string
 	missing   map[uint32]bool
 	cdn       map[uint32]string // what a download finds
+	fail      error             // every download fails with this, when set
 	downloads int
 	reads     int
 }
@@ -32,6 +36,9 @@ func (f *fakeLogos) Saved(id uint32) bool     { return false }
 func (f *fakeLogos) Missing(id uint32) bool   { return f.missing[id] }
 func (f *fakeLogos) Download(_ context.Context, id uint32) (string, error) {
 	f.downloads++
+	if f.fail != nil {
+		return "", f.fail
+	}
 	p, ok := f.cdn[id]
 	if !ok {
 		return "", art.ErrNoLogo
@@ -68,7 +75,7 @@ func logoPNG(t *testing.T) string {
 // back, a few rounds deep. Tests using it set no clocks that wait.
 func pump(m tea.Model, cmd tea.Cmd) tea.Model {
 	queue := []tea.Cmd{cmd}
-	for round := 0; round < 20 && len(queue) > 0; round++ {
+	for round := 0; round < 100 && len(queue) > 0; round++ {
 		c := queue[0]
 		queue = queue[1:]
 		if c == nil {
@@ -77,7 +84,7 @@ func pump(m tea.Model, cmd tea.Cmd) tea.Model {
 		switch msg := c().(type) {
 		case tea.BatchMsg:
 			queue = append(queue, msg...)
-		case logoDoneMsg, logoWantMsg:
+		case logoDoneMsg, logoWantMsg, resumeMsg:
 			var next tea.Cmd
 			m, next = m.Update(msg)
 			queue = append(queue, next)
@@ -92,7 +99,7 @@ func withLogos(t *testing.T, logos *fakeLogos, s config.Settings) (tea.Model, *[
 	saved := &[]config.Settings{}
 	m := New(Options{Settings: s, Logos: func(string) LogoSource { return logos },
 		SaveSettings: func(s config.Settings) error { *saved = append(*saved, s); return nil }})
-	m.debounce = 0
+	m.debounce, m.settle = 0, 0
 	var tm tea.Model = m
 	tm, _ = tm.Update(tea.WindowSizeMsg{Width: 150, Height: 40})
 	tm, cmd := tm.Update(scanDoneMsg{res: library.Result{PlaytimeKnown: true, Games: []library.Game{
@@ -121,9 +128,9 @@ func messages(cmd tea.Cmd) []tea.Msg {
 }
 
 // hasGameLogo reports whether a drawn game logo is on screen: its curved
-// edges use octant characters, which nothing else in Quarter draws.
+// edges use quarter blocks (▖ to ▟), which nothing else in Quarter draws.
 func hasGameLogo(view string) bool {
-	return strings.ContainsFunc(view, func(r rune) bool { return r >= 0x1CD00 && r <= 0x1CDE5 })
+	return strings.ContainsFunc(view, func(r rune) bool { return r >= 0x2596 && r <= 0x259F })
 }
 
 func TestLogoShowsForSelectedGame(t *testing.T) {
@@ -135,9 +142,45 @@ func TestLogoShowsForSelectedGame(t *testing.T) {
 	}
 	// The logo sits beside the quarter_ box: on a line of the box, right of it.
 	for _, l := range strings.Split(view, "\n") {
-		if hasGameLogo(l) && !strings.Contains(l, "│") {
+		if hasGameLogo(l) && !strings.ContainsAny(l, "│╭╰") {
 			t.Errorf("the logo should share its lines with the quarter_ box: %q", l)
 		}
+	}
+}
+
+// Offline, a download fails without marking the game as having no logo:
+// the name shows meanwhile, downloads pause, and when they resume with the
+// network back, the logo comes.
+func TestLogoOfflineThenBack(t *testing.T) {
+	logos := &fakeLogos{paths: map[uint32][]string{1: {logoPNG(t)}}, cdn: map[uint32]string{2: logoPNG(t)},
+		fail: webapi.Unreachable("logo 2", errors.New("dial tcp: no route"))}
+	m, _ := withLogos(t, logos, config.Settings{})
+	mm := m.(Model)
+	clock := mm.now()
+	mm.now = func() time.Time { return clock }
+	mm.jitter = func(time.Duration) time.Duration { return time.Millisecond }
+	m, cmd := tea.Model(mm).Update(press("j")) // Bravo: not on disk, downloaded
+	m = pump(m, cmd)
+
+	mm = m.(Model)
+	if logos.downloads != 1 || mm.logoNone[2] {
+		t.Fatalf("one download, and no 'no logo' mark: downloads %d, none %v", logos.downloads, mm.logoNone[2])
+	}
+	if !mm.logoPause.active(mm.now()) || !mm.netDown {
+		t.Error("downloads should pause, and offline show")
+	}
+	_, cols, rows, _ := mm.logoBand()
+	drawn, _ := art.Name("Bravo", cols, rows)
+	view := paneText(m)
+	if !strings.Contains(view, strings.TrimSpace(drawn[0])) || !strings.Contains(view, "· offline") {
+		t.Errorf("the name should show while offline, and the marker:\n%s", view)
+	}
+
+	logos.fail = nil
+	m = later(m, time.Hour)
+	m = pump(m, func() tea.Msg { return resumeMsg{logos: true} })
+	if logos.downloads != 2 || !hasGameLogo(paneText(m)) || strings.Contains(paneText(m), "offline") {
+		t.Errorf("back online: want a second download and Bravo's logo, downloads %d:\n%s", logos.downloads, paneText(m))
 	}
 }
 
@@ -155,6 +198,34 @@ func TestNoLogoShowsPixelName(t *testing.T) {
 	}
 	if !m.(Model).logoNone[2] || logos.downloads != 0 {
 		t.Error("a game the CDN is known to lack should not be downloaded")
+	}
+}
+
+// Every character on screen comes from ranges that common monospace fonts
+// (JetBrains Mono, Cascadia Mono) have: a character outside them shows as
+// "?" in those fonts. The favourite stars are the one known exception: no
+// monospace font has them, and terminals borrow them from a symbol font.
+func TestScreenUsesCommonCharacters(t *testing.T) {
+	logos := &fakeLogos{paths: map[uint32][]string{1: {logoPNG(t)}}}
+	m, _ := withLogos(t, logos, config.Settings{Favourites: []uint32{2}})
+	common := func(r rune) bool {
+		switch {
+		case r < 0x250: // Latin letters, digits, punctuation
+			return true
+		case r >= 0x2190 && r <= 0x21FF: // arrows, for the key help
+			return true
+		case r >= 0x2500 && r <= 0x25FF: // box lines, blocks, triangles
+			return true
+		}
+		return r == '·' || r == '…' || string(r) == markerFavourite || string(r) == markerFavouriteUninstalled
+	}
+	for _, r := range paneText(m) {
+		if !common(r) {
+			t.Errorf("%q (%U) is missing from common monospace fonts", r, r)
+		}
+	}
+	if !hasGameLogo(paneText(m)) {
+		t.Fatal("the check needs a logo on screen")
 	}
 }
 
@@ -200,7 +271,7 @@ func TestLogoDownload(t *testing.T) {
 func TestLogoDownloadSkippedWhenScrolledPast(t *testing.T) {
 	logos := &fakeLogos{paths: map[uint32][]string{}, cdn: map[uint32]string{1: logoPNG(t)}, missing: map[uint32]bool{2: true}}
 	m := New(Options{Logos: func(string) LogoSource { return logos }})
-	m.debounce = 0
+	m.debounce, m.settle = 0, 0
 	var tm tea.Model = m
 	tm, _ = tm.Update(tea.WindowSizeMsg{Width: 150, Height: 40})
 	tm, cmd := tm.Update(scanDoneMsg{res: library.Result{Games: []library.Game{

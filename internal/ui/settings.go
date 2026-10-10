@@ -28,6 +28,11 @@ func (m *Model) applySettings(s config.Settings) {
 	if b, ok := art.ParseBlocks(s.LogoBlocks); ok {
 		m.logoBlocks = b
 	}
+	m.splashSeen = s.SplashSeen
+	m.introSetting, m.lastIntro = s.Intro, s.LastIntro
+	m.goodbyeSetting, m.lastGoodbye = s.Goodbye, s.LastGoodbye
+	m.mouseSetting = s.Mouse
+	m.steamStartSetting = s.SteamStart
 }
 
 // settings snapshots what should be remembered for the next run.
@@ -45,6 +50,16 @@ func (m Model) settings() config.Settings {
 		HidePane:   m.paneHidden,
 		HideLogos:  m.logosHidden,
 		LogoBlocks: m.logoBlocks.Key(),
+		SplashSeen: m.splashSeen,
+		Intro:      m.introSetting,
+		LastIntro:  m.lastIntro,
+
+		Goodbye:     m.goodbyeSetting,
+		LastGoodbye: m.lastGoodbye,
+
+		Mouse: m.mouseSetting,
+
+		SteamStart: m.steamStartSetting,
 	}
 }
 

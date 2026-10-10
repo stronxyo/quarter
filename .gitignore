@@ -28,6 +28,10 @@ config.local.json
 # Claude Code local settings
 .claude/settings.local.json
 
+# Claude's memory and Pablo's rules: personal, kept in the private repo stronxyo/quarter-notes
+.claude/memory/
+.claude/global-CLAUDE.md
+
 # Editors and OS
 .vscode/
 .idea/

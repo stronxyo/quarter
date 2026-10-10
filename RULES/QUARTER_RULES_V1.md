@@ -202,6 +202,7 @@ internal/library/   # Game model + merge
 internal/cache/     # JSON + image cache
 internal/config/    # paths, config.json, favourites, constants.go
 internal/art/       # logo sources + eighth-block text art renderer
+internal/history/   # play history from recorded sessions: periods, weeks, streaks
 internal/ui/        # Bubbletea models and views
 testdata/steam/     # fake Steam install for tests
 specs/              # BATCH_XX_SPEC.md
@@ -344,14 +345,15 @@ Do not propose building these until the trigger fires.
 
 | Feature | Trigger |
 |---|---|
-| Images of any kind (sixel, Kitty, iTerm) | **Rejected in Batch 4** (Pablo: keep the terminal look classic). Not to be proposed again unless Pablo asks. |
+| Logo pictures on Kitty and Ghostty (Kitty graphics protocol) | Batch 9, planned. Sixel logo pictures shipped in Batch 8 (Pablo asked, 2026-09-28; `specs/BATCH_08_SPEC.md`). Other images (screenshots, covers) stay deferred until Pablo asks. |
 | Read `appinfo.vdf` (binary) | The appid denylist misses non-games in real libraries, or we need app metadata offline. |
 | Windows Credential Manager for the API key | A user asks, or before any paid release. |
 | Non-Steam shortcuts (`shortcuts.vdf`) | After v0.1 ships. |
 | Import Steam favourites | Users ask for it. |
-| Store screenshots in the detail pane | **Rejected with images in Batch 4.** |
+| Store screenshots in the detail pane | Pablo asks (rejected with images in Batch 4; logos have since become pictures). |
 | Profile-guided optimization (PGO) | `pprof` shows a CPU hot spot the code can't fix directly. |
-| Epic / GOG | v1.0 per the brief's roadmap. |
+| Session history, the ideas not built yet (year recap, rediscover, milestones, rank changes and the rest in `PLAN.md`) | Pablo picks them. The ranking and the HIGH SCORES board moved into Batch 8 (2026-09-29, `specs/BATCH_08_SPEC.md`). |
+| Other launchers (Epic, GOG, Ubisoft Connect, Battle.net, Xbox, EA app and more) | After v0.1, one launcher per batch, per `PLAN.md` "After v0.1". |
 | Running game on Linux/macOS | Linux builds ship (Batch 8). Steam starts games through a `SteamLaunch AppId=<id>` process that could be read from the process list, since `RunningAppID` is no longer written there. |
 | CI pipeline (GitHub Actions) + the `golang-continuous-integration` skill | Batch 8 (release). Skill removed 2026-09-24: not needed before then, and it was flagged Medium risk. Re-check its security rating before reinstalling. |
 | `golangci-lint` (+ the `golang-lint` skill) | `go vet` + `staticcheck` miss a class of bug we actually hit. Removed 2026-09-24 to avoid a config file we don't need yet. |
@@ -387,9 +389,13 @@ Checked 2026-09-24 in Batch 0. Anything new stated without a source goes back in
 | 16 | `ShellExecute` is available in `golang.org/x/sys/windows` | **Verified** in v0.48.0 (`zsyscall_windows.go`), with `SW_SHOWNORMAL`. | Module source |
 | 17 | Where each game's `logo.png` is | **Verified on this PC:** `librarycache/<appid>/logo.png`, or `librarycache/<appid>/<hash>/logo.png` for newer assets. All 12 installed games have one (5 direct, 7 hashed). | Local listing |
 | 18 | Logos on Steam's CDN | **Verified** (HTTP 200 for 252950, 620, 70, 413150): `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/<appid>/logo.png`; the hashed path works too. | Direct test |
-| 19 | Eighth-block characters | **Verified:** 230 `BLOCK OCTANT` characters at U+1CD00 to U+1CDE5 in Unicode 16.0; the other 26 patterns use older block characters (table in `specs/BATCH_04_SPEC.md`). Rendered correctly in Windows Terminal 1.24 on this PC. | [UnicodeData 16.0.0](https://www.unicode.org/Public/16.0.0/ucd/UnicodeData.txt) |
+| 19 | Eighth-block characters | **Verified:** 230 `BLOCK OCTANT` characters at U+1CD00 to U+1CDE5 in Unicode 16.0; the other 26 patterns use older block characters (table in `specs/BATCH_04_SPEC.md`). Rendered correctly in Windows Terminal 1.24 on this PC **only while the terminal font was Cascadia Mono** (corrected 2026-09-27, see #22: with JetBrains Mono they show as `?`). | [UnicodeData 16.0.0](https://www.unicode.org/Public/16.0.0/ucd/UnicodeData.txt) |
 | 20 | Store `appdetails` details | **Verified 2026-09-24:** `filters=basic,developers,publishers,genres,release_date` returns what Quarter needs (~12 KB vs 35 KB). The answer can be keyed by a different id than asked (252950 came back as `1351431`), so the entry is matched on `data.steam_appid`. `success:false` means not on the store. `type` is `game` or `demo`. All 11 installed games on Pablo's PC parsed. | Direct requests |
 | 21 | Which game is running | **Windows, verified 2026-09-24:** `HKCU\Software\Valve\Steam\RunningAppID` held `252950` while Rocket League ran, `0` otherwise. **Linux: broken since 2023**, Steam no longer writes `RunningAppID` to `registry.vdf` (issue still open, re-confirmed July 2026), so Quarter reports \"unknown\" there. | Registry reads; [steam-for-linux#9672](https://github.com/ValveSoftware/steam-for-linux/issues/9672) |
+| 22 | Which fonts have which block characters | **Verified 2026-09-27 by reading each font's character map (fontTools):** JetBrains Mono (Nerd Font), and the Cascadia Mono and Cascadia Code in `C:\Windows\Fonts`, have all 32 block elements (U+2580 to U+259F) and all 256 Braille patterns, and **no** sextants, octants or smooth mosaics. Consolas has 8 of the 32 block elements and no Braille. Segoe UI Symbol has block elements and Braille. Windows Terminal 1.24 bundles its **own** Cascadia Mono 2407.024 (in its app folder) with all 230 octants, 60 sextants and 52 smooth mosaics; that copy is why octants drew with Cascadia and showed `?` with JetBrains Mono. | Local cmap reads; [Cascadia Code 2404.23](https://devblogs.microsoft.com/commandline/cascadia-code-2404-23/) |
+| 23 | Terminals that draw octants themselves | **Verified 2026-09-27:** Kitty, Ghostty and libvte terminals support most of the octants; Windows Terminal is not tracked there, and on this PC it relies on the font (#22). | [Are We Legacy Computing Yet?](https://arewelegacycomputingyet.com/) |
+| 24 | How chafa (reference terminal renderer) chooses characters | **Verified 2026-09-27:** by default it mixes block elements, half blocks and Braille, and picks per cell the symbol that best matches; Braille is chosen for its 2x4 dots and wide font support. Available on Windows through winget as `hpjansson.Chafa` 1.18.3. It uses the same characters Quarter can use, so it cannot draw more detail per cell. | [Chafa](https://hpjansson.org/chafa/), [Chafa 1.8 notes](https://hpjansson.org/blag/2021/09/16/chafa-1-8-terminal-graphics-with-a-side-of-everything/), `winget search chafa` |
+| 25 | Steam Replay's data can be read without a login | **Verified 2026-09-29** on Pablo's account: `ISaleFeatureService/GetUserYearInReview/v1/?steamid=&year=` answers with each month's playtime and sessions, per game (2023: monthly totals, per game only for the year), with no key or token, for years set to Public; a private year comes back as `{"response":{}}`. Not in Valve's documentation; defined in Steam's protobufs. Replay's current-month method needs a login (HTTP 401). | Direct requests; [SteamDatabase protobufs](https://raw.githubusercontent.com/SteamDatabase/Protobufs/master/webui/service_salefeature.proto) |
 
 ---
 

@@ -9,25 +9,55 @@ import (
 )
 
 func TestInstalledGamesFixture(t *testing.T) {
-	games, warnings := InstalledGames(fixture)
+	games, missing, warnings := InstalledGames(fixture)
+	if len(missing) != 0 {
+		t.Errorf("fixture libraries are all connected, got missing %v", missing)
+	}
 
 	// The fixture's broken appmanifest_999.acf must be reported, not fatal.
 	if len(warnings) != 1 || !strings.Contains(warnings[0].Error(), "appmanifest_999.acf") {
 		t.Errorf("warnings: got %v, want one for appmanifest_999.acf", warnings)
 	}
 
-	// 620 and 400 are installed games; 228980 is a tool; 70 is mid-update.
+	// 620 and 400 are installed games; 228980 is a tool; 70 is mid-update,
+	// so it's listed too, as updating.
 	var ids []uint32
 	for _, g := range games {
 		ids = append(ids, g.AppID)
 	}
-	if len(ids) != 2 || ids[0] != 620 || ids[1] != 400 {
-		t.Fatalf("got appids %v, want [620 400]", ids)
+	if len(ids) != 3 || ids[0] != 70 || ids[1] != 620 || ids[2] != 400 {
+		t.Fatalf("got appids %v, want [70 620 400]", ids)
+	}
+	if !games[0].Updating() || games[1].Updating() {
+		t.Error("70 (StateFlags 1026) is updating; 620 isn't")
 	}
 
-	portal2 := games[0]
+	portal2 := games[1]
 	if portal2.Name != "Portal 2" || portal2.SizeOnDisk != 12884901888 || !portal2.LastUpdated.Equal(time.Unix(1717000000, 0)) {
 		t.Errorf("Portal 2 parsed wrong: %+v", portal2)
+	}
+}
+
+func TestUpdating(t *testing.T) {
+	tests := []struct {
+		flags uint32
+		want  bool
+	}{
+		{4, false},        // installed
+		{6, false},        // installed, update waiting: still playable
+		{1026, true},      // update required and started
+		{1024, true},      // update started
+		{512 | 2, true},   // update paused
+		{1048576, true},   // downloading
+		{0, false},        // invalid
+		{1, false},        // uninstalled
+		{2048, false},     // uninstalling
+		{1028 | 4, false}, // installed wins
+	}
+	for _, tt := range tests {
+		if got := (Manifest{StateFlags: tt.flags}).Updating(); got != tt.want {
+			t.Errorf("StateFlags %d: updating %v, want %v", tt.flags, got, tt.want)
+		}
 	}
 }
 

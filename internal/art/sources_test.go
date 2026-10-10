@@ -12,6 +12,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/stronxyo/quarter/internal/webapi"
 )
 
 // pngBytes is a small valid PNG, made in the test: no real logos in the repo.
@@ -138,16 +140,31 @@ func TestDownloadMisses(t *testing.T) {
 func TestDownloadNetworkErrorNotRemembered(t *testing.T) {
 	url, _ := cdn(t, pngBytes(t))
 	s := NewSources("", t.TempDir(), url, time.Second, 1<<20, time.Hour)
-	if _, err := s.Download(context.Background(), 5); err == nil || errors.Is(err, ErrNoLogo) {
-		t.Errorf("a server error should be a plain error, got %v", err)
+	if _, err := s.Download(context.Background(), 5); !errors.Is(err, webapi.ErrServer) {
+		t.Errorf("a server error should say so, got %v", err)
 	}
 	if s.Missing(5) {
 		t.Error("a server error must not be remembered as missing")
 	}
 
 	down := NewSources("", t.TempDir(), "http://127.0.0.1:1/%d/logo.png", time.Second, 1<<20, time.Hour)
-	if _, err := down.Download(context.Background(), 1); err == nil || down.Missing(1) {
-		t.Errorf("no network should fail and not be remembered, got %v", err)
+	if _, err := down.Download(context.Background(), 1); !errors.Is(err, webapi.ErrUnreachable) || down.Missing(1) {
+		t.Errorf("no network should fail as unreachable and not be remembered, got %v", err)
+	}
+}
+
+// The CDN asking for fewer requests is a rate limit, not a missing logo.
+func TestDownloadRateLimited(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Retry-After", "30")
+		w.WriteHeader(http.StatusTooManyRequests)
+	}))
+	defer srv.Close()
+	s := NewSources("", t.TempDir(), srv.URL+"/%d/logo.png", time.Second, 1<<20, time.Hour)
+	_, err := s.Download(context.Background(), 1)
+	var limited *webapi.RateLimitError
+	if !errors.As(err, &limited) || limited.RetryAfter != 30*time.Second || s.Missing(1) {
+		t.Errorf("got %v, want a 30 s rate limit, not remembered", err)
 	}
 }
 
@@ -187,5 +204,37 @@ func TestNoCDN(t *testing.T) {
 	s := NewSources("", t.TempDir(), "", time.Second, 1<<20, time.Hour)
 	if _, err := s.Download(context.Background(), 1); !errors.Is(err, ErrNoLogo) {
 		t.Errorf("without a CDN address, got %v", err)
+	}
+}
+
+// Past the limit, a download removes the least recently used logos, never
+// the new one; reading a saved logo marks it used.
+func TestKeepAtMost(t *testing.T) {
+	logo := pngBytes(t)
+	url, _ := cdn(t, logo)
+	dir := t.TempDir()
+	old := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	for i, id := range []string{"10", "11", "12", "13"} { // 10 oldest
+		p := filepath.Join(dir, id+".png")
+		writeFile(t, p, logo)
+		at := old.Add(time.Duration(i) * time.Hour)
+		if err := os.Chtimes(p, at, at); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFile(t, filepath.Join(dir, missingFile), []byte("{}"))
+	s := NewSources("", dir, url, time.Second, int64(len(logo)+100), time.Hour).KeepAtMost(3)
+
+	s.Paths(10) // used now: no longer the oldest
+	if _, err := s.Download(context.Background(), 1); err != nil {
+		t.Fatal(err)
+	}
+	for id, kept := range map[string]bool{"1": true, "10": true, "11": false, "12": false, "13": true} {
+		if _, err := os.Stat(filepath.Join(dir, id+".png")); (err == nil) != kept {
+			t.Errorf("logo %s kept: %v, want %v", id, err == nil, kept)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, missingFile)); err != nil {
+		t.Error("the list of games without a logo is not a logo: it stays")
 	}
 }

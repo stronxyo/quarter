@@ -3,6 +3,7 @@ package steam
 import (
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stronxyo/quarter/internal/config"
@@ -36,5 +37,23 @@ func TestLocateNotSteam(t *testing.T) {
 		if _, err := Locate(dir); !errors.Is(err, ErrNotFound) {
 			t.Errorf("Locate(%q): got %v, want ErrNotFound", dir, err)
 		}
+	}
+}
+
+func TestLocateSaysWhere(t *testing.T) {
+	dir := t.TempDir()
+	_, err := Locate(dir)
+	var nf *NotFoundError
+	if !errors.As(err, &nf) || nf.Given != filepath.Clean(dir) {
+		t.Errorf("a named folder that isn't Steam should be reported as given: %v", err)
+	}
+	if !strings.Contains(err.Error(), "no steamapps folder") {
+		t.Errorf("message: %q", err.Error())
+	}
+}
+
+func TestPlatformCandidates(t *testing.T) {
+	if len(platformCandidates()) == 0 {
+		t.Error("every platform has somewhere to look")
 	}
 }

@@ -53,6 +53,9 @@ func TestAppDetails(t *testing.T) {
 		strings.Join(info.Developers, ",") != "Psyonix LLC" || strings.Join(info.Genres, ",") != "Action,Indie,Racing,Sports" {
 		t.Errorf("parsed wrong: %+v", info)
 	}
+	if info.Website != "http://www.rocketleague.com" {
+		t.Errorf("website: got %q", info.Website)
+	}
 	if info.Achievements != 88 {
 		t.Errorf("achievements total: got %d, want 88", info.Achievements)
 	}
@@ -70,8 +73,28 @@ func TestAppDetails(t *testing.T) {
 func TestAppDetailsDemo(t *testing.T) {
 	srv, _ := fakeStore(t)
 	info, err := NewStoreClient(srv.URL, 5*time.Second, 0).AppDetails(context.Background(), 4551650)
-	if err != nil || info.Type != "demo" || len(info.Genres) != 0 || info.Description != "" {
+	if err != nil || info.Type != "demo" || len(info.Genres) != 0 || info.Description != "" || info.Website != "" {
 		t.Errorf("demo: got %+v, %v", info, err)
+	}
+}
+
+// Only a full http or https link is kept as the website, since it gets
+// opened: no other scheme, no bare words.
+func TestWebsite(t *testing.T) {
+	for in, want := range map[string]string{
+		"http://www.rocketleague.com": "http://www.rocketleague.com",
+		" https://example.com/game/ ": "https://example.com/game/",
+		"":                            "",
+		"www.example.com":             "",
+		"file:///C:/Windows/system32": "",
+		"javascript:alert(1)":         "",
+		"steam://run/440":             "",
+		"https://":                    "",
+		"ms-settings:windowsupdate":   "",
+	} {
+		if got := website(in); got != want {
+			t.Errorf("website(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
 

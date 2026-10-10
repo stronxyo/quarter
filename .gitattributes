@@ -5,3 +5,6 @@
 *.go   text eol=lf
 go.mod text eol=lf
 go.sum text eol=lf
+
+# Shell scripts run on macOS and Linux, where a Windows line ending breaks them
+*.sh   text eol=lf

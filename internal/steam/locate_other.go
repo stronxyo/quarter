@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 )
 
+// platformCandidates are the places Steam is found on Linux and macOS: the
+// native installs, then Flatpak and Snap (the order protontricks uses).
 func platformCandidates() []string {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -15,6 +17,10 @@ func platformCandidates() []string {
 	return []string{
 		filepath.Join(home, ".local", "share", "Steam"),
 		filepath.Join(home, ".steam", "steam"),
+		filepath.Join(home, ".steam", "root"),
+		filepath.Join(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam"),
+		filepath.Join(home, "snap", "steam", "common", ".local", "share", "Steam"),
+		filepath.Join(home, ".snap", "data", "steam", "common", ".local", "share", "Steam"),
 		filepath.Join(home, "Library", "Application Support", "Steam"),
 	}
 }

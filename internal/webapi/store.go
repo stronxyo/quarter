@@ -30,6 +30,7 @@ type StoreInfo struct {
 	Genres      []string `json:"genres"`
 	ReleaseDate string   `json:"release_date"` // as the store writes it, e.g. "6 Jul, 2015"
 	Description string   `json:"description"`  // plain text
+	Website     string   `json:"website"`      // the game's official site, an http(s) link; "" for none
 
 	Achievements int `json:"achievements"` // how many the game has on Steam; 0 for none
 }
@@ -107,20 +108,27 @@ func (c *StoreClient) AppDetails(ctx context.Context, appID uint32) (StoreInfo, 
 	if err != nil {
 		return StoreInfo{}, err
 	}
+	what := fmt.Sprintf("store %d", appID)
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return StoreInfo{}, fmt.Errorf("store %d: %w", appID, err)
+		return StoreInfo{}, Unreachable(what, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return StoreInfo{}, fmt.Errorf("store %d: HTTP %d", appID, resp.StatusCode)
+		return StoreInfo{}, Refused(what, resp, time.Now(), http.StatusTooManyRequests, http.StatusForbidden)
 	}
 
 	var body map[string]json.RawMessage
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return StoreInfo{}, fmt.Errorf("store %d: %w", appID, err)
+		// A cut-off download, or a page that isn't the store's (a hotel
+		// network's sign-in page): says nothing about the game.
+		return StoreInfo{}, fmt.Errorf("%s: %w: %w", what, ErrServer, err)
 	}
-	return parseAppDetails(body, appID)
+	info, err := parseAppDetails(body, appID)
+	if err == nil && isShortLink(info.Website) {
+		info.Website = c.unshorten(ctx, info.Website) // the official site, not the short link (shortlink.go)
+	}
+	return info, err
 }
 
 // rawDetails is the part of an appdetails answer Quarter reads.
@@ -131,6 +139,7 @@ type rawDetails struct {
 		Name             string   `json:"name"`
 		SteamAppID       uint32   `json:"steam_appid"`
 		ShortDescription string   `json:"short_description"`
+		Website          string   `json:"website"`
 		Developers       []string `json:"developers"`
 		Publishers       []string `json:"publishers"`
 		Genres           []struct {
@@ -172,6 +181,7 @@ func parseAppDetails(body map[string]json.RawMessage, appID uint32) (StoreInfo, 
 		Publishers:  raw.Data.Publishers,
 		ReleaseDate: raw.Data.ReleaseDate.Date,
 		Description: plainText(raw.Data.ShortDescription),
+		Website:     website(raw.Data.Website),
 
 		Achievements: raw.Data.Achievements.Total,
 	}
@@ -182,6 +192,17 @@ func parseAppDetails(body map[string]json.RawMessage, appID uint32) (StoreInfo, 
 }
 
 var tagPattern = regexp.MustCompile(`<[^>]*>`)
+
+// website keeps the store's website only as a full http or https link: it
+// is opened in the browser, so nothing else from the network gets handed to
+// the OS to open.
+func website(s string) string {
+	u, err := url.Parse(strings.TrimSpace(s))
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return ""
+	}
+	return u.String()
+}
 
 // plainText turns the store's HTML snippets into plain text.
 func plainText(s string) string {
