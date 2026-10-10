@@ -141,7 +141,7 @@ In a famous story about a giant virtual world, a player named Parzival plays a p
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/M2B82831Z2)
 
-Quarter is free and always will be. If it makes your library a nicer place, you can buy me a coffee on [Ko-fi](https://ko-fi.com/stronxyo) (or press `c` in Quarter, or click "buy me a coffee" in its bottom-right corner) or sponsor me on [GitHub Sponsors](https://github.com/sponsors/stronxyo).
+Quarter is free and always will be. If it makes your library a nicer place, you can buy me a coffee on [Ko-fi](https://ko-fi.com/stronxyo) (or press `c` in Quarter, or click "buy me a coffee" in its bottom-right corner).
 
 ## Not affiliated with Valve
 

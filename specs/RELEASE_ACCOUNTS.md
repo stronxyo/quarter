@@ -8,10 +8,10 @@ None of this goes into the repo: tokens and keys only ever go into GitHub's secr
 |---|---|---|---|---|
 | 1 | A public repo `stronxyo/homebrew-tap` | `brew install stronxyo/tap/quarter` | 2 min | done 2026-10-10 |
 | 2 | A fork of `microsoft/winget-pkgs` | `winget install quarter` | 2 min | done 2026-10-10 |
-| 3 | One classic GitHub token, scope `public_repo` | steps 1 and 2, from the release | 5 min | to do |
-| 4 | Three secrets in `stronxyo/quarter` | the release workflow | 5 min | to do |
-| 5 | An AUR account and an SSH key | `yay -S quarter-tui-bin` | 30 min, plus Arch in WSL | to do |
-| 6 | GitHub Sponsors (optional) | the README's Sponsors link | 15 min, then GitHub's review | to do |
+| 3 | One classic GitHub token, scope `public_repo` | steps 1 and 2, from the release | 5 min | done 2026-10-10 |
+| 4 | Three secrets in `stronxyo/quarter` | the release workflow | 5 min | done 2026-10-10 |
+| 5 | An AUR account and an SSH key | `yay -S quarter-tui-bin` | 30 min, plus Arch in WSL | later (AUR_KEY removed until the account exists) |
+| 6 | GitHub Sponsors (optional) | the README's Sponsors link | 15 min, then GitHub's review | skipped for v0.1 (link taken out; Ko-fi only) |
 | | Ko-fi | the `c` key, the README | | done (`ko-fi.com/stronxyo`) |
 
 Steps 1 to 4 are enough for a release with Homebrew and winget. The release publishes to the AUR too once the key from step 5 is in: until the `AUR_KEY` secret exists, the release skips the AUR by itself (`skip_upload` in `.goreleaser.yaml`), so nothing needs switching off.
