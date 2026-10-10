@@ -26,10 +26,10 @@ Windows (PowerShell):
 irm https://raw.githubusercontent.com/stronxyo/quarter/main/install.ps1 | iex
 ```
 
-or with winget:
+or with winget (a few days after each release, once Microsoft has reviewed it):
 
 ```
-winget install quarter
+winget install stronxyo.Quarter
 ```
 
 macOS and Linux:
@@ -38,7 +38,7 @@ macOS and Linux:
 curl -fsSL https://raw.githubusercontent.com/stronxyo/quarter/main/install.sh | sh
 ```
 
-or with Homebrew (`brew install stronxyo/tap/quarter`) or, on Arch Linux, the AUR (`yay -S quarter-tui-bin`).
+or with Homebrew (`brew install stronxyo/tap/quarter`).
 
 With Go installed:
 
