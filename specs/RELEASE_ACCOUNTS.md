@@ -6,7 +6,7 @@ None of this goes into the repo: tokens and keys only ever go into GitHub's secr
 
 | # | What | Needed for | Time | Status |
 |---|---|---|---|---|
-| 1 | A public repo `stronxyo/homebrew-tap` | `brew install stronxyo/tap/quarter` | 2 min | to do |
+| 1 | A public repo `stronxyo/homebrew-tap` | `brew install stronxyo/tap/quarter` | 2 min | done 2026-10-10 |
 | 2 | A fork of `microsoft/winget-pkgs` | `winget install quarter` | 2 min | to do |
 | 3 | One classic GitHub token, scope `public_repo` | steps 1 and 2, from the release | 5 min | to do |
 | 4 | Three secrets in `stronxyo/quarter` | the release workflow | 5 min | to do |
@@ -14,7 +14,7 @@ None of this goes into the repo: tokens and keys only ever go into GitHub's secr
 | 6 | GitHub Sponsors (optional) | the README's Sponsors link | 15 min, then GitHub's review | to do |
 | | Ko-fi | the `c` key, the README | | done (`ko-fi.com/stronxyo`) |
 
-Steps 1 to 4 are enough for a release with Homebrew and winget. The release is set up to publish to the AUR too, and can't without the key from step 5: if the AUR isn't ready by release day, tell Claude, and the AUR part is switched off for that release.
+Steps 1 to 4 are enough for a release with Homebrew and winget. The release publishes to the AUR too once the key from step 5 is in: until the `AUR_KEY` secret exists, the release skips the AUR by itself (`skip_upload` in `.goreleaser.yaml`), so nothing needs switching off.
 
 ## 1. The Homebrew tap
 

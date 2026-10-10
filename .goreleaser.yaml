@@ -114,7 +114,10 @@ aurs:
     maintainers:
       - stronxyo <58714125+stronxyo@users.noreply.github.com>
     license: MIT
-    private_key: "{{ .Env.AUR_KEY }}"
+    private_key: '{{ envOrDefault "AUR_KEY" "" }}'
+    # Until the AUR_KEY secret exists, the release skips the AUR by itself
+    # instead of failing; the package file is still built into dist/.
+    skip_upload: '{{ if isEnvSet "AUR_KEY" }}false{{ else }}true{{ end }}'
     git_url: ssh://aur@aur.archlinux.org/quarter-tui-bin.git
     # Not "quarter": on the AUR that names Coin3D's library, which this
     # neither provides nor conflicts with. A from-source quarter-tui could
