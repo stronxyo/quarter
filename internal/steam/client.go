@@ -1,7 +1,6 @@
 package steam
 
 import (
-	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -40,7 +39,11 @@ func PlayQuiet(steamPath string, appID uint32) error {
 }
 
 // isSteamImage reports whether a program's full path is Steam's client,
-// steam.exe, in any letter case.
+// steam.exe, in any letter case. The path is a Windows one, so it splits on
+// either slash on every system (filepath splits only on its own system's).
 func isSteamImage(path string) bool {
-	return strings.EqualFold(filepath.Base(filepath.FromSlash(path)), "steam.exe")
+	if i := strings.LastIndexAny(path, `/\`); i >= 0 {
+		path = path[i+1:]
+	}
+	return strings.EqualFold(path, "steam.exe")
 }

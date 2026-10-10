@@ -1,7 +1,8 @@
 package library
 
 import (
-	"sort"
+	"cmp"
+	"slices"
 	"strings"
 	"time"
 
@@ -84,8 +85,14 @@ func Filters() []Filter {
 // View returns the games that pass f, ordered by s (reversed when desc),
 // without changing games. Ties are always broken by name, A to Z.
 func View(games []Game, f Filter, s SortOrder, desc bool, now time.Time) []Game {
-	out := make([]Game, 0, len(games))
-	for _, g := range games {
+	// The games' places and lowercased names, each name lowered once rather
+	// than at every comparison, and only places moved while sorting.
+	type entry struct {
+		i   int
+		key string
+	}
+	picked := make([]entry, 0, len(games))
+	for i, g := range games {
 		if f == FilterRecent && (g.LastPlayed.IsZero() || now.Sub(g.LastPlayed) > config.RecentWindow) {
 			continue
 		}
@@ -95,25 +102,31 @@ func View(games []Game, f Filter, s SortOrder, desc bool, now time.Time) []Game 
 		if f == FilterInstalled && !g.Installed {
 			continue
 		}
-		out = append(out, g)
+		picked = append(picked, entry{i, strings.ToLower(g.Name)})
 	}
 
-	sort.SliceStable(out, func(i, j int) bool {
-		a, b := out[i], out[j]
-		var less, equal bool
+	slices.SortStableFunc(picked, func(x, y entry) int {
+		a, b := &games[x.i], &games[y.i]
+		var c int
 		switch s {
 		case SortPlaytime:
-			less, equal = a.Playtime < b.Playtime, a.Playtime == b.Playtime
+			c = cmp.Compare(a.Playtime, b.Playtime)
 		case SortLastPlayed:
-			less, equal = a.LastPlayed.Before(b.LastPlayed), a.LastPlayed.Equal(b.LastPlayed)
+			c = a.LastPlayed.Compare(b.LastPlayed)
 		default:
-			an, bn := strings.ToLower(a.Name), strings.ToLower(b.Name)
-			less, equal = an < bn, an == bn
+			c = strings.Compare(x.key, y.key)
 		}
-		if equal {
-			return strings.ToLower(a.Name) < strings.ToLower(b.Name)
+		if c == 0 {
+			return strings.Compare(x.key, y.key)
 		}
-		return less != desc
+		if desc {
+			return -c
+		}
+		return c
 	})
+	out := make([]Game, len(picked))
+	for k, e := range picked {
+		out[k] = games[e.i]
+	}
 	return out
 }

@@ -71,16 +71,31 @@ func runUI(steamPath string) error {
 		return store.Save(dir, config.LibraryCache, config.LibraryCacheVersion, r)
 	}
 	settings := config.LoadSettings(dir)
+	// The four saved files are read at the same time: on a large library,
+	// reading them is most of the start (TestSpeedTargets' startup does the
+	// same).
+	var (
+		cached     *library.Result
+		sessions   []steam.Session
+		years      []replay.Year
+		storeCache map[uint32]webapi.StoreEntry
+		wg         sync.WaitGroup
+	)
+	wg.Go(func() { cached = loadCachedLibrary(dir, steamPath) })
+	wg.Go(func() { sessions = loadSessions(dir) })
+	wg.Go(func() { years = loadReplay(dir) })
+	wg.Go(func() { storeCache = loadStoreCache(dir) })
+	wg.Wait()
 	final, err := tea.NewProgram(ui.New(ui.Options{
 		SteamPath: steamPath,
-		Cached:    loadCachedLibrary(dir, steamPath),
+		Cached:    cached,
 		Save:      save,
 		Open:      steam.OpenURI,
 
 		RecordSessions: sessionRecorder(dir),
-		Sessions:       loadSessions(dir),
+		Sessions:       sessions,
 
-		Replay:       loadReplay(dir),
+		Replay:       years,
 		FetchReplay:  replayFetcher(steamPath),
 		SaveReplay:   func(y []replay.Year) error { return store.Save(dir, config.ReplayFile, config.ReplayVersion, y) },
 		DeleteReplay: func() error { return removeIfThere(filepath.Join(dir, config.ReplayFile)) },
@@ -101,7 +116,7 @@ func runUI(steamPath string) error {
 		BasicGlyphs: basicGlyphs(settings.Glyphs),
 
 		FetchStore: webapi.NewStoreClient(config.StoreURL, config.StoreTimeout, config.StoreGap).AppDetails,
-		StoreCache: loadStoreCache(dir),
+		StoreCache: storeCache,
 		SaveStore: func(c map[uint32]webapi.StoreEntry) error {
 			return store.Save(dir, config.StoreCache, config.StoreCacheVersion, c)
 		},

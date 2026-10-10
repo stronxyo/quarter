@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -96,14 +97,23 @@ func benchData(tb testing.TB) (dir string, lib library.Result) {
 }
 
 // startup does what launching Quarter does before the first frame: read the
-// saved library, store info, sessions and past years, build the UI, size it
-// and draw the start screen's first frame. (Go's own start and Bubble Tea's
-// wait for its next frame come on top: about 30 ms on Pablo's PC, C1.)
+// saved library, store info, sessions and past years (at the same time, as
+// cmd/quarter's runUI does), build the UI, size it and draw the start
+// screen's first frame. (Go's own start and Bubble Tea's wait for its next
+// frame come on top: about 30 ms on Pablo's PC, C1.)
 func startup(dir string) string {
-	res, _ := store.Load[library.Result](dir, "library.json", 1)
-	info, _ := store.Load[map[uint32]webapi.StoreEntry](dir, "store.json", 1)
-	sessions, _ := store.Load[[]steam.Session](dir, "sessions.json", 1)
-	years, _ := store.Load[[]replay.Year](dir, "replay.json", 1)
+	var (
+		res      library.Result
+		info     map[uint32]webapi.StoreEntry
+		sessions []steam.Session
+		years    []replay.Year
+		wg       sync.WaitGroup
+	)
+	wg.Go(func() { res, _ = store.Load[library.Result](dir, "library.json", 1) })
+	wg.Go(func() { info, _ = store.Load[map[uint32]webapi.StoreEntry](dir, "store.json", 1) })
+	wg.Go(func() { sessions, _ = store.Load[[]steam.Session](dir, "sessions.json", 1) })
+	wg.Go(func() { years, _ = store.Load[[]replay.Year](dir, "replay.json", 1) })
+	wg.Wait()
 	var m tea.Model = New(Options{Cached: &res, StoreCache: info, Sessions: sessions, Replay: years, Splash: true})
 	m, _ = m.Update(tea.WindowSizeMsg{Width: 160, Height: 45})
 	return m.(Model).View().Content
