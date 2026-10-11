@@ -90,7 +90,10 @@ winget:
     homepage: https://github.com/stronxyo/quarter
     publisher_url: https://github.com/stronxyo
     tags: [steam, games, launcher, terminal, tui]
-    release_notes: "{{ .Changelog }}"
+    # winget takes at most 10,000 characters of notes (v0.1.0's whole
+    # changelog was 19 KB and failed Microsoft's check), so a line and the link.
+    release_notes: "Quarter {{ .Tag }}. What's new: {{ .ReleaseURL }}"
+    release_notes_url: "{{ .ReleaseURL }}"
     repository:
       owner: stronxyo
       name: winget-pkgs # your fork of microsoft/winget-pkgs
