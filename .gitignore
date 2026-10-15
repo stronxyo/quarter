@@ -25,12 +25,14 @@ go.work.sum
 .env.*
 config.local.json
 
-# Claude Code local settings
-.claude/settings.local.json
-
-# Claude's memory and Pablo's rules: personal, kept in the private repo stronxyo/quarter-notes
-.claude/memory/
-.claude/global-CLAUDE.md
+# Working docs and Claude Code's files (plan, brief, rules, batch specs, skills, settings):
+# kept on the dev PC and backed up in the private repo stronxyo/quarter-notes, not published
+/CLAUDE.md
+/PLAN.md
+/PROJECT_BRIEF.md
+/RULES/
+/specs/
+/.claude/
 
 # Editors and OS
 .vscode/
