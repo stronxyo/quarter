@@ -18,7 +18,7 @@
 
 Quarter sits on top of the Steam client you already have. It reads your library from Steam's own files and hands every action back to Steam, so there is no login, no password and nothing that touches your account. Steam still does the downloads, updates, cloud saves and overlay.
 
-<img src="docs/media/start-screen.png" alt="Quarter's start screen: the quarter_ logo, the system check finding Steam and 306 games, and insert quarter" width="100%">
+<img src="docs/media/start-screen.gif" alt="Quarter's start screen: the quarter_ logo, the system check finding Steam and 306 games, and insert quarter blinking" width="100%">
 
 ## Features
 
