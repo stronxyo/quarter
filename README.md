@@ -3,14 +3,15 @@
 </h1>
 
 <p align="center">
-  A fast terminal app to browse, search and launch your Steam library.<br>
-  Insert a quarter, pick a game, press Enter.
+  A fast terminal app to browse, search and launch your games.<br>
+  Insert a quarter, pick a game, press Enter.<br>
+  <sub>Steam today. Epic Games, GOG and the other PC launchers are next.</sub>
 </p>
 
 <p align="center">
   <a href="https://github.com/stronxyo/quarter/releases/latest"><img src="https://img.shields.io/github/v/release/stronxyo/quarter?color=FFAF63&labelColor=141210" alt="Latest release"></a>
   <a href="https://github.com/stronxyo/quarter/actions/workflows/ci.yml"><img src="https://github.com/stronxyo/quarter/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/stronxyo/quarter?color=FFAF63&labelColor=141210" alt="MIT license"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-FFAF63?labelColor=141210" alt="MIT license"></a>
 </p>
 
 <!-- VIDEO: replace this line with the github.com/user-attachments/assets/... link of quarter-readme.mp4 -->
@@ -172,6 +173,10 @@ Command line:
 Quarter keeps everything on your computer, asks Steam's public store and servers only for game details, logos and, if you ask, your past years, and sends nothing anywhere else. No account, no tracking. The full list is in [PRIVACY.md](PRIVACY.md).
 
 To remove Quarter completely, delete the `quarter` program and its data folder (above).
+
+## What's next
+
+Quarter starts with Steam. The goal is one terminal library for every PC launcher, added one at a time: Epic Games, GOG, Ubisoft Connect, Battle.net, Xbox (PC Game Pass) and the EA app, then others as people ask for them.
 
 ## Why "Quarter"
 
