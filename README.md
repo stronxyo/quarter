@@ -17,6 +17,8 @@
 
 Quarter sits on top of the Steam client you already have. It reads your library from Steam's own files and hands every action back to Steam, so there is no login, no password and nothing that touches your account. Steam still does the downloads, updates, cloud saves and overlay.
 
+<img src="docs/media/start-screen.png" alt="Quarter's start screen: the quarter_ logo, the system check finding Steam and 306 games, and insert quarter" width="100%">
+
 ## Features
 
 - **Your whole library in one list:** installed games and the ones you own but haven't installed, with playtime, last played and achievements.
@@ -31,43 +33,28 @@ Quarter sits on top of the Steam client you already have. It reads your library 
 
 ## A quick tour
 
-### Insert a quarter
-
-Quarter opens with an arcade intro, checks for Steam, reads your libraries and waits for a key.
-
-<img src="docs/media/start-screen.png" alt="The start screen: the quarter_ logo, Quarter's system check finding Steam and 306 games, and press any key" width="100%">
-
-### Your whole library
-
-Every game you own in one list, with its playtime and last played. The selected game's logo and details sit beside it.
-
-<img src="docs/media/library.png" alt="The main screen: the game list on the left, the selected game's logo and details pane on the right" width="100%">
-
-### Search as you type
-
-Press `/` and type. The list narrows with every letter, and the logo and details follow the game on top.
-
-<img src="docs/media/search.gif" alt="Typing wreck after / narrows the list to Wreckfest, with its logo and details" width="100%">
-
-### Sort and filter, one key each
-
-`p` sorts by playtime, and `tab` steps through All, Installed, Recent and Favourites.
-
-<img src="docs/media/sort-filter.gif" alt="p sorts the list by playtime, then tab moves the filter from All to Installed, Recent and Favourites" width="100%">
-
-### Your play history and HIGH SCORES
-
-`h` opens the ranking of what you played most, and `h` again the HIGH SCORES board with a calendar of played days. `tab` changes the period, from 7 days to all time.
-
-<img src="docs/media/history.gif" alt="h opens the most played ranking, then the HIGH SCORES board, and tab cycles the period" width="100%">
-
-<img src="docs/media/high-scores.png" alt="The HIGH SCORES board for all time: the top 8 games, a calendar of played days, total, longest session, streak and years" width="100%">
-
-### Press Enter
-
-Enter hands the game to Steam, and its row shows it running.
-
-<img src="docs/media/play.gif" alt="Enter on Rocket League: the row turns to running and the game's launch window appears" width="100%">
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/media/search.gif" alt="Typing wreck after / narrows the list to Wreckfest" width="100%"><br>
+      <b>Search as you type.</b> Press <code>/</code> and type; the list narrows with every letter.
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/media/sort-filter.gif" alt="p flips the sort by playtime, then tab moves the filter through Installed, Recent and Favourites" width="100%"><br>
+      <b>Sort and filter, one key each.</b> <code>p</code> sorts by playtime (again to flip), <code>tab</code> steps through the filters.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/media/history.gif" alt="A game's playtime by period, then the HIGH SCORES board with its calendar, the period changing with tab" width="100%"><br>
+      <b>Your play history.</b> <code>h</code> shows a game's playtime by period, <code>h</code> again the HIGH SCORES board with a calendar of played days; <code>tab</code> changes the period.
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/media/play.gif" alt="Enter on Rocket League: the row turns to running and the game's launch window appears" width="100%"><br>
+      <b>Press Enter.</b> The game starts through Steam, and its row shows it running.
+    </td>
+  </tr>
+</table>
 
 ## Install
 
