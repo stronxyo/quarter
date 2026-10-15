@@ -1,13 +1,26 @@
-# quarter_
+<h1 align="center">
+  <img src="docs/media/logo.svg" alt="quarter_" width="560">
+</h1>
 
-A fast terminal app to browse, search and launch your Steam library. Insert a quarter, pick a game, press Enter.
+<p align="center">
+  A fast terminal app to browse, search and launch your Steam library.<br>
+  Insert a quarter, pick a game, press Enter.
+</p>
+
+<p align="center">
+  <a href="https://github.com/stronxyo/quarter/releases/latest"><img src="https://img.shields.io/github/v/release/stronxyo/quarter?color=FFAF63&labelColor=141210" alt="Latest release"></a>
+  <a href="https://github.com/stronxyo/quarter/actions/workflows/ci.yml"><img src="https://github.com/stronxyo/quarter/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/stronxyo/quarter?color=FFAF63&labelColor=141210" alt="MIT license"></a>
+</p>
+
+<!-- VIDEO: replace this line with the github.com/user-attachments/assets/... link of quarter-readme.mp4 -->
 
 Quarter sits on top of the Steam client you already have. It reads your library from Steam's own files and hands every action back to Steam, so there is no login, no password and nothing that touches your account. Steam still does the downloads, updates, cloud saves and overlay.
 
 ## Features
 
 - **Your whole library in one list:** installed games and the ones you own but haven't installed, with playtime, last played and achievements.
-- **Search as you type** with `/`, sort by name, playtime or last played, and filter: All, Installed, Recent, Favourites.
+- **Search as you type** with `/` (the words you type, in any order, best matches first), sort by name, playtime or last played, and filter: All, Installed, Recent, Favourites.
 - **Game logos as real pictures** in terminals that draw Sixel graphics, and as one-colour block art everywhere else.
 - **A details pane:** developer, year, genres, achievements, size, library folder, publisher and the official website.
 - **Play history:** your sessions recorded from Steam's log, a ranking by period, a HIGH SCORES board with a calendar of played days, and, if you ask for them, your past years from Steam Replay.
@@ -15,6 +28,46 @@ Quarter sits on top of the Steam client you already have. It reads your library 
 - **Live Steam state:** a game running now, downloads and updates with their progress, games installed or uninstalled while Quarter is open.
 - **Arcade touches:** an intro on start, an attract mode while the start screen waits, a goodbye when you quit.
 - **Keyboard first, mouse welcome:** every action has a key, and the mouse works too.
+
+## A quick tour
+
+### Insert a quarter
+
+Quarter opens with an arcade intro, checks for Steam, reads your libraries and waits for a key.
+
+<img src="docs/media/start-screen.png" alt="The start screen: the quarter_ logo, Quarter's system check finding Steam and 306 games, and press any key" width="100%">
+
+### Your whole library
+
+Every game you own in one list, with its playtime and last played. The selected game's logo and details sit beside it.
+
+<img src="docs/media/library.png" alt="The main screen: the game list on the left, the selected game's logo and details pane on the right" width="100%">
+
+### Search as you type
+
+Press `/` and type. The list narrows with every letter, and the logo and details follow the game on top.
+
+<img src="docs/media/search.gif" alt="Typing wreck after / narrows the list to Wreckfest, with its logo and details" width="100%">
+
+### Sort and filter, one key each
+
+`p` sorts by playtime, and `tab` steps through All, Installed, Recent and Favourites.
+
+<img src="docs/media/sort-filter.gif" alt="p sorts the list by playtime, then tab moves the filter from All to Installed, Recent and Favourites" width="100%">
+
+### Your play history and HIGH SCORES
+
+`h` opens the ranking of what you played most, and `h` again the HIGH SCORES board with a calendar of played days. `tab` changes the period, from 7 days to all time.
+
+<img src="docs/media/history.gif" alt="h opens the most played ranking, then the HIGH SCORES board, and tab cycles the period" width="100%">
+
+<img src="docs/media/high-scores.png" alt="The HIGH SCORES board for all time: the top 8 games, a calendar of played days, total, longest session, streak and years" width="100%">
+
+### Press Enter
+
+Enter hands the game to Steam, and its row shows it running.
+
+<img src="docs/media/play.gif" alt="Enter on Rocket League: the row turns to running and the game's launch window appears" width="100%">
 
 ## Install
 
