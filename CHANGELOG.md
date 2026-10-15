@@ -4,6 +4,8 @@ All notable changes to Quarter. The format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-15
+
 ### Changed
 
 - Search finds the words you type anywhere in a game's name, in any order, with capitals and punctuation ignored ("spiderman" finds Marvel's Spider-Man), and lists the best matches first: the start of the name, then the start of a word, then inside a word. It used to match letters scattered across a name, so "cyber" also found Black Myth: Wukong Benchmark Tool.
@@ -52,5 +54,6 @@ The first release.
 - Clear messages when Steam isn't found, the library is empty, the store can't be reached or a saved file is damaged.
 - Builds for Windows, macOS and Linux, on amd64 and arm64. Tested on Windows 11; the macOS and Linux builds are untested.
 
-[Unreleased]: https://github.com/stronxyo/quarter/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/stronxyo/quarter/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/stronxyo/quarter/releases/tag/v0.2.0
 [0.1.0]: https://github.com/stronxyo/quarter/releases/tag/v0.1.0
