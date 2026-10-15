@@ -110,6 +110,7 @@ func newList() list.Model {
 	// A page counter ("3/170") instead of one dot per page: dots don't fit
 	// big libraries, and rendering them dominated startup time.
 	l.Paginator.Type = paginator.Arabic
+	l.Filter = searchFilter
 	l.FilterInput.Prompt = "Search: "
 	s := l.FilterInput.Styles()
 	s.Focused.Text, s.Blurred.Text = textStyle, textStyle

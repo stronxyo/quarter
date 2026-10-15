@@ -790,3 +790,29 @@ Two workflows in `.github/workflows/`, written by hand:
 - **Before the tag:** the whole history scanned for private notes and secrets (none; one match was the instruction text in `RELEASE_ACCOUNTS.md`); the repo made public first, since winget's check, the install scripts, Homebrew and `go install` all need public downloads; the README's winget line made `winget install stronxyo.Quarter` (the full id can't clash), the AUR line taken out until that package exists; Sponsors taken out (Ko-fi only); `AUR_KEY` deleted until the AUR account exists.
 - **Release run (tag v0.1.0): passed.** The release page has the six downloads (3.7 to 4.2 MB) and `checksums.txt`; the Homebrew cask `Casks/quarter.rb` is in `stronxyo/homebrew-tap` ("Brew cask update for quarter version v0.1.0"); the winget pull request was opened: microsoft/winget-pkgs#450003.
 - **winget PR failed Microsoft's manifest check:** `ReleaseNotes` was the whole changelog, 19 KB, over winget's 10,000-character limit (the bot's diagnosis, matching the file). Fixed for every later release in `.goreleaser.yaml`: one line and `release_notes_url`, the release page (checked with `goreleaser check` and a snapshot). For 0.1.0, Pablo replaces the locale file in his fork's branch `quarter-0.1.0` with the short notes, which re-runs the check. The PR also waits on Microsoft's CLA, which only Pablo can accept (a comment on the PR).
+
+## Search by words (Pablo, 2026-10-14: "if I search with / the word "cyber" not only cyberpunk 2077 appeared but also Black Mith wukong bemchamrk"; after the research: "1 - matching anywhere. 2 - best first. 3 - lets see this later i agree. 4 - ok skip"; "go build")
+
+**Cause:** the list used Bubbles' own filter (`list.DefaultFilter`, which calls sahilm/fuzzy, "optimized for filenames and code symbols"): the typed letters in order, anywhere, so "cyber" matched blaCk mYth ... BEnchmaRk.
+
+**Research (2026-10-14):**
+- **Steam**, read in its own `steamui/sp.js` on Pablo's PC (dated 2026-10-13): the library filter lowercases and looks for the whole typed text inside the name or its sort name, punctuation and word order not handled. Big Picture and Steam Deck search: every word in any order, scored by where it's found (start of the name, then the start of a word after a space, punctuation or a capital, then inside a word), best first; a word of 5 or more letters with one typo still matches, ranked low.
+- **Windows Start and macOS Spotlight** match word starts ("alculator" doesn't find Calculator); **GNOME** lists names starting with the text before names containing it.
+- **lazygit** (a Go terminal app) switched its default from fuzzy to words anywhere in any order in v0.41.0, after "Fuzzy filtering is too fuzzy" (#3373: a 3-letter filter over 4,000 branches showed about 800 unrelated ones).
+- **Apple**: text shown to users is searched "case and diacritic insensitive"; **Algolia and Meilisearch**: words in any order, a part-typed last word matches, typo tolerance, best first.
+- **On Pablo's 309 names** (store.json), fuzzy / words anywhere / word starts: "cyber" 2/1/1, "rl" 88/7/0, "re" 136/49/15, "man" 27/9/2, "punk" 2/2/0. Word starts alone loses joined names (Cyberpunk, Cloudpunk, Robocraft, HITMAN).
+
+**Picked:** words anywhere; best first; typo tolerance later (in the memory's later ideas); accents not folded (none in Pablo's names; it would need `golang.org/x/text`; Steam doesn't either).
+
+### What it does
+
+- Capitals and punctuation are ignored in the search and the names: "spiderman" finds "Marvel's Spider-Man", "stalker" finds "S.T.A.L.K.E.R. 2", "counterstrike" finds "Counter-Strike 2".
+- Every word typed must be in the name, anywhere, in any order: "wukong black" finds Black Myth.
+- Best first: each word scores 0 at the start of the name, 1 at the start of a word (after a space or dropped punctuation, or a capital after a small letter: the Man in Spider-Man, the Mania in ShootMania), 2 inside a word; a game's score is the sum. Ties keep the list's order, its sort. "war": War Thunder and Warhammer, then World of Warships, then Alien Swarm.
+- Only punctuation typed shows everything, like an empty search. No letter highlights (Quarter draws none).
+
+### Code and tests
+
+`internal/ui/search.go` (`searchFilter`, set as the list's `Filter` in `newList`). Tests: `TestSearchMatchesWords` and `TestSearchBestFirst`, run through the list's own filter; 8 of their cases fail on the fuzzy filter (only "mania" passed by chance). The search tests already there pass unchanged. Speed, search keystroke on 5,000 games (fastest run, three runs each): 1.50 to 1.63 ms before, 1.63 to 2.02 ms after; target 16 ms unchanged. gofmt, vet for Windows, Linux and macOS, staticcheck 2026.2.1 and every test pass.
+
+Sources: [lazygit #3373](https://github.com/jesseduffield/lazygit/issues/3373), [lazygit #3376](https://github.com/jesseduffield/lazygit/pull/3376), [sahilm/fuzzy](https://github.com/sahilm/fuzzy), [Apple: localizedStandardContains](https://developer.apple.com/documentation/foundation/nsstring/localizedstandardcontains(_:)), [Algolia: prefix searching](https://www.algolia.com/doc/guides/managing-results/optimize-search-results/override-search-engine-defaults/in-depth/prefix-searching/), [Meilisearch: typo tolerance](https://www.meilisearch.com/docs/learn/relevancy/typo_tolerance), [GNOME Shell da83ad5](https://git.gnome.org/browse/gnome-shell/commit/?id=da83ad5), [Eclectic Light: Spotlight](https://eclecticlight.co/2025/06/02/how-to-search-successfully-in-spotlight-gui-tools/), [ctrl.blog: Windows Start search](https://www.ctrl.blog/entry/windows-start-search-results/).
