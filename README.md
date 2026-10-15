@@ -18,7 +18,7 @@ Quarter sits on top of the Steam client you already have. It reads your library 
 
 <img src="docs/media/start-screen.gif" alt="Quarter's start screen: the quarter_ logo, the system check finding Steam and 306 games, and insert quarter blinking" width="100%">
 
-https://github.com/user-attachments/assets/b230322f-0b5e-4a33-933b-7d298a5871bc
+https://github.com/user-attachments/assets/f7e20816-ae07-47ab-abc0-9df97c0d63bc
 
 ## Features
 
@@ -37,21 +37,21 @@ https://github.com/user-attachments/assets/b230322f-0b5e-4a33-933b-7d298a5871bc
 <table>
   <tr>
     <td width="50%" valign="top">
-      <img src="docs/media/search.gif" alt="Typing wreck after / narrows the list to Wreckfest" width="100%"><br>
+      <img src="docs/media/search.webp" alt="Typing wreck after / narrows the list to Wreckfest, then the camera moves to the two results and the game's logo" width="100%"><br>
       <b>Search as you type.</b> Press <code>/</code> and type; the list narrows with every letter.
     </td>
     <td width="50%" valign="top">
-      <img src="docs/media/sort-filter.gif" alt="p flips the sort by playtime, then tab moves the filter through Installed, Recent and Favourites" width="100%"><br>
-      <b>Sort and filter, one key each.</b> <code>p</code> sorts by playtime (again to flip), <code>tab</code> steps through the filters.
+      <img src="docs/media/sort-filter.webp" alt="p flips the sort by playtime, tab moves the filter through Installed, Recent and Favourites, and Watch Dogs 2 gets a star" width="100%"><br>
+      <b>Sort, filter and star.</b> <code>p</code> sorts by playtime (again to flip), <code>tab</code> steps through the filters, <code>f</code> or a right-click stars a game.
     </td>
   </tr>
   <tr>
     <td width="50%" valign="top">
-      <img src="docs/media/history.gif" alt="A game's playtime by period, then the HIGH SCORES board with its calendar, the period changing with tab" width="100%"><br>
+      <img src="docs/media/history.webp" alt="A game's playtime by period, then the HIGH SCORES board with its calendar, the period changing with tab" width="100%"><br>
       <b>Your play history.</b> <code>h</code> shows a game's playtime by period, <code>h</code> again the HIGH SCORES board with a calendar of played days; <code>tab</code> changes the period.
     </td>
     <td width="50%" valign="top">
-      <img src="docs/media/play.gif" alt="Enter on Rocket League: the row turns to running and the game's launch window appears" width="100%"><br>
+      <img src="docs/media/play.webp" alt="Enter on Rocket League: the row turns to running and the game's launch window appears" width="100%"><br>
       <b>Press Enter.</b> The game starts through Steam, and its row shows it running.
     </td>
   </tr>
@@ -89,7 +89,15 @@ go install github.com/stronxyo/quarter/cmd/quarter@latest
 
 You can also download a build for your system from the [releases page](https://github.com/stronxyo/quarter/releases).
 
-Then run `quarter`.
+Then type `quarter` to start it. When that works, by the way you installed:
+
+- **Windows script and Homebrew:** right away.
+- **winget:** in a new terminal; winget adds its folder to your PATH, and only new terminals see it.
+- **macOS and Linux script:** it installs to `~/.local/bin`. If that folder isn't on your PATH yet, the script adds it in your shell's settings file and says what to do next: open a new terminal (or log out and back in, for shells that read it only at login). To leave your settings alone, end the line with `| QUARTER_NO_MODIFY_PATH=1 sh` instead of `| sh`; the script then prints the line to add yourself.
+- **`go install`:** in Go's `bin` folder (inside `go env GOPATH`), which needs to be on your PATH.
+- **A download from the releases page:** put `quarter` in a folder on your PATH. On macOS, a build downloaded with a browser is blocked as unsigned; `xattr -d com.apple.quarantine quarter` clears that once.
+
+Terminals that were already open before the install find `quarter` once you reopen them.
 
 **Tested on:** Windows 11 with Windows Terminal. The macOS and Linux builds are made from the same code and should work, but haven't been tested on a real machine yet. Reports are welcome in the [issues](https://github.com/stronxyo/quarter/issues).
 
