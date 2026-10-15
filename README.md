@@ -14,11 +14,11 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-FFAF63?labelColor=141210" alt="MIT license"></a>
 </p>
 
-<!-- VIDEO: replace this line with the github.com/user-attachments/assets/... link of quarter-readme.mp4 -->
-
 Quarter sits on top of the Steam client you already have. It reads your library from Steam's own files and hands every action back to Steam, so there is no login, no password and nothing that touches your account. Steam still does the downloads, updates, cloud saves and overlay.
 
 <img src="docs/media/start-screen.gif" alt="Quarter's start screen: the quarter_ logo, the system check finding Steam and 306 games, and insert quarter blinking" width="100%">
+
+https://github.com/user-attachments/assets/b230322f-0b5e-4a33-933b-7d298a5871bc
 
 ## Features
 
