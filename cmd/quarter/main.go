@@ -28,9 +28,6 @@ import (
 	"github.com/stronxyo/quarter/internal/webapi"
 )
 
-// version is overridden at release time with -ldflags "-X main.version=<tag>".
-var version = "dev"
-
 func main() {
 	showVersion := flag.Bool("version", false, "print the version and exit")
 	list := flag.Bool("list", false, "print installed games as plain text and exit")
@@ -40,7 +37,7 @@ func main() {
 	var err error
 	switch {
 	case *showVersion:
-		fmt.Printf("%s %s\n", config.AppName, version)
+		fmt.Printf("%s %s\n", config.AppName, appVersion())
 	case *list:
 		err = listGames(os.Stdout, os.Stderr, *steamPath)
 	default:

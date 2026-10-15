@@ -31,7 +31,12 @@
 
     $version = $env:QUARTER_VERSION
     if (-not $version) {
-        $version = (Invoke-RestMethod "https://api.github.com/repos/$repo/releases/latest" -Headers @{ 'User-Agent' = 'quarter-install' }).tag_name
+        # The latest release's page redirects to its tag: no API call, so no
+        # rate limit on a shared connection (install.sh does the same).
+        # PowerShell 5.1 keeps the final address in ResponseUri, 7 in RequestMessage.
+        $r = Invoke-WebRequest "https://github.com/$repo/releases/latest" -Method Head -UseBasicParsing
+        $final = if ($r.BaseResponse.ResponseUri) { $r.BaseResponse.ResponseUri } else { $r.BaseResponse.RequestMessage.RequestUri }
+        $version = ([string]$final).Split('/')[-1]
     }
     if ($version -notmatch '^v\d') { throw "quarter install: couldn't find the latest release (got '$version')" }
     $base = if ($env:QUARTER_BASE_URL) { $env:QUARTER_BASE_URL } else { "https://github.com/$repo/releases/download/$version" }
@@ -62,13 +67,18 @@
         Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
     }
 
-    # On the user's PATH, for new terminals, and for this one right away.
+    # Typing quarter has to just work: on the user's PATH for new terminals,
+    # and in this one right away.
     $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
     $parts = @($userPath -split ';' | Where-Object { $_ })
     if ($parts -notcontains $dir) {
         [Environment]::SetEnvironmentVariable('Path', (($parts + $dir) -join ';'), 'User')
-        Write-Host "Added $dir to your PATH."
+        Write-Host "Added $dir to your PATH. Terminals that were already open find quarter once you reopen them."
     }
     if (($env:Path -split ';') -notcontains $dir) { $env:Path = "$env:Path;$dir" }
-    Write-Host 'Run: quarter'
+    $first = Get-Command quarter -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($first -and $first.Source -ne (Join-Path $dir 'quarter.exe')) {
+        Write-Host "Note: typing quarter starts $($first.Source), which comes first on your PATH. Remove that one to use this install."
+    }
+    Write-Host 'Type quarter to start.'
 }

@@ -4,6 +4,15 @@ All notable changes to Quarter. The format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+### Changed
+
+- The macOS and Linux install script makes typing `quarter` work: when `~/.local/bin` isn't on your PATH, it adds it in your shell's settings file (`~/.zshrc`, `~/.bashrc` or `~/.bash_profile`, fish's `conf.d`, or `~/.profile`) and says to open a new terminal. `QUARTER_NO_MODIFY_PATH=1` leaves your settings alone.
+- The Windows install script finds the latest release without GitHub's API, so a shared connection can't run into the API's limit. Both scripts now say when another `quarter` comes first on your PATH.
+
+### Fixed
+
+- `quarter --version` shows the version after `go install` too; it said "dev".
+
 ## [0.2.0] - 2026-10-15
 
 ### Changed
