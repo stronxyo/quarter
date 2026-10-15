@@ -6,9 +6,10 @@ package ui
 // while Steam is closed, or while the Steam Quarter started is still
 // signing in, goes as "-silent -applaunch <id>", which Steam holds until it
 // is ready, and the message line shows "Opening Steam" with the moving dots
-// until the game runs. Where Steam doesn't say whether it runs (Linux,
-// macOS), or with "steam_start": "normal", play opens steam:// links as
-// before.
+// until the game runs. Once Steam runs, play goes as "-applaunch <id>"
+// alone, which Steam starts without its "Launching..." window (Pablo,
+// 2026-10-14). Where Steam doesn't say whether it runs (Linux, macOS), or
+// with "steam_start": "normal", play opens steam:// links as before.
 
 import (
 	"log/slog"
@@ -106,19 +107,62 @@ func (m Model) notedClient(c steam.Client) Model {
 	return m
 }
 
-// playQuietly reports whether g is played through "-silent -applaunch":
-// Steam is closed, or the start Quarter made is still under way. Otherwise
-// Steam is ready and the steam:// link starts the game, as before.
-func (m Model) playQuietly() bool {
-	if !m.quietSteam() || m.playQuiet == nil {
-		return false
+// playWay is how a game is played.
+type playWay int
+
+const (
+	wayLink  playWay = iota // the steam:// link, as before
+	wayQuiet                // "-silent -applaunch": Steam closed, or the start Quarter made still under way
+	wayReady                // "-applaunch": Steam running, so no "Launching..." window
+)
+
+// wayToPlay picks how a game is played: quietly while Steam is closed or
+// the start Quarter made is still under way, by -applaunch alone once
+// Steam runs, and by the steam:// link where Steam doesn't say whether it
+// runs or with "steam_start": "normal".
+func (m Model) wayToPlay() playWay {
+	if !m.quietSteam() {
+		return wayLink
 	}
 	c, known := m.steamClient()
-	if !known {
-		return false
+	switch {
+	case !known:
+	case !c.Running || m.notedClient(c).booting():
+		if m.playQuiet != nil {
+			return wayQuiet
+		}
+	case m.playReady != nil:
+		return wayReady
 	}
-	m = m.notedClient(c)
-	return !c.Running || m.booting()
+	return wayLink
+}
+
+// playGame plays g the way wayToPlay picks.
+func (m Model) playGame(g library.Game) (Model, tea.Cmd, bool) {
+	switch m.wayToPlay() {
+	case wayQuiet:
+		return m.launchQuietly(g)
+	case wayReady:
+		return m.launchReady(g)
+	}
+	return m.openFor(steam.PlayURI(g.AppID), markerRunning+" Launching "+g.Name)
+}
+
+// launchReady plays g through the running Steam by "-applaunch", which
+// brings no "Launching..." window. If steam.exe can't be run, the steam://
+// link starts it, window and all.
+func (m Model) launchReady(g library.Game) (Model, tea.Cmd, bool) {
+	m.statusID++
+	m.status, m.statusWrong = markerRunning+" Launching "+g.Name, false
+	play, open, id, appID := m.playReady, m.open, m.statusID, g.AppID
+	return m, func() tea.Msg {
+		err := play(appID)
+		if err == nil {
+			return openDoneMsg{id: id}
+		}
+		slog.Warn("steam applaunch", "err", err)
+		return openURI(open, steam.PlayURI(appID), id)()
+	}, true
 }
 
 // launchQuietly plays g through "-silent -applaunch", and waits for it with

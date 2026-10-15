@@ -86,6 +86,7 @@ type Model struct {
 	steamClient       func() (steam.Client, bool) // what Steam's client says about itself; nil where it doesn't say (steamstart.go)
 	startSteam        func() error                // starts Steam in the tray; may be nil
 	playQuiet         func(uint32) error          // starts a game through Steam, Steam in the tray first; may be nil
+	playReady         func(uint32) error          // starts a game through the running Steam, without its Launching window; may be nil
 	steamStartSetting string                      // config.json's "steam_start": "" quiet, "normal" as before
 	boot              steamBoot                   // a start of Steam Quarter made, until Steam is signed in
 	launch            launchWait                  // a game played quietly, waiting for Steam to start it
@@ -215,6 +216,7 @@ type Options struct {
 	SteamClient func() (steam.Client, bool) // what Steam's client says about itself; known false where it doesn't say
 	StartSteam  func() error                // starts Steam in the tray, with no window
 	PlayQuiet   func(uint32) error          // starts a game through Steam, starting Steam in the tray first
+	PlayReady   func(uint32) error          // starts a game through the running Steam, without its Launching window
 
 	Logos func(steamPath string) LogoSource // game logos, once the Steam folder is known
 
@@ -247,6 +249,7 @@ func New(opts Options) Model {
 		steamClient:  opts.SteamClient,
 		startSteam:   opts.StartSteam,
 		playQuiet:    opts.PlayQuiet,
+		playReady:    opts.PlayReady,
 
 		newLogos:    opts.Logos,
 		logoCache:   make(map[logoKey]drawnLogo),

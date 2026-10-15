@@ -7,6 +7,7 @@ All notable changes to Quarter. The format follows [Keep a Changelog](https://ke
 ### Changed
 
 - Search finds the words you type anywhere in a game's name, in any order, with capitals and punctuation ignored ("spiderman" finds Marvel's Spider-Man), and lists the best matches first: the start of the name, then the start of a word, then inside a word. It used to match letters scattered across a name, so "cyber" also found Black Myth: Wukong Benchmark Tool.
+- On Windows, a game played with Steam already open starts without Steam's "Launching..." box: Quarter hands it to Steam as `steam.exe -applaunch`, as it already did with Steam closed, instead of a `steam://` link. If steam.exe can't be run, the link starts the game as before. `"steam_start": "normal"` keeps the link and the box.
 
 ## [0.1.0] - 2026-10-10
 

@@ -38,6 +38,15 @@ func PlayQuiet(steamPath string, appID uint32) error {
 	return startClient(steamPath, "-silent", "-applaunch", strconv.FormatUint(uint64(appID), 10))
 }
 
+// Play starts a game through the running Steam with -applaunch alone, as
+// the command line does. Steam opens its "Launching..." window only for
+// games started from its tray menu and two of its steam:// run links
+// (OnGameActionStart in its steamui/sp.js, read 2026-10-14), so a game
+// started this way comes without it; tried on Pablo's PC, 2026-10-14.
+func Play(steamPath string, appID uint32) error {
+	return startClient(steamPath, "-applaunch", strconv.FormatUint(uint64(appID), 10))
+}
+
 // isSteamImage reports whether a program's full path is Steam's client,
 // steam.exe, in any letter case. The path is a Windows one, so it splits on
 // either slash on every system (filepath splits only on its own system's).

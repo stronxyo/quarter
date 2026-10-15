@@ -27,7 +27,7 @@ Quarter sits on top of the Steam client you already have. It reads your library 
 - **Game logos as real pictures** in terminals that draw Sixel graphics, and as one-colour block art everywhere else.
 - **A details pane:** developer, year, genres, achievements, size, library folder, publisher and the official website.
 - **Play history:** your sessions recorded from Steam's log, a ranking by period, a HIGH SCORES board with a calendar of played days, and, if you ask for them, your past years from Steam Replay.
-- **Steam starts quietly:** on Windows, Quarter starts Steam in the tray as it opens, and games start without Steam's window.
+- **Steam starts quietly:** on Windows, Quarter starts Steam in the tray as it opens, and games start without Steam's window or its "Launching..." box.
 - **Live Steam state:** a game running now, downloads and updates with their progress, games installed or uninstalled while Quarter is open.
 - **Arcade touches:** an intro on start, an attract mode while the start screen waits, a goodbye when you quit.
 - **Keyboard first, mouse welcome:** every action has a key, and the mouse works too.
@@ -152,9 +152,9 @@ A few settings are only in the file. Close Quarter before editing it.
 | `"mouse"` | `""` Quarter takes the mouse (default), `"off"` leaves it to the terminal |
 | `"logo_blocks"` | `"octants"` for twice the detail, in fonts that have block octants (Windows Terminal's own Cascadia Mono) |
 | `"glyphs"` | `""` found out (default), `"basic"` the classic console's way (no game logos, simpler characters), `"full"` every character |
-| `"steam_start"` | `""` Steam starts in the tray when Quarter opens, and games start without its window (default, Windows); `"normal"` Steam opens with its window, as before |
+| `"steam_start"` | `""` Steam starts in the tray when Quarter opens, and games start without its window or its "Launching..." box (default, Windows); `"normal"` Steam opens with its window, as before |
 
-**Steam starts quietly (Windows).** Most games need Steam running. So when you open Quarter with Steam closed, Quarter starts Steam in the tray, with no window, and a game you play starts without Steam's window covering the terminal. Steam needs about half a minute to sign in; play during that time and the message under the details says "Opening Steam" until the game starts. Install, uninstall, the store page and the logo click still show Steam's window. Quitting Quarter leaves Steam in the tray. To have Steam open as it always has, with its window and only when you play, close Quarter, open `config.json` (Windows: `%APPDATA%\quarter\config.json`) in a text editor, and change `"steam_start":""` to `"steam_start":"normal"`; set it back to `""` for the quiet start. On macOS and Linux, Quarter opens Steam as before.
+**Steam starts quietly (Windows).** Most games need Steam running. So when you open Quarter with Steam closed, Quarter starts Steam in the tray, with no window, and a game you play starts without Steam's window covering the terminal. Steam needs about half a minute to sign in; play during that time and the message under the details says "Opening Steam" until the game starts. With Steam already open, a game starts without Steam's "Launching..." box. Install, uninstall, the store page and the logo click still show Steam's window. Quitting Quarter leaves Steam in the tray. To have Steam open as it always has, with its window and its "Launching..." box, and only when you play, close Quarter, open `config.json` (Windows: `%APPDATA%\quarter\config.json`) in a text editor, and change `"steam_start":""` to `"steam_start":"normal"`; set it back to `""` for the quiet start. On macOS and Linux, Quarter opens Steam as before.
 
 Intros: `crt-power-on`, `implode`, `coin-drop`, `staggered-drop`, `raster-reveal`, `typewriter`, `decode`, `light-sweep`, `dither-dissolve`, `glitch-settle`, `starfield-warp`, `beams`, `slice`, `stack-up`, `spiral-in`, `ignite`, `rally`, `coin-roll`, `block-drop`, `march`, `snake`, `plasma`, `fire`, `code-rain`, `card-flip`, `synthwave`, `installer`, `shockwave`, `liquid-fill`, `neon`, `firework`, `zoom-punch`.
 

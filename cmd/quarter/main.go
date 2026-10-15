@@ -102,10 +102,13 @@ func runUI(steamPath string) error {
 		RunningApp:   steam.RunningApp,
 
 		// Steam starts in the tray when Quarter opens, and games start
-		// without its window (specs/BATCH_08_SPEC.md, "Steam starts quietly").
+		// without its window (specs/BATCH_08_SPEC.md, "Steam starts quietly"),
+		// or its Launching window once it runs ("Play without Steam's
+		// Launching window").
 		SteamClient: steam.ClientState,
 		StartSteam:  func() error { return steam.StartQuiet(steamPath) },
 		PlayQuiet:   func(id uint32) error { return steam.PlayQuiet(steamPath, id) },
+		PlayReady:   func(id uint32) error { return steam.Play(steamPath, id) },
 
 		Settings:     settings,
 		SaveSettings: func(s config.Settings) error { return config.SaveSettings(dir, s) },

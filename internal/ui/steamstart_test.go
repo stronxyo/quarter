@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -16,12 +17,14 @@ import (
 // fakeSteam stands in for Steam's client: what it says about itself, and
 // what Quarter asked of it.
 type fakeSteam struct {
-	c      steam.Client
-	known  bool
-	starts int
-	plays  []uint32
-	opened []string
-	clock  time.Time
+	c        steam.Client
+	known    bool
+	starts   int
+	plays    []uint32 // "-silent -applaunch"
+	launches []uint32 // "-applaunch" alone
+	failExe  bool     // steam.exe can't be run
+	opened   []string
+	clock    time.Time
 }
 
 // quietModel is a ready model on fakeSteam, with Portal 2 installed and
@@ -34,7 +37,14 @@ func quietModel(t *testing.T, f *fakeSteam, s config.Settings) Model {
 		SteamClient: func() (steam.Client, bool) { return f.c, f.known },
 		StartSteam:  func() error { f.starts++; return nil },
 		PlayQuiet:   func(id uint32) error { f.plays = append(f.plays, id); return nil },
-		Settings:    s,
+		PlayReady: func(id uint32) error {
+			f.launches = append(f.launches, id)
+			if f.failExe {
+				return errors.New("steam.exe not found")
+			}
+			return nil
+		},
+		Settings: s,
 	})
 	m.now = func() time.Time { return f.clock }
 	var tm tea.Model = m
@@ -120,7 +130,9 @@ func TestSteamStartsAtOpen(t *testing.T) {
 }
 
 // Play goes quietly when Steam is closed or still starting from Quarter's
-// own start, and by the steam:// link, as before, everywhere else.
+// own start, by -applaunch alone once Steam runs, so Steam shows no
+// "Launching..." window, and by the steam:// link, as before, where Steam
+// doesn't say whether it runs or with "normal".
 func TestPlayPicksQuietOrLink(t *testing.T) {
 	ready := steam.Client{Running: true, SignedIn: true}
 	tests := []struct {
@@ -129,37 +141,52 @@ func TestPlayPicksQuietOrLink(t *testing.T) {
 		known   bool
 		setting string
 		booted  bool // Quarter started Steam a moment ago
-		quiet   bool
+		failExe bool // steam.exe can't be run
+		way     playWay
 	}{
-		{"Steam closed", steam.Client{}, true, "", false, true},
-		{"Steam ready", ready, true, "", false, false},
-		{"Steam signing in after Quarter's start", steam.Client{Running: true}, true, "", true, true},
-		{"right after Quarter's start, last run's account still showing", ready, true, "", true, true},
-		{"set to normal, Steam closed", steam.Client{}, true, steamNormal, false, false},
-		{"Steam doesn't say", steam.Client{}, false, "", false, false},
+		{"Steam closed", steam.Client{}, true, "", false, false, wayQuiet},
+		{"Steam ready", ready, true, "", false, false, wayReady},
+		{"Steam signing in, started by the user", steam.Client{Running: true}, true, "", false, false, wayReady},
+		{"Steam signing in after Quarter's start", steam.Client{Running: true}, true, "", true, false, wayQuiet},
+		{"right after Quarter's start, last run's account still showing", ready, true, "", true, false, wayQuiet},
+		{"set to normal, Steam closed", steam.Client{}, true, steamNormal, false, false, wayLink},
+		{"set to normal, Steam ready", ready, true, steamNormal, false, false, wayLink},
+		{"Steam doesn't say", steam.Client{}, false, "", false, false, wayLink},
+		{"Steam ready, steam.exe can't be run: the link", ready, true, "", false, true, wayReady},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := &fakeSteam{c: tt.c, known: tt.known}
+			f := &fakeSteam{c: tt.c, known: tt.known, failExe: tt.failExe}
 			m := quietModel(t, f, config.Settings{SteamStart: tt.setting})
 			if tt.booted {
 				m.boot = steamBoot{at: f.clock.Add(-time.Second)}
 			}
 			m = playKey(t, m)
-			if tt.quiet {
-				if !slices.Equal(f.plays, []uint32{620}) || len(f.opened) != 0 {
-					t.Fatalf("want a quiet play only: plays %v, links %v", f.plays, f.opened)
+			text, wrong := m.noticeText()
+			switch tt.way {
+			case wayQuiet:
+				if !slices.Equal(f.plays, []uint32{620}) || len(f.launches) != 0 || len(f.opened) != 0 {
+					t.Fatalf("want a quiet play only: plays %v, launches %v, links %v", f.plays, f.launches, f.opened)
 				}
-				if text, _ := m.noticeText(); !strings.HasPrefix(text, "Opening Steam") {
+				if !strings.HasPrefix(text, "Opening Steam") {
 					t.Errorf("message %q, want Opening Steam with the dots", text)
 				}
 				return
+			case wayReady:
+				var links []string
+				if tt.failExe {
+					links = []string{"steam://rungameid/620"}
+				}
+				if len(f.plays) != 0 || !slices.Equal(f.launches, []uint32{620}) || !slices.Equal(f.opened, links) {
+					t.Fatalf("want -applaunch, then the link only if it fails: plays %v, launches %v, links %v", f.plays, f.launches, f.opened)
+				}
+			case wayLink:
+				if len(f.plays) != 0 || len(f.launches) != 0 || !slices.Equal(f.opened, []string{"steam://rungameid/620"}) {
+					t.Fatalf("want the link only: plays %v, launches %v, links %v", f.plays, f.launches, f.opened)
+				}
 			}
-			if len(f.plays) != 0 || !slices.Equal(f.opened, []string{"steam://rungameid/620"}) {
-				t.Fatalf("want the link only: plays %v, links %v", f.plays, f.opened)
-			}
-			if text, _ := m.noticeText(); !strings.Contains(text, "Launching Portal 2") {
-				t.Errorf("message %q, want today's Launching line", text)
+			if wrong || !strings.Contains(text, "Launching Portal 2") {
+				t.Errorf("message %q (wrong %v), want today's Launching line", text, wrong)
 			}
 		})
 	}
@@ -167,7 +194,7 @@ func TestPlayPicksQuietOrLink(t *testing.T) {
 
 // Quarter's start ends once Steam is seen signed in, after signing in or
 // after bootReady (ActiveUser is stale right after a start); then play
-// goes by the link.
+// goes by -applaunch alone.
 func TestBootEndsWhenSignedIn(t *testing.T) {
 	f := &fakeSteam{c: steam.Client{Running: true}, known: true}
 	m := quietModel(t, f, config.Settings{})
@@ -181,8 +208,8 @@ func TestBootEndsWhenSignedIn(t *testing.T) {
 		t.Fatal("signed in after signing in: the start is over")
 	}
 	m = playKey(t, m)
-	if len(f.plays) != 0 || len(f.opened) != 1 {
-		t.Errorf("Steam ready: want the link, got plays %v, links %v", f.plays, f.opened)
+	if len(f.plays) != 0 || len(f.launches) != 1 || len(f.opened) != 0 {
+		t.Errorf("Steam ready: want -applaunch, got plays %v, launches %v, links %v", f.plays, f.launches, f.opened)
 	}
 
 	m.boot = steamBoot{at: f.clock}
