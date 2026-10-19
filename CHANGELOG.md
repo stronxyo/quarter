@@ -4,6 +4,8 @@ All notable changes to Quarter. The format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-19
+
 ### Changed
 
 - The macOS and Linux install script makes typing `quarter` work: when `~/.local/bin` isn't on your PATH, it adds it in your shell's settings file (`~/.zshrc`, `~/.bashrc` or `~/.bash_profile`, fish's `conf.d`, or `~/.profile`) and says to open a new terminal. `QUARTER_NO_MODIFY_PATH=1` leaves your settings alone.
@@ -63,6 +65,7 @@ The first release.
 - Clear messages when Steam isn't found, the library is empty, the store can't be reached or a saved file is damaged.
 - Builds for Windows, macOS and Linux, on amd64 and arm64. Tested on Windows 11; the macOS and Linux builds are untested.
 
-[Unreleased]: https://github.com/stronxyo/quarter/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/stronxyo/quarter/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/stronxyo/quarter/releases/tag/v0.2.1
 [0.2.0]: https://github.com/stronxyo/quarter/releases/tag/v0.2.0
 [0.1.0]: https://github.com/stronxyo/quarter/releases/tag/v0.1.0
