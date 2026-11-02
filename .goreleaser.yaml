@@ -63,7 +63,7 @@ homebrew_casks:
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     directory: Casks
     homepage: https://github.com/stronxyo/quarter
-    description: Browse, search and launch your Steam library in the terminal
+    description: Game library and launcher for the terminal (Steam for now)
     license: MIT
     binaries:
       - quarter
@@ -85,7 +85,7 @@ winget:
   - name: quarter
     publisher: stronxyo
     package_identifier: stronxyo.Quarter
-    short_description: Browse, search and launch your Steam library in the terminal
+    short_description: A fast terminal app to browse, search and launch your games. Steam today; Epic Games, GOG and more launchers next.
     license: MIT
     homepage: https://github.com/stronxyo/quarter
     publisher_url: https://github.com/stronxyo
@@ -113,7 +113,7 @@ winget:
 aurs:
   - name: quarter-tui-bin
     homepage: https://github.com/stronxyo/quarter
-    description: Browse, search and launch your Steam library in the terminal
+    description: Game library and launcher for the terminal (Steam for now)
     maintainers:
       - stronxyo <58714125+stronxyo@users.noreply.github.com>
     license: MIT

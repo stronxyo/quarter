@@ -4,6 +4,10 @@ All notable changes to Quarter. The format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+### Changed
+
+- The Homebrew, winget and AUR packages describe Quarter as a game library for every launcher, with Steam the one it reads today.
+
 ## [0.2.1] - 2026-10-19
 
 ### Changed
