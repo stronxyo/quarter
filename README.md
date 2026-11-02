@@ -18,7 +18,7 @@ Quarter sits on top of the Steam client you already have. It reads your library 
 
 <img src="docs/media/start-screen.gif" alt="Quarter's start screen: the quarter_ logo, the system check finding Steam and 306 games, and insert quarter blinking" width="100%">
 
-https://github.com/user-attachments/assets/f7e20816-ae07-47ab-abc0-9df97c0d63bc
+https://github.com/user-attachments/assets/00bb27e1-65db-4bcd-8b4e-f31dfd47963c
 
 ## Features
 
